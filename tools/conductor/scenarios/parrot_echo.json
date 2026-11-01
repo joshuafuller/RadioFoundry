@@ -1,0 +1,22 @@
+{
+  "license": "MIT",
+  "copyright": "Copyright (c) 2026 The RadioFoundry Authors",
+  "comment": "caller echo bug: radio 1 keys a group call to TG 9 for 1.5 s; a network parrot plays it back with radio 1's own source ID. Radio 2 is a bystander on the same air. tools/conductor/checks/parrot_check.py",
+  "version": 1,
+  "radios": 2,
+  "end_us": 7000000,
+  "inputs": [
+    {"radio": 1, "kind": "KEY", "payload_hex": "0401", "time_us": 1000000, "source": 100},
+    {"radio": 1, "kind": "KEY", "payload_hex": "0400", "time_us": 2500000, "source": 100}
+  ],
+  "dlmux": {"cadence_us": 100000},
+  "air": {
+    "groups": [[1, 2]],
+    "seed": 0,
+    "radios": [
+      {"radio": 1, "storage": "dmr-group", "radio_index": 1, "identity": 3100001, "channel": 1, "cc": 1, "ts": 1},
+      {"radio": 2, "storage": "dmr-group", "radio_index": 2, "identity": 3100002, "channel": 1, "cc": 1, "ts": 1}
+    ],
+    "parrot": {"replay": [1], "gap_us": 1000000}
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "license": "MIT",
+  "copyright": "Copyright (c) 2026 The RadioFoundry Authors",
+  "comment": "caller echo bug with version mixing: run radio 1 on the fixed build (--build 1=ELF). Radio 1 and then radio 2 each key a 1.5 s group call to TG 9; the parrot plays both back; a repeater also echoes radio 1's own bursts 180 ms late. Radio 3 is a bystander. tools/conductor/checks/parrot_check.py --part mixed",
+  "version": 1,
+  "radios": 3,
+  "end_us": 12500000,
+  "inputs": [
+    {"radio": 1, "kind": "KEY", "payload_hex": "0401", "time_us": 1000000, "source": 100},
+    {"radio": 1, "kind": "KEY", "payload_hex": "0400", "time_us": 2500000, "source": 100},
+    {"radio": 2, "kind": "KEY", "payload_hex": "0401", "time_us": 7000000, "source": 100},
+    {"radio": 2, "kind": "KEY", "payload_hex": "0400", "time_us": 8500000, "source": 100}
+  ],
+  "dlmux": {"cadence_us": 100000},
+  "air": {
+    "groups": [[1, 2, 3]],
+    "seed": 0,
+    "radios": [
+      {"radio": 1, "storage": "dmr-group", "radio_index": 1, "identity": 3100001, "channel": 1, "cc": 1, "ts": 1},
+      {"radio": 2, "storage": "dmr-group", "radio_index": 2, "identity": 3100002, "channel": 1, "cc": 1, "ts": 1},
+      {"radio": 3, "storage": "dmr-group", "radio_index": 3, "identity": 3100003, "channel": 1, "cc": 1, "ts": 1}
+    ],
+    "parrot": {"replay": [1, 2], "gap_us": 1000000, "echo": [1], "echo_us": 180000}
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "license": "MIT",
+  "copyright": "Copyright (c) 2026 The RadioFoundry Authors",
+  "version": 1,
+  "end_us": 5000000,
+  "inputs": [
+    {"radio": 1, "kind": "BYTES_IN", "time_us": 1500000, "source": 1, "payload_hex": "a55a01070000e477"},
+    {"radio": 1, "kind": "BYTES_IN", "time_us": 2800000, "source": 1, "payload_hex": "a55a01070000e477"}
+  ]
+}

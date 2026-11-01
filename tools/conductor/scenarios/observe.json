@@ -1,0 +1,12 @@
+{
+  "license": "MIT",
+  "copyright": "Copyright (c) 2026 The RadioFoundry Authors",
+  "version": 1,
+  "end_us": 5000000,
+  "inputs": [],
+  "dlmux": {"cadence_us": 250000},
+  "keys": [
+    {"radio": 1, "key": "ok", "state": "down", "time_us": 2000000},
+    {"radio": 1, "key": "ok", "state": "up", "time_us": 2020000}
+  ]
+}

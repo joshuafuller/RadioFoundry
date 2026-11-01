@@ -1,0 +1,19 @@
+{
+  "license": "MIT",
+  "copyright": "Copyright (c) 2026 The RadioFoundry Authors",
+  "version": 1,
+  "radios": 2,
+  "end_us": 5000000,
+  "air": {
+    "groups": [[1, 2]],
+    "seed": 0,
+    "radios": [
+      {"radio": 1, "storage": "dmr-pair", "radio_index": 1, "identity": 3100001, "channel": 1, "cc": 1, "ts": 1},
+      {"radio": 2, "storage": "dmr-pair", "radio_index": 2, "identity": 3100002, "channel": 1, "cc": 1, "ts": 1}
+    ]
+  },
+  "inputs": [
+    {"radio": 1, "kind": "KEY", "payload_hex": "0401", "time_us": 3000000, "source": 100},
+    {"radio": 1, "kind": "KEY", "payload_hex": "0400", "time_us": 4000000, "source": 100}
+  ]
+}

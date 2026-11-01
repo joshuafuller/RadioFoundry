@@ -1,0 +1,24 @@
+{
+  "license": "MIT",
+  "copyright": "Copyright (c) 2026 The RadioFoundry Authors",
+  "version": 1,
+  "radios": 2,
+  "end_us": 4500000,
+  "inputs": [],
+  "dlmux": {"cadence_us": 500000},
+  "air": {
+    "groups": [[1, 2]],
+    "seed": 0,
+    "radios": [
+      {"radio": 1, "storage": "dmr-pair", "radio_index": 1, "identity": 3100001, "channel": 1, "cc": 1, "ts": 1},
+      {"radio": 2, "storage": "dmr-pair", "radio_index": 2, "identity": 3100002, "channel": 1, "cc": 1, "ts": 1}
+    ]
+  },
+  "keys": [
+    {"radio": 1, "key": "ptt", "state": "down", "time_us": 1000000},
+    {"radio": 1, "key": "ptt", "state": "up", "time_us": 2000000}
+  ],
+  "sms": {"radio": 1, "time_us": 2500000, "dst": 3100002, "flags": 2, "text": "TEST"},
+  "views": {"call_us": 1900000, "data_us": 4400000},
+  "codeplug": {"radio": 1, "time_us": 3000000, "source": 28673, "sentinel": "RF7F6317-CODEPLUG-SENTINEL"}
+}

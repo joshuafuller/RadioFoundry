@@ -1,0 +1,24 @@
+{
+  "schema_version": 2,
+  "name": "ping",
+  "tier": "shareable",
+  "time_model": "adr-0005",
+  "class_table": 1,
+  "view_version": 1,
+  "seed": 1,
+  "epoch_utc": "2026-01-01T00:00:00Z",
+  "duration_us": 13000000,
+  "radios": [{
+    "id": "a", "dmr_id": 3100001, "storage": "blank",
+    "board": {"id": "vhost", "display": "rgb565-160x128", "flash_size": 16777216,
+              "keymap_sha256": "0000000000000000000000000000000000000000000000000000000000000000"}
+  }],
+  "events": [{"t_us": 12400000, "round": 0, "class": 30, "seq": 0, "source": "scenario", "radio": "a",
+              "host": {"stream": "host-port", "hex": "a55a0101000044c5"}}],
+  "checkpoints": [],
+  "assertions": [],
+  "build": {"sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+            "conductor_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+            "version": "synthetic-lint-fixture", "commit_time": 0},
+  "end": {"t_us": 13000000, "reason": "synthetic fixture", "complete": true}
+}

@@ -1,0 +1,29 @@
+{
+  "license": "MIT",
+  "copyright": "Copyright (c) 2026 The RadioFoundry Authors",
+  "version": 1,
+  "radios": 2,
+  "end_us": 26000000,
+  "inputs": [],
+  "dlmux": {"cadence_us": 500000},
+  "air": {
+    "groups": [[1, 2]],
+    "seed": 0,
+    "radios": [
+      {"radio": 1, "storage": "dmr-pair", "radio_index": 1, "identity": 3100001, "channel": 1, "cc": 1, "ts": 1},
+      {"radio": 2, "storage": "dmr-pair", "radio_index": 2, "identity": 3100002, "channel": 1, "cc": 1, "ts": 1}
+    ]
+  },
+  "keys": [],
+  "sms": [
+    {"name": "first", "radio": 1, "time_us": 2000000, "dst": 3100002, "flags": 2, "text": "OK 7"},
+    {"name": "second", "radio": 1, "time_us": 20000000, "dst": 3100002, "flags": 2, "text": "OK 7"}
+  ],
+  "restart": {"radio": 1, "time_us": 10000000},
+  "views": [
+    {"name": "after_first", "time_us": 6000000},
+    {"name": "after_restart", "time_us": 14000000},
+    {"name": "after_second", "time_us": 25000000}
+  ],
+  "control_text": "OK 8"
+}

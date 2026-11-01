@@ -1,0 +1,91 @@
+{
+  "license": "MIT",
+  "copyright": "Copyright (c) 2026 The RadioFoundry Authors",
+  "version": 1,
+  "radios": 2,
+  "end_us": 12000000,
+  "air": {
+    "groups": [
+      [
+        1,
+        2
+      ]
+    ],
+    "seed": 0,
+    "lookahead_proven": false,
+    "radios": [
+      {
+        "radio": 1,
+        "storage": "dmr-pair",
+        "radio_index": 1,
+        "identity": 3100001,
+        "channel": 1,
+        "cc": 1,
+        "ts": 1
+      },
+      {
+        "radio": 2,
+        "storage": "dmr-pair",
+        "radio_index": 2,
+        "identity": 3100002,
+        "channel": 1,
+        "cc": 1,
+        "ts": 1
+      }
+    ]
+  },
+  "phase_us": {
+    "1": 29999,
+    "2": 10000
+  },
+  "boundary_input_us": 3000000,
+  "reboot": {
+    "radio": 2,
+    "time_us": 7000001
+  },
+  "sms_text": "lookahead proof",
+  "inputs": [
+    {
+      "radio": 1,
+      "kind": "KEY",
+      "payload_hex": "0401",
+      "time_us": 3000000,
+      "source": 100
+    },
+    {
+      "radio": 1,
+      "kind": "KEY",
+      "payload_hex": "0400",
+      "time_us": 3600000,
+      "source": 100
+    },
+    {
+      "radio": 1,
+      "kind": "BYTES_IN",
+      "payload_hex": "a55a0e01150001624d2f00066c6f6f6b61686561642070726f6f6695dc",
+      "time_us": 4500000,
+      "source": 100
+    },
+    {
+      "radio": 2,
+      "kind": "BYTES_IN",
+      "payload_hex": "a55a0e0202000500add8",
+      "time_us": 6500000,
+      "source": 100
+    },
+    {
+      "radio": 2,
+      "kind": "KEY",
+      "payload_hex": "0401",
+      "time_us": 10000000,
+      "source": 100
+    },
+    {
+      "radio": 2,
+      "kind": "KEY",
+      "payload_hex": "0400",
+      "time_us": 10600000,
+      "source": 100
+    }
+  ]
+}
