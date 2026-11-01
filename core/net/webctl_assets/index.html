@@ -48,6 +48,25 @@ td{padding:0 12px 0 0;font-size:13px;overflow-wrap:anywhere}
 <div id=keys></div><p id=note></p><div id=help></div>
 <details><summary>All status</summary><table id=t></table></details></div></main>
 <script>
+// A gateway carries its proof in exact-origin storage; direct radios use their existing connection.
+let rfProof;
+const rfSession = (async () => {
+	const key = 'rf-browser-v1', fragment = location.hash;
+	if (fragment.startsWith('#rf-token=')) {
+		history.replaceState(null, '', '/');
+		if (!/^#rf-token=[A-Za-z0-9_-]{43}$/.test(fragment)) throw Error('Invalid session');
+		const r = await fetch('/session', {method: 'POST', headers: {'Content-Type': 'application/json'},
+			body: JSON.stringify({token: fragment.slice(10)})});
+		if (!r.ok) throw Error('Invalid session');
+		rfProof = (await r.json()).proof;
+		sessionStorage.setItem(key, rfProof);
+	} else rfProof = sessionStorage.getItem(key);
+})();
+const rfFetch = async url => {
+	await rfSession;
+	return fetch(url, {headers: rfProof ? {'X-RadioFoundry-Session': rfProof} : {}});
+};
+
 'use strict';
 const $ = id => document.getElementById(id), NS = 'http://www.w3.org/2000/svg';
 // Keyboard keys to the radio's key names, the first the radio has; [ ] and Page Up / Down turn the knob
@@ -157,9 +176,9 @@ function edges(svg) {
 // The radio's drawing and its hand mic's (a mobile's), their key-<name> shapes made keys; keys they don't show become
 // buttons beside them
 async function panel() {
-	try { names = await (await fetch('/keys.json')).json(); } catch (e) {}
+	try { names = await (await rfFetch('/keys.json')).json(); } catch (e) {}
 	for (const n in names) bits[names[n]] = n;
-	const box = $('radio'), get = async u => { const r = await fetch(u).catch(() => 0); return r && r.ok ? r.text() : ''; };
+	const box = $('radio'), get = async u => { const r = await rfFetch(u).catch(() => 0); return r && r.ok ? r.text() : ''; };
 	box.innerHTML = await get('/radio.svg') + await get('/mic.svg');
 	const svgs = [...box.querySelectorAll('svg')], find = id => svgs.map(v => v.getElementById(id)).find(e => e);
 	const vb = svgs[0] && svgs[0].viewBox.baseVal;
@@ -320,10 +339,11 @@ $('ls').onclick = () => {
 };
 $('vol').oninput = () => gn.gain.value = $('vol').value;
 
-const status = () => fetch('/status').then(r => r.json()).then(show).catch(() => 0);
+const status = () => rfFetch('/status').then(r => r.json()).then(show).catch(() => 0);
 
-function connect() {
-	ws = new WebSocket('ws://' + location.host + '/ws');
+async function connect() {
+	try { await rfSession; } catch (e) { return; }
+	ws = new WebSocket('ws://' + location.host + '/ws', rfProof ? ['rf-vr-v1', 'rf-vr-proof.' + rfProof] : []);
 	ws.binaryType = 'arraybuffer';
 	ws.onopen = () => { clearInterval(poll); poll = 0; };
 	ws.onmessage = ev => {

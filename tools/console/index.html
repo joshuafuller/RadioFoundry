@@ -1,0 +1,99 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: MIT -->
+<!-- Copyright (c) 2026 The RadioFoundry Authors -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Virtual Radio Console</title>
+<link rel="stylesheet" href="/console.css">
+<script src="/console.js" defer></script>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 20V10"></path><path d="M8.5 6.5a5 5 0 0 1 7 0"></path><path d="M5.5 3.5a9 9 0 0 1 13 0"></path><circle cx="12" cy="10" r="1.5"></circle></svg>
+    <span class="world" id="world">world</span>
+    <span class="muted">world</span>
+  </div>
+  <div class="facts mono">
+    <span><span class="label">state</span> <span id="state">connecting</span></span>
+    <span><span class="label">virtual</span> <span id="clock">00:00.000</span></span>
+    <span><span class="label">speed</span> <span id="ratio">-</span></span>
+    <span><span class="label">seed</span> <span id="seed">-</span></span>
+    <span><span class="label">radios</span> <span id="count">-</span></span>
+  </div>
+  <div class="chips">
+    <span class="muted small">scenario</span>
+    <span class="chip mono" id="verdict">no assertions</span>
+    <span class="chip mono chip-link" id="link">observer</span>
+  </div>
+</header>
+<div class="body">
+  <main>
+    <section aria-label="Radios" class="radios" id="radios"></section>
+    <section aria-label="Air timeline" class="panel air">
+      <div class="air-head">
+        <h2>Air timeline</h2>
+        <div class="legend">
+          <span><i class="sw sent"></i>sent</span>
+          <span><i class="sw heard"></i>heard</span>
+          <span><i class="sw collision"></i>collision</span>
+          <span><i class="sw stopped"></i>not heard (rule)</span>
+          <span><i class="sw fault"></i>fault window</span>
+        </div>
+      </div>
+      <div class="lane-grid mono">
+        <span></span>
+        <div class="axis" id="axis"></div>
+      </div>
+      <div id="lanes"></div>
+      <div class="lane-grid">
+        <span class="muted small">events</span>
+        <div class="events" id="events"></div>
+      </div>
+    </section>
+    <section aria-label="Controls" class="panel controls" id="controls" data-mode="off">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>
+      <span class="lock" id="control-mode">Controls: needs world permission</span>
+      <span class="group" id="unlock" hidden>
+        <input id="code" type="password" autocomplete="off" spellcheck="false" placeholder="control code from the terminal" aria-label="Control code">
+        <button id="unlock-button" type="button" disabled>Unlock</button>
+      </span>
+      <button id="pause" type="button" disabled title="needs world permission">Pause</button>
+      <button id="step" type="button" disabled title="needs world permission">Step 30 ms</button>
+      <label class="group small">Speed
+        <select id="speed" disabled aria-label="Speed">
+          <option value="0.1">0.1x</option><option value="0.25">0.25x</option><option value="0.5">0.5x</option>
+          <option value="1" selected>1x</option><option value="2">2x</option><option value="5">5x</option>
+          <option value="10">10x</option><option value="max">max</option>
+        </select>
+      </label>
+      <span class="group small" id="fault-box">Loss at <span id="receivers" class="group"></span>
+        <input id="rate" type="number" min="1" max="100" value="100" disabled aria-label="Loss percent">%
+        for <input id="length" type="number" min="10" max="10000" step="10" value="500" disabled aria-label="Window in ms"> ms
+        <button id="fault" type="button" disabled title="needs world permission">Inject fault</button>
+      </span>
+      <button type="button" disabled title="not available: no world API loads a scenario into a running world">Load scenario</button>
+      <span class="muted small push" id="control-note">This console only watches. Watching changes nothing in the run.</span>
+    </section>
+  </main>
+  <aside aria-label="Detail" class="detail" id="detail">
+    <div>
+      <div class="caps">Selected burst</div>
+      <div class="title" id="burst-title">No burst yet</div>
+    </div>
+    <dl id="burst-facts"></dl>
+    <div class="stack">
+      <div class="caps">Air decision per receiver</div>
+      <div id="burst-decisions" class="stack"></div>
+    </div>
+    <div class="stack">
+      <div class="caps">Assertions</div>
+      <div id="assertions" class="stack"></div>
+    </div>
+    <div class="muted small note">Read from the world API (observe.status, observe.events) and the frame stream, as an observer. Click a burst on the timeline to see it here.</div>
+  </aside>
+</div>
+</body>
+</html>
