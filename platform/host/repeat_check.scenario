@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 The RadioFoundry Authors
+#
+# The scenario of the repeat check (platform/host/repeat_check.py): one 6 s run of the virtual radio. Every line that
+# starts with "--" is a command line option of rfoundry_vhost.elf, in this order. Times are virtual ms.
+#
+#   1500  debug link PING from the host (the --host bytes a55a0101000044c5)
+#   1500  hold SELECT 800 ms: a long press opens the quick settings
+#   2200  key 9 (bit 15): the Brightness tile opens its editor
+#   2400  key 5 (bit 11): brightness 50, the editor closes and the setting is stored. The store is written 2 s after
+#         the last change, so the run goes to 6000 ms to see the flash.write (it falls at 5200 ms)
+#   2600  BACK leaves the quick settings
+#   3000  DOWN: the key due exactly at a scan time (scan boundary). The input task scans every INPUT_SCAN_MS = 10 ms, so a key
+#         at a multiple of 10 ms is due at a scan. The check wants this key's key interrupt line, then the scan's
+#         "IN input" line at the same microsecond
+#   4200  MMDVM GET_VERSION from the host (the --host bytes e00300). It comes after the keys because the radio goes
+#         into hotspot mode on it and the quick settings keys would do nothing
+#   3500  PTT held 500 ms: radio.tx at 3510, radio.tx_off at 4010
+--until-ms 6000
+--no-stall-watch
+--host-port on
+--host 1500:a55a0101000044c5
+--host 4200:e00300
+--key 1500:0:800
+--key 2200:15:100
+--key 2400:11:100
+--key 2600:1:100
+--key 3000:3:100
+--key 3500:4:500
+
+# The key that must be due at a scan time (virtual ms). It must be one of the --key lines above
+@scan-key 3000
+
+# Control 1 changes one input time: PTT held 100 ms longer. radio.tx_off (in both traces) must move
+@control1 --key 3500:4:500 => --key 3500:4:600
+
+# Control 2 changes what the key path stores: brightness 70, not 50. A flash.write hash and a screen update hash
+# (display.flush) must change
+@control2 --key 2400:11:100 => --key 2400:13:100

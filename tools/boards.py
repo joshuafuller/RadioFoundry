@@ -24,6 +24,7 @@ for the stub's board record.
     tools/boards.py list [--platform P[,Q]] [--toolchain T[,U]] [--release stable|testing] [--comma]   board ids (an
                                                   unknown platform or toolchain is an error, so a typo never selects
                                                   no board)
+    tools/boards.py list --virtual [--comma]     the virtual boards (BOARD_VIRTUAL in board.mk), never in the registry
     tools/boards.py platform P [key.path]        one platform value
     tools/boards.py get <id> [key.path]          one value (a list: one item per line), for shell scripts
     tools/boards.py json [--for rfoundry|site|build] [--out FILE | --check FILE]   the merged, derived view; --for
@@ -740,10 +741,29 @@ def _read_toml(path):
             raise RegistryError("%s: %s" % (os.path.relpath(path, ROOT), e))
 
 
+# A board.mk line that says the board is not a radio: the virtual board (boards/vhost, docs/dev/virtual-radio.md), the
+# firmware's core on a PC. Read as text, not through make, so listing the boards costs no make run
+VIRTUAL_RE = re.compile(r"(?m)^BOARD_VIRTUAL\s*:?=\s*y\s*(#.*)?$")
+
+
+def _is_virtual(root, bid):
+    with open(os.path.join(root, "boards", bid, "board.mk"), encoding="utf-8") as f:
+        return bool(VIRTUAL_RE.search(f.read()))
+
+
 def board_dirs(root=ROOT):
-    """Every boards/<id>/ with a board.mk (a board the build knows)."""
+    """Every boards/<id>/ with a board.mk (a board the build knows) that is a radio: a virtual board (BOARD_VIRTUAL)
+    is never in the registry, so it never reaches registry.json, the site or the docs blocks."""
     base = os.path.join(root, "boards")
-    return sorted(d for d in os.listdir(base) if os.path.isfile(os.path.join(base, d, "board.mk")))
+    return sorted(d for d in os.listdir(base) if os.path.isfile(os.path.join(base, d, "board.mk"))
+                  and not _is_virtual(root, d))
+
+
+def virtual_dirs(root=ROOT):
+    """The boards/<id>/ whose board.mk sets BOARD_VIRTUAL := y (tools/ci.sh builds their default only)."""
+    base = os.path.join(root, "boards")
+    return sorted(d for d in os.listdir(base) if os.path.isfile(os.path.join(base, d, "board.mk"))
+                  and _is_virtual(root, d))
 
 
 def load_platforms(root=ROOT):
@@ -1000,6 +1020,11 @@ def check(root=ROOT):
         boards = load(root)
     except RegistryError as e:
         return [str(e)]
+    # a virtual board is never a radio: a board.toml next to its marker would put it on the site and in the flasher
+    for v in virtual_dirs(root):
+        if os.path.isfile(os.path.join(root, "boards", v, "board.toml")):
+            problems.append("boards/%s: BOARD_VIRTUAL and a board.toml: a virtual board is not a radio and has no "
+                            "registry entry (remove one of them)" % v)
     hw = hardware_switches(root)
     stub_ids, orders = {}, {}
     classes = gallery_classes(root)
@@ -1779,6 +1804,17 @@ def self_test():
                 os.makedirs(os.path.dirname(os.path.join(tmp, p)), exist_ok=True)
                 open(os.path.join(tmp, p), "w").close()
         ok(check(tmp) == [], "the copied registry is consistent: %s" % check(tmp)[:3])
+        # a virtual board (BOARD_VIRTUAL) is left out of the registry, and refused with a board.toml
+        vdir = os.path.join(tmp, "boards", "selftest_virtual")
+        os.makedirs(vdir)
+        with open(os.path.join(vdir, "board.mk"), "w", encoding="utf-8") as f:
+            f.write("PLATFORM := none\nBOARD_VIRTUAL := y\n")
+        ok("selftest_virtual" not in board_dirs(tmp) and "selftest_virtual" in virtual_dirs(tmp),
+           "a virtual board is not a registry board")
+        ok(check(tmp) == [], "a virtual board leaves the registry consistent: %s" % check(tmp)[:3])
+        open(os.path.join(vdir, "board.toml"), "w").close()
+        ok(any("BOARD_VIRTUAL and a board.toml" in p for p in check(tmp)), "check refuses a virtual board's board.toml")
+        shutil.rmtree(vdir)
         one = board_dirs(tmp)[0]
         path = os.path.join(tmp, "boards", one, "board.toml")
         good = open(path, encoding="utf-8").read()
@@ -1924,6 +1960,8 @@ def main(argv=None):
                                        "comma separated list: any of them)")
     p.add_argument("--release", choices=RELEASES)
     p.add_argument("--comma", action="store_true", help="one line, comma separated")
+    p.add_argument("--virtual", action="store_true", help="the virtual boards instead (BOARD_VIRTUAL in board.mk: not "
+                                                          "radios, never in the registry)")
     p = sub.add_parser("get", help="one value of one board (a list: one item per line)")
     p.add_argument("board")
     p.add_argument("path", nargs="?", default="")
@@ -1969,6 +2007,10 @@ def main(argv=None):
                 print("boards: docs %s%s" % ("current" if a.check else "written",
                                             ", nothing lower than %s" % a.floor if a.floor else ""))
             return 1 if problems else 0
+        if a.cmd == "list" and a.virtual:
+            ids = virtual_dirs()
+            print(",".join(ids) if a.comma else "\n".join(ids))
+            return 0
         # the board's make variables cost a make run each: load only what the command reads
         boards = {} if a.cmd == "platform" else load(only=[a.board] if a.cmd in ("get", "builds") else None)
         if a.cmd == "list":

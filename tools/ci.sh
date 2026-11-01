@@ -379,6 +379,8 @@ build() {
 	dir="$OUT/$b-$name"
 	log="$dir.log"
 	failed_before=$FAILED
+	# Recompile the virtual board too: a cached object would hide its compiler warnings.
+	is_virtual "$b" && rm -rf "$dir"
 	target=$(make -s BOARD="$b" BUILD="$dir" "$@" print-vars VARS=TARGET | sed 's/^TARGET=//')	# build options name it
 	rm -f "$target.elf"		# always relink: the size report reads the linker's memory-usage lines
 	if ! make BOARD="$b" BUILD="$dir" -j"$JOBS" "$@" > "$log" 2>&1; then
@@ -390,9 +392,12 @@ build() {
 	if grep -qi 'warning:' "$log"; then
 		grep -i 'warning:' "$log" | sort -u | head -10
 		bad "$b $name: warnings ($*; see $log)"
+	elif is_virtual "$b"; then
+		ok "$b $name: zero warnings"
 	fi
-	# the static stack check (docs/dev/stack-check.md) on the default and the maximal configuration
-	if [ "$name" = default ] || [ "$name" = maximal ]; then
+	# the static stack check (docs/dev/stack-check.md) on the default and the maximal configuration; not on a virtual
+	# board, whose tasks run on host threads with host stacks (its numbers would say nothing about a radio)
+	if { [ "$name" = default ] || [ "$name" = maximal ]; } && ! is_virtual "$b"; then
 		if make -s BOARD="$b" BUILD="$dir" "$@" stack-check > "$dir.stack.log" 2>&1; then
 			ok "$b $name: $(grep -E '^stack check .*: every task fits' "$dir.stack.log" | sed 's/^stack check [^:]*: //')"
 		else
@@ -421,6 +426,25 @@ build() {
 	fi
 	echo "| $b | $name | $bytes | $delta | $free | $pct % |" >> "$REPORT"
 	ok "$b $name: $bytes bytes, $free bytes free in the app region"
+	if is_virtual "$b" && [ "$FAILED" = "$failed_before" ]; then
+		if "$target.elf" --until-ms 100 --trace "$dir.boot.log" > "$dir.boot.err" 2>&1 &&
+		   python3 tools/check_task_loops.py --map "$target.map" --trace "$dir.boot.log" > "$dir.loops.log" 2>&1; then
+			ok "$b task loops: $(tail -1 "$dir.loops.log")"
+		else
+			cat "$dir.boot.err" "$dir.loops.log" 2>/dev/null
+			bad "$b task loops (see $dir.boot.err and $dir.loops.log)"
+		fi
+		for check in repeat stall watchdog; do
+			# Use the exact image just checked; -o skips the tests' normal vhost-elf rebuild.
+			if make -C tests/host -o vhost-elf VHOST_ELF="$PWD/$target.elf" "vhost-$check" \
+				> "$dir.$check.log" 2>&1; then
+				ok "$b $check: $(tail -2 "$dir.$check.log" | head -1)"
+			else
+				tail -20 "$dir.$check.log"
+				bad "$b $check (see $dir.$check.log)"
+			fi
+		done
+	fi
 	# a tree that failed (warnings, stack check) stays for debugging
 	if [ "${RFOUNDRY_CI_PRUNE:-1}" != 0 ] && [ "$FAILED" = "$failed_before" ]; then
 		cp "$bin" "$dir.bin" && rm -rf "$dir"
@@ -437,6 +461,10 @@ builds() {
 	done 3< "$OUT/$1.builds"
 	rm -f "$OUT/$1.builds"
 }
+
+# The virtual boards (BOARD_VIRTUAL in board.mk, tools/boards.py list --virtual): not radios, never in the registry
+is_virtual() { case ",$VIRTUAL," in *",$1,"*) true ;; *) false ;; esac; }
+VIRTUAL=$(reg list --virtual --comma 2>/dev/null)
 
 if step firmware; then
 [ -n "$REG_PY" ] || bad "firmware: $(cat "$OUT/rfoundry-python.log") (the build options, extras and stubs come from it)"
@@ -459,6 +487,11 @@ for bm in boards/*/board.mk boards/*/; do
 	b=$(basename "$(dirname "$bm")")
 	[ -n "$ONLY" ] && case ",$ONLY," in *",$b,"*) false ;; *) true ;; esac && continue
 	echo "== firmware: $b"
+	# a virtual board: its default build only, on the host compiler (no build options, no matrix, no registry entry)
+	if is_virtual "$b"; then
+		[ "$MATRIX" = 0 ] && build "$b" default
+		continue
+	fi
 	cc=$(make -s BOARD="$b" print-cc 2>/dev/null)
 	if [ -z "$cc" ] || ! command -v "$cc" > /dev/null 2>&1; then
 		skip "$b: compiler ${cc:-?} not installed ($(reg platform "$(reg get "$b" platform)" toolchain.build 2>/dev/null))"

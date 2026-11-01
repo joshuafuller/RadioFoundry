@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: MIT -->
+<!-- Copyright (c) 2026 The RadioFoundry Authors -->
+<!-- A generic handheld radio for the virtual board: original, plain, no vendor marks. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 640">
+<defs><linearGradient id="body" x1="0" x2="1"><stop offset="0" stop-color="#2b3036"/><stop offset=".5" stop-color="#3b4249"/><stop offset="1" stop-color="#2b3036"/></linearGradient><linearGradient id="key" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5b646d"/><stop offset="1" stop-color="#363c42"/></linearGradient></defs>
+<rect x="60" y="0" width="22" height="90" rx="8" fill="#1d2125" stroke="#000" stroke-width="2"/>
+<rect x="14" y="70" width="272" height="560" rx="34" fill="url(#body)" stroke="#000" stroke-width="3"/>
+<rect x="38" y="92" width="224" height="184" rx="12" fill="#101214" stroke="#000" stroke-width="2"/>
+<rect id="screen" x="50" y="102" width="200" height="160" fill="#000"/>
+<rect id="key-back" x="40" y="296" width="68" height="38" rx="10" fill="url(#key)" stroke="#000" stroke-width="2"/>
+<text x="74.0" y="320.2" text-anchor="middle" font-family="sans-serif" font-size="15" fill="#e8ecef" pointer-events="none">BACK</text>
+<rect id="key-select" x="192" y="296" width="68" height="38" rx="10" fill="url(#key)" stroke="#000" stroke-width="2"/>
+<text x="226.0" y="320.2" text-anchor="middle" font-family="sans-serif" font-size="15" fill="#e8ecef" pointer-events="none">OK</text>
+<rect id="key-up" x="116" y="290" width="68" height="26" rx="10" fill="url(#key)" stroke="#000" stroke-width="2"/>
+<text x="150.0" y="307.9" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#e8ecef" pointer-events="none">&#9650;</text>
+<rect id="key-down" x="116" y="320" width="68" height="26" rx="10" fill="url(#key)" stroke="#000" stroke-width="2"/>
+<text x="150.0" y="337.9" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#e8ecef" pointer-events="none">&#9660;</text>
+<rect id="key-1" x="50" y="366" width="64" height="50" rx="10" fill="url(#key)" stroke="#000" stroke-width="2"/>
+<text x="82.0" y="398.0" text-anchor="middle" font-family="sans-serif" font-size="20" fill="#e8ecef" pointer-events="none">1</text>
+<rect id="key-2" x="122" y="366" width="64" height="50" rx="10" fill="url(#key)" stroke="#000" stroke-width="2"/>
+<text x="154.0" y="398.0" text-anchor="middle" font-family="sans-serif" font-size="20" fill="#e8ecef" pointer-events="none">2</text>
+<rect id="key-3" x="194" y="366" width="64" height="50" rx="10" fill="url(#key)" stroke="#000" stroke-width="2"/>
+<text x="226.0" y="398.0" text-anchor="middle" font-family="sans-serif" font-size="20" fill="#e8ecef" pointer-events="none">3</text>
+<rect id="key-4" x="50" y="426" width="64" height="50" rx="10" fill="url(#key)" stroke="#000" stroke-width="2"/>
+<text x="82.0" y="458.0" text-anchor="middle" font-family="sans-serif" font-size="20" fill="#e8ecef" pointer-events="none">4</text>
+<rect id="key-5" x="122" y="426" width="64" height="50" rx="10" fill="url(#key)" stroke="#000" stroke-width="2"/>
+<text x="154.0" y="458.0" text-anchor="middle" font-family="sans-serif" font-size="20" fill="#e8ecef" pointer-events="none">5</text>
+<rect id="key-6" x="194" y="426" width="64" height="50" rx="10" fill="url(#key)" stroke="#000" stroke-width="2"/>
+<text x="226.0" y="458.0" text-anchor="middle" font-family="sans-serif" font-size="20" fill="#e8ecef" pointer-events="none">6</text>
+<rect id="key-7" x="50" y="486" width="64" height="50" rx="10" fill="url(#key)" stroke="#000" stroke-width="2"/>
+<text x="82.0" y="518.0" text-anchor="middle" font-family="sans-serif" font-size="20" fill="#e8ecef" pointer-events="none">7</text>
+<rect id="key-8" x="122" y="486" width="64" height="50" rx="10" fill="url(#key)" stroke="#000" stroke-width="2"/>
+<text x="154.0" y="518.0" text-anchor="middle" font-family="sans-serif" font-size="20" fill="#e8ecef" pointer-events="none">8</text>
+<rect id="key-9" x="194" y="486" width="64" height="50" rx="10" fill="url(#key)" stroke="#000" stroke-width="2"/>
+<text x="226.0" y="518.0" text-anchor="middle" font-family="sans-serif" font-size="20" fill="#e8ecef" pointer-events="none">9</text>
+<rect id="key-0" x="122" y="546" width="64" height="50" rx="10" fill="url(#key)" stroke="#000" stroke-width="2"/>
+<text x="154.0" y="578.0" text-anchor="middle" font-family="sans-serif" font-size="20" fill="#e8ecef" pointer-events="none">0</text>
+<rect id="key-ptt" x="2" y="150" width="12" height="90" rx="10" fill="url(#key)" stroke="#000" stroke-width="2" data-edge="left"/>
+<text x="8.0" y="202.0" text-anchor="middle" font-family="sans-serif" font-size="20" fill="#e8ecef" pointer-events="none"></text>
+<rect id="key-monitor" x="2" y="260" width="12" height="50" rx="10" fill="url(#key)" stroke="#000" stroke-width="2" data-edge="left"/>
+<text x="8.0" y="292.0" text-anchor="middle" font-family="sans-serif" font-size="20" fill="#e8ecef" pointer-events="none"></text>
+</svg>

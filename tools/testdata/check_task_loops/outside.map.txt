@@ -1,0 +1,37 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 The RadioFoundry Authors
+# Synthetic GNU ld cross references for the firmware startup and task steps.
+
+Cross Reference Table
+
+Symbol                                            File
+app_start                                         build/vhost/core/app/app.o
+                                                  build/vhost/platform/host/main.o
+hostlink_start                                    build/vhost/core/hostlink/hostlink.o
+                                                  build/vhost/core/app/app.o
+input_start                                       build/vhost/core/input/input_task.o
+                                                  build/vhost/core/app/app.o
+radio_core_start                                  build/vhost/core/radio/radio_task.o
+                                                  build/vhost/core/app/app.o
+radio_sm_poll                                     build/vhost/core/radio/radio_sm.o
+                                                  build/vhost/tools/harness.o
+                                                  build/vhost/core/radio/radio_task.o
+radio_sm_tick                                     build/vhost/core/radio/radio_sm.o
+                                                  build/vhost/core/radio/radio_task.o
+settings_poll                                     build/vhost/core/settings/settings.o
+                                                  build/vhost/core/app/app.o
+storage_job_poll                                  build/vhost/core/storage/storage.o
+                                                  build/vhost/core/app/app.o
+ui_app_key                                        build/vhost/core/ui/ui_app.o
+                                                  build/vhost/core/ui/ui.o
+ui_app_tick                                       build/vhost/core/ui/ui_app.o
+                                                  build/vhost/core/ui/ui.o
+ui_start                                          build/vhost/core/ui/ui.o
+                                                  build/vhost/core/app/app.o
+xTaskCreate                                       build/vhost/third_party/FreeRTOS-Kernel/tasks.o
+                                                  build/vhost/third_party/FreeRTOS-Kernel/timers.o
+                                                  build/vhost/core/hostlink/hostlink.o
+                                                  build/vhost/core/input/input_task.o
+                                                  build/vhost/core/ui/ui.o
+                                                  build/vhost/core/radio/radio_task.o
+                                                  build/vhost/core/app/app.o

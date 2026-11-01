@@ -251,8 +251,11 @@ LDSPECS ?= --specs=nano.specs --specs=nosys.specs -Wl,--no-warn-rwx-segments
 # The image address (board.mk APP_BASE) reaches the linker scripts as __app_base, and the application's first byte, after
 # a first stage when there is one, as __app_start. A board's memory.ld INCLUDEs the platform's common.ld (-L)
 APP_START := $(APP_BASE)$(if $(BOOT_STAGE),+$(BOOT_SIZE))
-LDFLAGS := $(CPUFLAGS) -T$(LDSCRIPT) -Lplatform/$(PLATFORM) -Wl,--defsym=__app_base=$(APP_BASE) \
-	-Wl,--defsym=__app_start=$(APP_START) -Wl,--gc-sections -Wl,-Map=$(TARGET).map -Wl,--print-memory-usage $(LDSPECS)
+# The memory map's part of the link: the linker script, the image address and the region usage ci reads. A platform
+# with no memory map (the host, platform/host/platform.mk) sets LDMEMORY empty, and its LDSPECS carry its own link
+LDMEMORY ?= -T$(LDSCRIPT) -Lplatform/$(PLATFORM) -Wl,--defsym=__app_base=$(APP_BASE) \
+	-Wl,--defsym=__app_start=$(APP_START) -Wl,--print-memory-usage
+LDFLAGS := $(CPUFLAGS) $(LDMEMORY) -Wl,--gc-sections -Wl,-Map=$(TARGET).map $(LDSPECS)
 # Link time optimization: LTO=1 compiles our sources to GCC's IR and optimizes them together at the link (inlining and
 # dead code across files: about 17 KB smaller on the STM32 radios, 20 KB with LTO_3P). A board's config.mk may default
 # it (some STM32 radios do: without it their images don't hold their features). LTO_3P=1 takes the

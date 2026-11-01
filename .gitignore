@@ -17,6 +17,9 @@ build/
 *.map
 *.o
 *.d
+# the virtual board's feature fragments (boards/vhost/config.d/<part>.mk) are source
+!boards/vhost/config.d/
+!boards/vhost/config.d/*.mk
 *.dSYM/
 tests/host/out/
 
