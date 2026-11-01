@@ -1,0 +1,31 @@
+{
+  "_license": "MIT",
+  "_copyright": "Copyright (c) 2026 The RadioFoundry Authors",
+  "engine": "qemu",
+  "flash": {
+    "kind": "nand",
+    "first_block": 1920,
+    "blocks": 32,
+    "sectors": 608,
+    "calibration_address": 2621440,
+    "native_address": 1179648
+  },
+  "keypad": {
+    "strobes": ["PIN_KEY_DRIVE0", "PIN_KEY_DRIVE1"],
+    "strobe_count": "KEY_DRIVES",
+    "first_input": "PIN_KEY_SENSE0",
+    "input_count": "KEY_SENSES",
+    "ptt": "PIN_MIC_RXD",
+    "pull_up": ["PIN_ENC_A", "PIN_ENC_B", "PIN_POWER_KEY"],
+    "names": {
+      "ok": "KEY_ENC_PUSH",
+      "select": "KEY_ENC_PUSH",
+      "back": "KEY_BE"
+    },
+    "read_fn": "read_senses_low"
+  },
+  "settle_min_s": 4.5,
+  "rfbus_id_reads": [
+    [0, 18457]
+  ]
+}

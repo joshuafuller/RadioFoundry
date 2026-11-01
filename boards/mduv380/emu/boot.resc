@@ -1,0 +1,60 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 The RadioFoundry Authors
+# Shared boot setup for mduv380.resc and the in-process console check.
+$elf ?= @build/mduv380/rfoundry_mduv380.elf
+$flash ?= @build/mduv380/flash.bin
+$flashrepl ?= ""
+$repl ?= @boards/mduv380/emu/platform.repl
+$stubs ?= @tools/emu/stm32_stubs.cs
+$hostport ?= @tools/emu/hostport.py
+
+include $stubs
+include @tools/emu/peripherals/lcd_st7735.cs
+include @tools/emu/peripherals/spinor.cs
+include @tools/emu/peripherals/at1846s.cs
+include @tools/emu/peripherals/c6000.cs
+
+emulation SetSeed 1
+emulation SetGlobalQuantum "0.0001"
+emulation SetGlobalSerialExecution true
+emulation SetGlobalAdvanceImmediately false
+
+mach create "mduv380"
+machine LoadPlatformDescription $repl
+# emu_check supplies a fresh image template; keep $flash for the existing console/manual checks.
+python """
+import json
+if variables.flashrepl:
+    monitor.Parse('machine LoadPlatformDescription ' + json.dumps(variables.flashrepl))
+else:
+    description = 'spiNor: SPI.SpiNor @ spi1 { imageFile: %s }' % json.dumps(variables.flash)
+    monitor.Parse('machine LoadPlatformDescriptionFromString ' + json.dumps(description))
+    monitor.Parse('machine LoadPlatformDescriptionFromString "gpioPortD: { 7 -> spiNor@0 }"')
+"""
+sysbus LoadELF $elf
+cpu VectorTableOffset 0x0800C000
+cpu PerformanceInMips 72
+
+# The driver scans rows PA6/PD2/PD3 high; unconnected columns stay low (no keys).
+# PTTs and encoder inputs have pull-ups on hardware (input_uvf.c); Renode needs levels.
+sysbus.gpioPortE OnGPIO 11 true
+sysbus.gpioPortE OnGPIO 12 true
+sysbus.gpioPortE OnGPIO 14 true
+sysbus.gpioPortB OnGPIO 11 true
+
+# shortcut: fixed brightness, model TIM1/DMA2 Stream1 duty for backlight behavior tests.
+# This board does not use the shared LCD model's default TIM8 CCR1 backlight register.
+sysbus.lcd BacklightAddress 0
+sysbus.lcd Backlight 100
+
+machine CreateVirtualConsole "hostport"
+include $hostport
+setup_hostport sysbus.hostport
+
+# Board ADC fixture: quiet audio inputs and nominal battery voltage.
+adc1 SetChannel 0 2048
+adc1 SetChannel 1 3063
+adc1 SetChannel 2 2048
+adc1 SetChannel 3 2048
+
+logLevel 3

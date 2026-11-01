@@ -1,0 +1,25 @@
+{
+  "_license": "MIT",
+  "_copyright": "Copyright (c) 2026 The RadioFoundry Authors",
+  "engine": "qemu",
+  "flash": {
+    "kind": "nor",
+    "vhost_shift": 7340032,
+    "calibration_page": 4096
+  },
+  "keypad": {
+    "strobes": ["PIN_KEY_STROBE0"],
+    "strobe_count": "KEY_STROBES",
+    "first_input": "PIN_KEY_ROW0",
+    "input_count": "KEY_INPUTS",
+    "ptt": "PIN_KEY_D0",
+    "pull_up": ["PIN_KEY_D1", "PIN_KEY_D2", "PIN_KEY_D3"],
+    "names": {
+      "ok": "KEY_MENU",
+      "select": "KEY_MENU",
+      "back": "KEY_BACK",
+      "up": "KEY_UP",
+      "down": "KEY_DOWN"
+    }
+  }
+}

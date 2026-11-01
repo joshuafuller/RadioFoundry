@@ -1,0 +1,10 @@
+{
+  "_license": "MIT",
+  "_copyright": "Copyright (c) 2026 The RadioFoundry Authors",
+  "engine": "qemu",
+  "flash": {
+    "kind": "nor",
+    "vhost_shift": 7340032
+  },
+  "default": true
+}

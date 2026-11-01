@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 The RadioFoundry Authors
+//
+// Test platform for the HR_C5000 model (c5000.cs) on its own: the stock STM32F4, the chip wired as on the MD-380
+// (hardware-md380.md 2, 4.2, 4.4; boards/md380/pins.h) and the bench MCU (c5000_bench.cs). Not the radio's platform:
+// boards/md380/emu/platform.repl belongs to the emulation stage 1 lane.
+
+using "platforms/cpus/stm32f4.repl"
+
+// Voice port on SPI2; interrupt lines into port C pins 0-2, which the stock repl routes on to EXTI0-2
+c5000: RadioFoundry.Hrc5000 @ spi2
+    Miso -> gpioPortE@3
+    TsInt -> gpioPortC@0
+    SysInt -> gpioPortC@1
+    RfTxInt -> gpioPortC@2
+
+// The MCU's lines into the chip. Each also replaces the pin's link to EXTI in the stock repl, which ties pin n of every
+// port to EXTI n: without that, the chip select PE2 would pulse EXTI2 (the RF TX line) at every transaction
+gpioPortE:
+    2 -> c5000@0
+    5 -> c5000@2
+    6 -> c5000@3
+
+gpioPortC:
+    13 -> c5000@1
+
+gpioPortB:
+    12 -> c5000@4
+
+bench: RadioFoundry.Hrc5000Bench @ sysbus 0x5FFF0000
+    chip: c5000

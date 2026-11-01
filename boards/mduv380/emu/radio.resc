@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 The RadioFoundry Authors
+# Run from the repository root after make BOARD=mduv380 and, once per new image:
+# python3 tools/emu/flashimg.py build/mduv380/flash.bin
+# include @boards/mduv380/emu/radio.resc; start
+# Debug link: tools/emu/emu_check.py uses a private PTY. TCP is off by default.
+# Explicit $tcp=true exposes the unauthenticated terminal on all IPv4 interfaces at $port.
+# Screen: pause; sysbus.lcd SavePng @build/mduv380/home.png 1; sysbus.lcd LastFrame
+# This is the default POWER=5w board. The AT1846S and HR_C6000 models are attached as on the DM-1701.
+# DMR voice TX needs a codec; after this script: include @tools/emu/codec_stub.py; setup_codec_stub
+
+$tcp ?= false
+$port ?= 4381
+include @boards/mduv380/emu/boot.resc
+if $tcp
+"""
+emulation CreateServerSocketTerminal $port "hostterm" false
+connector Connect sysbus.hostport hostterm
+"""

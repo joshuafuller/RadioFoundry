@@ -1,0 +1,12 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 The RadioFoundry Authors
+//
+// The MD-380's W25Q128 data flash on SPI1, chip select PD7 (boards/md380/pins.h PIN_FLASH_CS; peripherals/spinor.cs).
+// A template: tools/emu/emu_check.py replaces {image} with the absolute path of the image it built for this run and
+// md380.resc loads the result as $flashrepl after md380.repl (md380.repl says why this is a separate file).
+
+spiNor: SPI.SpiNor @ spi1
+    imageFile: "{image}"
+
+gpioPortD:
+    7 -> spiNor@0

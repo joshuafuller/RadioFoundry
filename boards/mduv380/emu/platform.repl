@@ -1,0 +1,94 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 The RadioFoundry Authors
+// MD-UV380 5 W wiring: docs/spec/hardware-mduv380.md sections 2, 4, 5 and 6;
+// boards/mduv380/board.mk and boards/uv380_family/pins.h. The RF and DMR chips are wired as in dm1701.repl.
+
+using "platforms/cpus/stm32f4.repl"
+
+// Keep the stock tags without downloading its optional register-name SVD.
+sysbus:
+    init:
+        Tag <0x40021000, 0x40021003> "GPIOE_MODER" 0xFFFFFFFF
+        Tag <0x40021004, 0x40021007> "GPIOE_OTYPER" 0x00000008
+        Tag <0x50000010, 0x5000003f> "USB:RESET" 0x80000000
+
+ccm: Memory.MappedMemory @ sysbus 0x10000000
+    size: 0x10000
+
+bkpsram: Memory.MappedMemory @ sysbus 0x40024000
+    size: 0x1000
+
+dwt: Miscellaneous.DWT @ sysbus 0xE0001000
+    frequency: 72000000
+
+// The shared ADC stub follows SQR1..3, including this board's IN0, IN1, IN3, IN16
+// scan on DMA2 Stream4. IN1 = 3063 gives 7600 mV with board.c's 1000/403 scale.
+adc1: RadioFoundry.Stm32Adc @ sysbus 0x40012000
+
+// The .resc attaches SPI.SpiNor to SPI1 and PD7 with the resolved image path.
+
+// The full 160x128 panel, with no hidden rows. Erased security byte 3:0x1D selects
+// type 3, RGB, MADCTL 0xA0 (board.c and display_uvf.c), which the shared model supports.
+fsmcBank1: @none
+lcd: RadioFoundry.St7735Lcd @ sysbus 0x60000000
+
+// The AT1846S on I2C3, address 0x2E, as on the DM-1701 (hardware-mduv380.md 2).
+rf: I2C.At1846s @ i2c3 0x2E
+
+// The HR_C6000 DMR baseband (peripherals/c6000.cs Hrc6000). The MD-UV380 uses the DM-1701's pins
+// (hardware-mduv380.md 1 and 2; boards/uv380_family/pins.h PIN_C6000_*), so this is dm1701.repl's wiring: voice
+// port on SPI2 with chip select PB12, configuration port bit-banged on PE2 (CS), PE3 (CLK), PE4 (MOSI), PE5 (MISO),
+// power-down PE6, interrupts active low on PC0 (timeslot), PC1 (system), PC2 (RF TX) to EXTI0-2. MISO shares port E
+// with the clock, so the model sets it again before each read of that port's IDR (c6000.cs InstallMisoHook).
+c6000: RadioFoundry.Hrc6000 @ spi2
+    misoPort: gpioPortE
+    misoPin: 5
+    misoIdr: 0x40021010
+    Miso -> gpioPortE@5
+    TsInt -> gpioPortC@0
+    SysInt -> gpioPortC@1
+    RfTxInt -> gpioPortC@2
+
+gpioPortB:
+    12 -> c6000@4
+
+// EXTI0-2 from port C only, as dm1701.repl says: the stock repl ORs pin n of every port into EXTI n, so the LEDs
+// (PE0, PE1) or a keypad row (PD2) held high would mask the chip's interrupts. Each other pin goes to the sink
+// (stm32_stubs.cs GpioSink), which replaces its EXTI link.
+exti012Sink: RadioFoundry.GpioSink
+
+gpioPortB:
+    2 -> exti012Sink@0
+
+gpioPortD:
+    0 -> exti012Sink@1
+    1 -> exti012Sink@2
+    2 -> exti012Sink@3
+    6 -> lcd@0
+    13 -> lcd@1
+
+gpioPortE:
+    0 -> exti012Sink@4
+    1 -> exti012Sink@5
+    2 -> c6000@0
+    3 -> c6000@1
+    4 -> c6000@2
+    6 -> c6000@3
+
+gpioPortF:
+    [0-2] -> exti012Sink@[6-8]
+
+gpioPortG:
+    [0-2] -> exti012Sink@[9-11]
+
+gpioPortH:
+    [0-2] -> exti012Sink@[12-14]
+
+gpioPortI:
+    1 -> exti012Sink@15
+
+gpioPortJ:
+    [0-2] -> exti012Sink@[16-18]
+
+gpioPortK:
+    [0-2] -> exti012Sink@[19-21]

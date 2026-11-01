@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 The RadioFoundry Authors
+// SPI1 data flash, chip select PD7 (boards/uv380_family/pins.h).
+// emu_check replaces {image} with this run's image and passes the template as $flashrepl.
+
+spiNor: SPI.SpiNor @ spi1
+    imageFile: "{image}"
+
+gpioPortD:
+    7 -> spiNor@0

@@ -1,0 +1,40 @@
+{
+  "_license": "MIT",
+  "_copyright": "Copyright (c) 2026 The RadioFoundry Authors",
+  "engine": "renode",
+  "resc": "radio.resc",
+  "repl": "platform.repl",
+  "flash": "flash.repl",
+  "chip": "sysbus.spi2.c6000",
+  "keys": {
+    "rows": [
+      ["A", 6],
+      ["D", 2],
+      ["D", 3]
+    ],
+    "columns": [
+      ["D", 14],
+      ["D", 15],
+      ["D", 0],
+      ["D", 1],
+      ["E", 7],
+      ["E", 8],
+      ["E", 9],
+      ["E", 10]
+    ],
+    "channel_pins": [
+      ["E", 14],
+      ["E", 15],
+      ["B", 10],
+      ["B", 11]
+    ],
+    "channel_codes": [0, 8, 10, 2, 3, 11, 9, 1, 5, 13, 15, 7, 6, 14, 12, 4],
+    "matrix": [
+      ["1", "2", "3", "4", "5", "6", "0", "star"],
+      ["green", "up", "down", "7", "8", "9", "hash", "red"],
+      [null, null, null, null, null, null, "sk2", "sk1"]
+    ],
+    "ptt": ["E", 11],
+    "ptt_ext": ["E", 12]
+  }
+}

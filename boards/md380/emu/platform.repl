@@ -1,0 +1,93 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 The RadioFoundry Authors
+//
+// The MD-380 in Renode: the stock STM32F4 platform plus what the firmware needs that it lacks.
+// Wiring and memory: boards/md380/pins.h, boards/md380/memory.ld and docs/spec/hardware-md380.md.
+
+using "platforms/cpus/stm32f4.repl"
+
+// CCM RAM, 64 KB. Task stacks and the RTOS heap live here (boards/md380/board.c, memory.ld)
+ccm: Memory.MappedMemory @ sysbus 0x10000000
+    size: 0x10000
+
+// Backup SRAM, 4 KB: the crash log and crash_alive() (core/crash/crash.c)
+bkpsram: Memory.MappedMemory @ sysbus 0x40024000
+    size: 0x1000
+
+// DWT cycle counter: hal_delay_us spins on DWT->CYCCNT (platform/stm32f4/time.c)
+dwt: Miscellaneous.DWT @ sysbus 0xE0001000
+    frequency: 72000000
+
+// ADC1 and its common registers: fills the DMA ring with fixed readings (stm32_stubs.cs Stm32Adc).
+// Without it the battery reads 0 mV (view battery_mv=0)
+adc1: RadioFoundry.Stm32Adc @ sysbus 0x40012000
+
+// The W25Q128 data flash on SPI1, chip select PD7 (peripherals/spinor.cs SPI.SpiNor). It is not declared here: its
+// constructor needs the path of this run's flash image, and a platform file holds only fixed text. md380.resc loads
+// it from $flashrepl, a two-entry platform file that tools/emu/emu_check.py writes next to the image it builds.
+
+// The display controller on FSMC bank 1 (peripherals/lcd_st7735.cs St7735Lcd): keeps a frame buffer, answers the panel
+// ID reads and writes FRAME lines. It replaces the stock repl's plain memory there. Chip select PD6 and reset PD13
+// are both active low (boards/md380/pins.h, hardware-md380.md 7)
+fsmcBank1: @none
+
+lcd: RadioFoundry.St7735Lcd @ sysbus 0x60000000
+
+gpioPortD:
+    6 -> lcd@0
+    13 -> lcd@1
+
+// The HR_C5000 DMR baseband (peripherals/c5000.cs Hrc5000; pins in its header and hardware-md380.md 2, 4.2, 4.4,
+// wiring as in peripherals/c5000_test.repl). Voice port on SPI2 with chip select PB12. Configuration port bit-banged:
+// CS PE2, CLK PC13, MOSI PE5, MISO PE3. Power-down PE6. Interrupts, active low, on PC0 (timeslot), PC1 (system) and
+// PC2 (RF TX), which go on to EXTI0-2
+c5000: RadioFoundry.Hrc5000 @ spi2
+    Miso -> gpioPortE@3
+    TsInt -> gpioPortC@0
+    SysInt -> gpioPortC@1
+    RfTxInt -> gpioPortC@2
+
+gpioPortB:
+    12 -> c5000@4
+
+gpioPortC:
+    13 -> c5000@1
+
+// EXTI0-2 from port C only. The stock repl ties pin n of every port to EXTI n and ORs them, so PE0 and PE1 (the
+// LEDs) or PD2 (a keypad row) held high masked the chip's interrupts on PC0-PC2. The firmware selects port C for
+// them in SYSCFG EXTICR1, which Renode's EXTI model ignores. Each pin below goes to the sink instead, which replaces
+// its EXTI link. Port A pins 0-2 and port B pins 0-1 already go to timers in the stock repl; port I pins 0 and 2 too
+exti012Sink: RadioFoundry.GpioSink
+
+gpioPortB:
+    2 -> exti012Sink@0
+
+gpioPortD:
+    0 -> exti012Sink@1
+    1 -> exti012Sink@2
+    2 -> exti012Sink@3
+
+gpioPortE:
+    0 -> exti012Sink@4
+    1 -> exti012Sink@5
+    2 -> c5000@0
+    5 -> c5000@2
+    6 -> c5000@3
+
+gpioPortF:
+    [0-2] -> exti012Sink@[6-8]
+
+gpioPortG:
+    [0-2] -> exti012Sink@[9-11]
+
+gpioPortH:
+    [0-2] -> exti012Sink@[12-14]
+
+gpioPortI:
+    1 -> exti012Sink@15
+
+gpioPortJ:
+    [0-2] -> exti012Sink@[16-18]
+
+gpioPortK:
+    [0-2] -> exti012Sink@[19-21]

@@ -1,0 +1,73 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 The RadioFoundry Authors
+# Run from the repository root: include @boards/dm1701/emu/boot.resc; start
+# The unchanged release ELF uses the hostport.py virtual console; TCP is off by default.
+# Explicit $tcp=true exposes the unauthenticated terminal on all IPv4 interfaces at $port.
+# tools/emu/emu_check.py uses a private PTY. Other variables accept absolute paths.
+# $flashrepl attaches the data flash with this run's image (dm1701.repl says why it is a separate file).
+# tools/emu/emu_check.py builds a fresh image for every run and fills in dm1701.flash.repl. By hand:
+#
+#     mkdir -p build/dm1701/emu
+#     python3 tools/emu/flashimg.py build/dm1701/emu/flash.bin --storage dmr-group --radio-index 1
+#     sed 's|{image}|build/dm1701/emu/flash.bin|' boards/dm1701/emu/flash.repl > build/dm1701/emu/flash.repl
+#
+# DMR voice TX needs a codec; after this script: include @tools/emu/codec_stub.py; setup_codec_stub
+
+$elf ?= @build/dm1701/rfoundry_dm1701.elf
+$repl ?= @boards/dm1701/emu/platform.repl
+$stubs ?= @tools/emu/stm32_stubs.cs
+$lcd ?= @tools/emu/peripherals/lcd_st7735.cs
+$rf ?= @tools/emu/peripherals/at1846s.cs
+$c6000 ?= @tools/emu/peripherals/c6000.cs
+$spinor ?= @tools/emu/peripherals/spinor.cs
+$flashrepl ?= @build/dm1701/emu/flash.repl
+$hostport ?= @tools/emu/hostport.py
+$port ?= 4701
+$tcp ?= false
+
+include $stubs
+include $lcd
+include $rf
+include $c6000
+include $spinor
+
+emulation SetSeed 1
+emulation SetGlobalQuantum "0.0001"
+emulation SetGlobalSerialExecution true
+emulation SetGlobalAdvanceImmediately false
+
+mach create "dm1701"
+machine LoadPlatformDescription $repl
+machine LoadPlatformDescription $flashrepl
+sysbus LoadELF $elf
+cpu VectorTableOffset 0x0800C000
+cpu PerformanceInMips 72
+
+# 2850 counts * 8/3 = 7600 mV; 318 is the volume curve's midpoint (boards/dm1701/board.c).
+
+# Renode GPIO inputs need explicit pull-ups: side/external PTT and both encoder lines (pins.h).
+sysbus.gpioPortE OnGPIO 11 true
+sysbus.gpioPortE OnGPIO 12 true
+sysbus.gpioPortE OnGPIO 14 true
+sysbus.gpioPortB OnGPIO 11 true
+
+# shortcut: fixed backlight, model TIM1/DMA2 Stream1 before testing dimming (display_uvf.c bl_dma_start).
+lcd BacklightAddress 0
+lcd Backlight 100
+
+machine CreateVirtualConsole "hostport"
+if $tcp
+"""
+emulation CreateServerSocketTerminal $port "hostterm" false
+connector Connect sysbus.hostport hostterm
+"""
+include $hostport
+setup_hostport sysbus.hostport
+
+# Board ADC fixture: quiet audio inputs and nominal battery voltage.
+adc1 SetChannel 0 318
+adc1 SetChannel 1 2850
+adc1 SetChannel 2 2048
+adc1 SetChannel 3 2048
+
+logLevel 3

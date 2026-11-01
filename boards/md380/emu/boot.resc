@@ -1,0 +1,79 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 The RadioFoundry Authors
+#
+# Boots the unchanged MD-380 release ELF in Renode, headless. The TCP debug terminal is off by default.
+# Variables (set them before `include`, absolute paths are safest): $elf, $repl, $stubs, $lcd, $spinor, $c5000,
+# $flashrepl, $hostport, $tcp, $port. tools/emu/emu_check.py uses a private PTY and runs Renode from the
+# repository root, where the other defaults work.
+#
+# $flashrepl attaches the data flash with this run's image (md380.repl says why it is a separate file). emu_check.py
+# builds a fresh image for every run (tools/emu/flashimg.py, fixture dmr-group, radio index 1) and writes the file.
+# By hand, from the repository root (these are the default paths):
+#
+#     mkdir -p build/md380/emu
+#     python3 tools/emu/flashimg.py build/md380/emu/flash.bin --storage dmr-group --radio-index 1
+#     printf 'spiNor: SPI.SpiNor @ spi1\n    imageFile: "build/md380/emu/flash.bin"\n\ngpioPortD:\n    7 -> spiNor@0\n' \
+#         > build/md380/emu/flash.repl
+#     ~/tools/renode/renode -e 'include @boards/md380/emu/boot.resc; start'
+#
+# The model writes program and erase through to the image, so delete both files for a fresh radio.
+
+$elf ?= @build/md380/rfoundry_md380.elf
+$tcp ?= false
+$port ?= 4380
+$repl ?= @boards/md380/emu/platform.repl
+$hostport ?= @tools/emu/hostport.py
+$stubs ?= @tools/emu/stm32_stubs.cs
+$lcd ?= @tools/emu/peripherals/lcd_st7735.cs
+$spinor ?= @tools/emu/peripherals/spinor.cs
+$c5000 ?= @tools/emu/peripherals/c5000.cs
+$flashrepl ?= @build/md380/emu/flash.repl
+
+# The C# peripherals the .repl names (compiled by Renode on the fly): the ADC stub and the GPIO sink, the LCD model,
+# the flash model, the HR_C5000 model
+include $stubs
+include $lcd
+include $spinor
+include $c5000
+
+# Fix the seed and scheduling. Virtual time follows executed instructions; with advance-immediately off it
+# never runs ahead of host time.
+emulation SetSeed 1
+emulation SetGlobalQuantum "0.0001"
+emulation SetGlobalSerialExecution true
+emulation SetGlobalAdvanceImmediately false
+
+mach create "md380"
+machine LoadPlatformDescription $repl
+machine LoadPlatformDescription $flashrepl
+sysbus LoadELF $elf
+
+# No bootloader runs here; on the radio it starts the image at 0x0800C000 (boards/md380/board.mk APP_BASE)
+cpu VectorTableOffset 0x0800C000
+cpu PerformanceInMips 72
+
+# GPIO inputs. Renode's GPIO model has no pull-ups, so an input nobody drives reads 0. Set the ones whose 0 means
+# something (boards/md380/pins.h): PTT and external PTT are active low, so 0 is "PTT held" (view: input: PTT down);
+# the synthesizer lock line PD10 is high when locked (sky72310_wait_lock)
+sysbus.gpioPortE OnGPIO 11 true
+sysbus.gpioPortE OnGPIO 12 true
+sysbus.gpioPortD OnGPIO 10 true
+
+# The host port: a virtual console and hooks on usb_cdc_stream (hostport.py).
+# Explicit $tcp=true exposes the unauthenticated terminal on all IPv4 interfaces.
+machine CreateVirtualConsole "hostport"
+if $tcp
+"""
+emulation CreateServerSocketTerminal $port "hostterm" false
+connector Connect sysbus.hostport hostterm
+"""
+include $hostport
+setup_hostport sysbus.hostport
+
+# Board ADC fixture: quiet audio inputs and nominal battery voltage.
+adc1 SetChannel 0 2048
+adc1 SetChannel 1 3063
+adc1 SetChannel 2 2048
+adc1 SetChannel 3 2048
+
+logLevel 3
