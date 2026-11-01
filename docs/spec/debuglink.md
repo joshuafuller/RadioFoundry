@@ -15,6 +15,13 @@ open-firmware CPS protocol on the same port (`core/hostlink`), and it never chan
   (`board.system`) and the platform's implementation (`platform/stm32f4/sysboot.c`, `platform/hrc7000/system.c`).
 - Host: `tools/rfoundry_debug.py` (command line and Python module), `tests/hil/` (pytest hardware-in-the-loop tests).
 
+Emulator transports preserve this byte protocol. The standalone Renode check uses a private PTY, and board boot
+scripts leave TCP debug terminals off by default. Outside lockstep, the standalone QEMU bridge uses a loopback
+listener retained from allocation through shutdown; its GDB endpoint is a private Unix socket. Conductor adapters reject unsupported
+common debug-link inputs by name while allowing time and shared-air operation. See
+[emulator channel limits](../dev/virtual-radio.md#engine-capabilities) and
+[standalone channels](../dev/virtual-radio-checks.md#standalone-emulator-channels).
+
 ## 1. Coexistence on the host port
 
 The host link sends each request to one protocol by its first byte (`hostlink.h`):

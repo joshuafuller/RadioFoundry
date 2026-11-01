@@ -23,6 +23,7 @@
 # The CI workflows (docs/dev/ci.md) run pieces of it: per push `--steps registry,python,licenses`, the host tests and
 # `--quick --steps firmware --toolchain <t>` for each toolchain; nightly `--matrix --steps firmware --toolchain <t>`.
 #
+# Host, Python and firmware steps initialize missing submodules with tools/checkout-submodules.sh.
 # Every step but host needs a Python 3.11 or later (tools/rfoundry_python.sh): the board registry is TOML. Steps, each
 # reported as ok / FAIL / skip:
 #   0. registry: boards/*/board.toml and platform/*/platform.toml (tools/boards.py) are well formed and agree
@@ -91,6 +92,10 @@ done
 [ "$QUICK" = 1 ] && [ "$MATRIX" = 1 ] && { echo "ci: --quick and --matrix exclude each other" >&2; exit 2; }
 [ -n "$ONLY" ] && [ -n "$PLATFORMS$TOOLCHAINS" ] && { echo "ci: --board excludes --platform and --toolchain" >&2; exit 2; }
 step() { case ",$STEPS," in *",$1,"*) return 0 ;; *) return 1 ;; esac; }
+if { step host || step python || step firmware; } && [ ! -f third_party/FreeRTOS-Kernel/include/FreeRTOS.h ]; then
+	echo "ci: FreeRTOS missing; running tools/checkout-submodules.sh"
+	tools/checkout-submodules.sh || { echo "ci: submodule checkout failed" >&2; exit 2; }
+fi
 JOBS=${JOBS:-$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)}
 OUT=build/ci
 mkdir -p "$OUT"
@@ -184,6 +189,22 @@ fi
 # ── 2. Python ────────────────────────────────────────────────────────────────
 if step python; then
 echo "== python"
+# The virtual-radio suite needs pytest and pyserial; missing dependencies are a failed gate.
+VR_PY=${RFOUNDRY_VR_PYTHON:-build/venv/bin/python}
+if [ ! -x "$VR_PY" ]; then VR_PY=${RFOUNDRY_VR_PYTHON:-python3}; fi
+if "$VR_PY" -c 'import pytest, serial' 2>/dev/null; then
+	if timeout -k 10 2700 "$VR_PY" -m pytest -q tools/conductor/tests \
+		tools/digital-twin/scenario_test.py tools/digital-twin/convert_test.py \
+		tools/digital-twin/recording_lint_test.py tools/digital-twin/reduction_test.py \
+		> "$OUT/conductor-tests.log" 2>&1; then
+		ok "conductor and recording tests ($(tail -1 "$OUT/conductor-tests.log"))"
+	else
+		tail -25 "$OUT/conductor-tests.log"
+		bad "conductor and recording tests (see $OUT/conductor-tests.log)"
+	fi
+else
+	bad "conductor tests: install pytest pyserial in build/venv, or set RFOUNDRY_VR_PYTHON"
+fi
 PY_FILES=$(git ls-files 'tools/*.py' 'tools/**/*.py' 'tests/hil/*.py' 'boards/*/hil/*.py' 2>/dev/null)
 if command -v python3 > /dev/null; then
 	if python3 -c 'import ast, sys

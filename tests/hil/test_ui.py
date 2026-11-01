@@ -9,11 +9,13 @@ rather than from pixels, so they hold on any display; the screenshots are kept f
 key sequences run on the host in tests/host/uiFlowTest.c (every display class and key map), so a failure here that
 the host test doesn't show points at the radio side (input, link, display), not the UI logic."""
 import os
+from pathlib import Path
+import re
 import time
 
 import pytest
 
-from rfoundry_hil import LONG, as_int, skip, skip_if
+from rfoundry_hil import LONG, as_int, board_id, skip, skip_if
 from rfoundry_debug import DOWN, UP
 
 
@@ -65,14 +67,34 @@ def test_keys_move_the_channel(home):
     assert v1["channel_number"] != v["channel_number"] or v1["rx_hz"] != v["rx_hz"]
 
 
+def _hub_count(directory):
+    tables = []
+    for path in directory.glob("*.c"):
+        source = re.sub(r"/\*.*?\*/|//[^\n]*", "", path.read_text(), flags=re.S)
+        tables.extend(re.findall(r"keymap_entry_t\s+\w+\[\]\s*=\s*\{(.*?)\n\};", source, re.S))
+    if not tables:
+        skip("bench", "board key metadata is unavailable")
+    return 7 if any(re.search(r"\bACT_CONTEXT\b", table) for table in tables) else 8
+
+
 @pytest.mark.feature("ui_navigation")
 def test_hub_and_back(home):
     """OK opens the Hub (seven destinations, numbered); a digit opens one; BACK goes up one level; long BACK goes Home
-    from any depth (information-architecture.md, key meanings)."""
+    from any depth (information-architecture.md, key meanings). A board with no CONTEXT key has
+    "Last caller" as entry 0 (ui_menus.c hub_has_last), so its Hub has eight entries; digits 1 to 7 still open the
+    same seven destinations (entry 0 is digit 0)."""
     r = home
     r.press("ok")
     s = wait_screen(r, "hub", "the Hub on OK")
-    assert s["ui.depth"] == "1" and s["ui.count"] == "7", s
+    name = r.version().get("board", "")
+    board = board_id(name)
+    root = Path(__file__).resolve().parents[2] / "boards"
+    if board is None:
+        board = next((path.parent.name for path in root.glob("*/board.c")
+                      if re.search(r'\.name\s*=\s*"' + re.escape(name) + r'"', path.read_text())), None)
+    if board is None:
+        skip("bench", "board key metadata is unavailable")
+    assert s["ui.depth"] == "1" and s["ui.count"] == str(_hub_count(root / board)), (board, s)
     r.press("1")
     s = wait_screen(r, "contacts", "Contacts on 1")
     assert s["ui.depth"] == "2"

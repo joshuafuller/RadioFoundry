@@ -63,7 +63,9 @@ the current tree yet (run it to see the files), and the nightly reports it as a 
 
 ## Submodules
 
-The jobs that build firmware check out without submodules, then run `tools/checkout-submodules.sh`. On a runner with
+The firmware, host and Python gates need submodules. `ci.sh` runs `tools/checkout-submodules.sh` when FreeRTOS is
+missing, including in jobs that set `submodules: false`. Direct host-test and coverage runs skip the virtual-board
+tests with a setup instruction when FreeRTOS is absent; run the helper first to include them. On a runner with
 bare clones of the `third_party/` repositories (`RFOUNDRY_GIT_CACHE`) the script borrows their objects
 (`git submodule update --reference`); GitHub's runners have none and take a plain network checkout. Each submodule
 gets three tries, so one dropped connection to GitHub no longer fails the job.

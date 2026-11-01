@@ -4,13 +4,20 @@
 opt-in skips, skip kinds on the reports, and the boards' own tests (boards/<id>/hil) skipped on other radios.
 conftest.py registers this module as a plugin, so all of it reaches tests outside tests/hil too."""
 import os
+import sys
 
 import pytest
+import serial
 
 import bringup_plugin
 from rfoundry_hil import DebugLinkError, Radio, SdrBench, board_id, find_ports, skip, skip_kind, skip_mark
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+
+# Teaches pyserial "unix:///path.sock", the virtual radio's HIL endpoint (tools/conductor/parts/hil_endpoint.py).
+# Appended, so no module of the conductor can shadow a test's own import.
+sys.path.append(os.path.join(ROOT, "tools", "conductor"))
+serial.protocol_handler_packages.append("serial_handlers")
 
 
 def own_board(path):
