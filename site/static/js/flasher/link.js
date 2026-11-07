@@ -7,6 +7,9 @@
 
 import { be32, concat, le32, sleep, u16be, u16le, u32le, toHex } from "./bytes.js";
 import { wire, note } from "../diag.js";
+import { serialApi, usbSerialNeeded } from "./usbserial.js";
+
+export { serialApi };
 
 export const RFOUNDRY_USB = { usbVendorId: 0x1FC9, usbProductId: 0x0094 };
 // The same radio as a USB network adapter (CDC-NCM, docs/spec/usb-network.md 1): no serial port, and the OS network
@@ -14,6 +17,8 @@ export const RFOUNDRY_USB = { usbVendorId: 0x1FC9, usbProductId: 0x0094 };
 export const RFOUNDRY_NET = { vendorId: 0x1FC9, productId: 0x0096 };
 const SOF1 = 0xA5, SOF2 = 0x5A;
 export const CMD = { PING: 0x01, VERSION: 0x02, INFO_CHIP: 0x0B, READ_MEM: 0x0C, STORAGE: 0x0F };
+// The status a command not built in, or with nothing to act on, answers (debuglink.md 2)
+const DL_UNAVAILABLE = 4;
 
 export class LinkError extends Error {}
 
@@ -31,11 +36,14 @@ export function browserErrorKey(e) {
 	case "NotAllowedError": return "flash.err.not_allowed";
 	case "NetworkError": return /open serial port/i.test(raw) ? "flash.err.port_busy" : /claim|access denied/i.test(raw) ? "flash.err.usb_busy" : "flash.err.connection_lost";
 	case "BufferOverrunError": case "BreakError": case "FramingError": case "ParityError": return "flash.err.connection_lost";
+	// usbserial.js on a USB-serial chip it has no driver for (CH340, CP210x, PL2303)
+	case "NotSupportedError": return /serial device this page/i.test(raw) ? "flash.err.usb_chip" : null;
 	default: return null;
 	}
 }
 
-export const serialSupported = () => typeof navigator !== "undefined" && "serial" in navigator;
+// Web Serial, or WebUSB standing in for it where Web Serial reaches no USB device (usbserial.js)
+export const serialSupported = () => typeof navigator !== "undefined" && ("serial" in navigator || usbSerialNeeded());
 
 // CRC-16/CCITT-FALSE
 export function crc16(data, crc = 0xFFFF) {
@@ -101,13 +109,13 @@ export class SerialStream {
 	}
 
 	static async request() {
-		const port = await navigator.serial.requestPort({ filters: [RFOUNDRY_USB] });
+		const port = await serialApi().requestPort({ filters: [RFOUNDRY_USB] });
 		return SerialStream.open(port);
 	}
 
 	// Any serial port (USB-serial programming cables on radios without USB)
 	static async requestAny() {
-		return SerialStream.open(await navigator.serial.requestPort());
+		return SerialStream.open(await serialApi().requestPort());
 	}
 
 	// Chrome's default 255 byte buffer stops the USB reads whenever the page is busy for a moment; the radio gives up
@@ -188,6 +196,9 @@ export class SerialStream {
 	}
 }
 
+// Between the tries of a codeplug read, in ms: about 13 s of silence in all before it gives up
+const CPS_RETRY_WAIT = [300, 1000, 2000, 3000];
+
 export class Link {
 	constructor(stream, { timeout = 1500 } = {}) {
 		this.s = stream;
@@ -219,7 +230,9 @@ export class Link {
 		}
 		this.s.take(reply.end);
 		wire(`cmd 0x${cmd.toString(16)} seq ${seq} len ${payload.length}: status ${reply.payload[0]} len ${reply.payload.length}`);
-		if (!reply.payload.length || reply.payload[0] !== 0) throw new LinkError(`command 0x${cmd.toString(16)}: status ${reply.payload[0]}`);
+		if (!reply.payload.length || reply.payload[0] !== 0) {
+			throw Object.assign(new LinkError(`command 0x${cmd.toString(16)}: status ${reply.payload[0]}`), { status: reply.payload[0] });
+		}
 		return reply.payload.subarray(1);
 	}
 
@@ -237,13 +250,15 @@ export class Link {
 	}
 
 	// STORAGE INFO (debuglink.md 3.13): whether the settings and journal region is ours, or still holds another
-	// firmware's data ("foreign": the radio then refuses every settings save and codeplug write). null from a build
-	// without the command
+	// firmware's data ("foreign": the radio then refuses every settings save and codeplug write). "none": the region
+	// didn't start (unusable flash). "nomap": the radio has no such region (a memory chip too small for the board's flash
+	// map: nothing is stored, no codeplug is there and every write is refused). null from a build without the command
 	async storageInfo() {
 		let r;
 		try {
 			r = await this.request(CMD.STORAGE, new Uint8Array([0]));
 		} catch (e) {
+			if (e instanceof LinkError && e.status === DL_UNAVAILABLE) return { region: "nomap", pending: false, settings: null, journal: null, calibration: null };
 			if (e instanceof LinkError && !/no answer/.test(e.message)) return null;
 			throw e;
 		}
@@ -285,10 +300,11 @@ export class Link {
 	// ---- open-firmware CPS
 
 	// R area addr len: the reply is "R" + length (BE) + data, or "-" when refused. A read changes nothing, so one
-	// that went unanswered or came back short is asked again, after the rest of a broken reply has drained.
-	async cpsRead(area, addr, len, tries = 3) {
+	// that went unanswered or came back short is asked again, after the rest of a broken reply has drained. The waits
+	// grow: a radio busy for a few seconds (a memory chip erase) must not end a minute-long backup halfway
+	async cpsRead(area, addr, len, tries = 5) {
 		for (let i = 0; i < tries; i++) {
-			if (i) await sleep(300);
+			if (i) await sleep(CPS_RETRY_WAIT[Math.min(i, CPS_RETRY_WAIT.length) - 1]);
 			this.s.clear();
 			await this.s.write(concat(new Uint8Array([0x52, area]), be32(addr), new Uint8Array([len >> 8, len & 0xFF])));
 			const got = await this.waitFor((buf) => {
@@ -298,9 +314,22 @@ export class Link {
 			});
 			this.s.clear();
 			wire(`R ${area} 0x${addr.toString(16)} ${len}: ${got === undefined ? "no answer" : got === null ? "refused" : `${got.length} bytes`}`);
-			if (got !== undefined) return got;	// null: refused (out of range, not offered)
+			if (got !== undefined) {
+				// a radio that went quiet and came back: the trail keeps it, for the report of a later failure
+				if (i) note("codeplug read answered after retries", { addr: `0x${addr.toString(16)}`, tries: i + 1 });
+				return got;	// null: refused (out of range, not offered)
+			}
 		}
 		throw new LinkError(`no answer to a codeplug read at 0x${addr.toString(16)}`);
+	}
+
+	// The memory chip's size in bytes from the CPS radio info (flashBytes), null when the radio doesn't say
+	async flashSize() {
+		try {
+			return flashBytes(parseRadioInfo(await this.cpsRead(9, 0, RADIO_INFO_LEN, 1))?.flashId);
+		} catch {
+			return null;
+		}
 	}
 
 	// Read [addr, addr + size) of an area in pieces; stops early (and says so) when the radio refuses. RadioFoundry answers up
@@ -375,8 +404,8 @@ export async function probe(link) {
 // Ports this site was granted before and that are plugged in now (the browser's chooser marks them paired), as a
 // chooser with these filters would list them
 export async function grantedPorts(filters) {
-	if (!navigator.serial?.getPorts) return [];
-	return (await navigator.serial.getPorts()).filter((p) => {
+	if (!serialSupported()) return [];
+	return (await serialApi().getPorts()).filter((p) => {
 		const i = p.getInfo();
 		return filters.some((f) => i.usbVendorId === f.usbVendorId && (f.usbProductId === undefined || i.usbProductId === f.usbProductId));
 	});
@@ -417,6 +446,13 @@ export function silence(link) {
 // protocol that happens to start with "R" isn't taken for it. The revision or the build date must be there: our shim
 // (core/cps/cps_openfw.c) always fills both, so all zeros after the struct version is not that structure
 export const RADIO_INFO_LEN = 46;
+// The memory chip's size from the radio info's flash part id, whose low byte is the JEDEC capacity code (log2 of the
+// size: 0x4018 is 16 MB); null when the radio gives none
+export function flashBytes(flashId) {
+	const code = (flashId ?? 0) & 0xFF;
+	return code >= 0x10 && code <= 0x1C ? 2 ** code : null;
+}
+
 export function parseRadioInfo(b) {
 	if (!b || b.length < 40) return null;
 	// ASCII, NUL padded: printable characters, then only NULs

@@ -22,12 +22,16 @@ class El {
 		this.isConnected = false;
 	}
 	append(...cs) { for (const c of cs) this.children.push(c instanceof El ? c : { text: String(c) }); }
+	showModal() {}
+	close() {}
+	remove() { document.body.children = document.body.children.filter((c) => c !== this); }
 	appendChild(c) { this.append(c); return c; }
 	replaceChildren(...cs) { this.children = []; this.append(...cs); }
 	setAttribute(k, v) { this.attrs[k] = v; }
+	getAttribute(k) { return this.attrs[k] ?? null; }
 	setAttributeNS(ns, k, v) { this.attrs[k] = v; }
 	addEventListener(ev, f) { (this.listeners[ev] ||= []).push(f); }
-	click() { for (const f of this.listeners.click || []) f({ preventDefault() {} }); }
+	click() { if (!this.disabled) for (const f of this.listeners.click || []) f({ preventDefault() {} }); }
 	get textContent() { return this.children.map((c) => (c instanceof El ? c.textContent : c.text)).join(""); }
 	set textContent(v) { this.children = [{ text: String(v) }]; }
 	get firstChild() { return this.children[0]; }
@@ -116,8 +120,38 @@ test("install: a write without a codec warns above the button; the write logs it
 	assert.match(box.textContent, /will not include the DMR voice codec/i);
 	assert.match(box.textContent, /was not backed up and no supported stock firmware file was selected/);
 	assert.doesNotMatch(box.textContent, /no way back/i);
+	// Install asks once more (nocodec.js): Escape stays, Go Back returns to the check step, Install Anyway writes
+	const dialogs = () => document.body.children.filter((c) => c.tagName === "DIALOG");
+	const pick = (label) => {
+		const find = (el) => (el.tagName === "BUTTON" && el.textContent === label ? el : el.children?.map((c) => (c instanceof El ? find(c) : null)).find(Boolean));
+		find(dialogs()[0]).listeners.click[0]({ preventDefault() {} });
+	};
 	forwards.at(-1).click();
+	await sleep(0);
+	assert.equal(dialogs().length, 1);
+	assert.match(dialogs()[0].textContent, /Install Without DMR Voice\?.*not be able to send or receive DMR voice calls/);
+	dialogs()[0].listeners.cancel[0]({ preventDefault() {} });
+	await sleep(0);
+	assert.equal(dialogs().length, 0);
+	assert.equal(writes.length, 0, "nothing written when the dialog is dismissed");
+	let rendered = 0;
+	state.step = 4;
+	c7ui.init({ S: state, fb: () => fb, helpLink: () => null, reset() {}, flashStarted: () => 0, flashFinished() {}, flashMark() {},
+		errorText: (e) => e.message, next() {}, render() { rendered++; } });
+	forwards.at(-1).click();
+	await sleep(0);
+	state.c7none = true;
+	pick("Go Back and Add the Codec");
+	await sleep(0);
+	assert.equal(state.step, 3, "back to the check step");
+	assert.equal(state.c7none, false, "the file picker shows again there");
+	assert.equal(rendered, 1);
+	assert.equal(writes.length, 0);
+	forwards.at(-1).click();
+	await sleep(0);
+	pick("Install Anyway");
 	await sleep(1500);
+	assert.match(diag.trail(50).join("\n"), /no codec confirm \{"answer":"go"\}/);
 	const tr = diag.trail(50).join("\n");
 	assert.match(tr, /write range/);
 	assert.match(tr, new RegExp(`"first":"0x${C.app_start.toString(16).toUpperCase().padStart(8, "0")}"`));
@@ -128,6 +162,8 @@ test("install: a write without a codec warns above the button; the write logs it
 	state.c7.stub.writeProgram = async (data, start, { onSector }) => { bootNow = new Uint8Array(C.app_start).fill(0); onSector(C.app_start, "written"); return { written: 1, same: 0 }; };
 	const box2 = c7ui.writeView();
 	forwards.at(-1).click();
+	await sleep(0);
+	pick("Install Anyway");
 	await sleep(300);
 	assert.match(box2.textContent, /bootloader area changed/);
 	assert.match(diag.trail(50).join("\n"), /"bootloader":"changed"/);
@@ -383,4 +419,114 @@ test("beta notice: once per session and again after 12 hours; storage that throw
 	assert.equal(showBetaNotice(c.doc, () => { throw new Error("SecurityError"); }), true);
 	c.dlg.close();	// closing without storage doesn't throw
 	assert.equal(showBetaNotice({ getElementById: () => null }, store), false, "a page without the notice");
+});
+
+// ---- leaving loader mode (#352, #353), against the simulated radio
+
+const { FakeC7000, c7000Simulation } = await import("../static/js/flasher/fakec7000.js");
+const { Stub, stubImages } = await import("../static/js/flasher/stub.js");
+const stubImage = stubImages(json("c7000-stub.json"));
+
+// A radio whose loader runs already, as after a backup interrupted by a cable pull or a closed tab
+async function loaderRunning(t, state) {
+	globalThis.window ??= { addEventListener() {}, removeEventListener() {} };
+	const sim = await c7000Simulation(fb.c7000, radio.id, 7000, radio);
+	const r = new FakeC7000({ progmem: sim.progmem.slice(), dataSize: 0x200000, speed: 200, romWindow: 50, bootTime: 50, board: sim.board, codecId: sim.codecId });
+	t.after(() => r.stop());
+	setTimeout(() => r.powerOn(), 20);
+	const s = new Stub(r.stream, { log() {} });
+	await s.waitForRom(5000);
+	await s.loadThroughRom(stubImage.image, stubImage.load);
+	assert.equal(r.state, "stub");
+	state.fakeC7 = r;
+	state.c7 = { log: { add() {}, el: new El("div") }, stream: r.stream };
+	return r;
+}
+const all = (el) => [el, ...(el.children || []).filter((c) => c instanceof El).flatMap(all)];
+
+test("restart task: a radio left in loader mode is reset and the page ends on a finished screen", async (t) => {
+	const forwards = [];
+	const state = { radio, task: "restart", forward: (b) => forwards.push(b), data: { fb }, board: fb.boards[radio.flash.board] };
+	c7ui.init({ S: state, fb: () => fb, helpLink: () => null, reset() {}, render() {}, errorText: (e) => e.message });
+	const r = await loaderRunning(t, state);
+	const box = c7ui.restartView();
+	box.isConnected = true;
+	for (let i = 0; i < 300 && !/restarted into normal mode/.test(box.textContent); i++) await sleep(20);
+	assert.match(box.textContent, /restarted into normal mode/);
+	assert.ok(r.events.includes("reset"), "the chip was reset");
+	assert.equal(state.c7.stream, null, "the session let go of the cable");
+	assert.equal(forwards.at(-1).textContent, "Finish");
+});
+
+test("connect step: a loader already running offers Restart Radio next to Continue and goes nowhere by itself", async (t) => {
+	const forwards = [];
+	const state = { radio, task: "backup", forward: (b) => forwards.push(b), data: { fb }, board: fb.boards[radio.flash.board] };
+	let went = 0;
+	c7ui.init({ S: state, fb: () => fb, helpLink: () => null, reset() {}, render() {}, errorText: (e) => e.message, next: () => went++ });
+	const r = await loaderRunning(t, state);
+	const box = c7ui.connectView();
+	box.isConnected = true;
+	for (let i = 0; i < 300 && !(Array.isArray(forwards.at(-1)) && forwards.at(-1).length === 2); i++) await sleep(20);
+	const [restart, cont] = forwards.at(-1);
+	assert.equal(restart.textContent, "Restart Radio");
+	assert.equal(cont.textContent, "Continue");
+	await sleep(1700);
+	assert.equal(went, 0, "the step does not go on without the user");
+	assert.ok(!r.events.includes("reset"));
+	restart.click();
+	assert.equal(forwards.at(-1), null, "the actions go at once: no second reset, no Continue into a radio restarting");
+	for (let i = 0; i < 300 && !/restarted into normal mode/.test(box.textContent); i++) await sleep(20);
+	assert.match(box.textContent, /restarted into normal mode/);
+	assert.equal(r.events.filter((e) => e === "reset").length, 1);
+	assert.equal(went, 0);
+});
+
+test("backup: after Restart Radio the task ends on a finished screen, not at the connect step again", async (t) => {
+	const made = URL.createObjectURL;
+	URL.createObjectURL = () => "blob:test";
+	El.prototype.remove ??= function () {};
+	t.after(() => { URL.createObjectURL = made; });
+	globalThis.location ??= { origin: "http://test" };
+	const forwards = [];
+	let rendered = 0;
+	const state = { radio, task: "backup", step: 1, forward: (b) => forwards.push(b), data: { fb, site: { git: "test" } }, board: fb.boards[radio.flash.board] };
+	c7ui.init({ S: state, fb: () => fb, helpLink: () => null, reset() {}, render: () => rendered++, noteReadout: async () => {}, errorText: (e) => e.message,
+		flashStarted: () => 0, flashFinished() {} });
+	const r = await loaderRunning(t, state);
+	const stub = new Stub(r.stream, { log() {} });
+	assert.ok(await stub.attach());
+	Object.assign(state.c7, { stub, how: "attach" });
+	const box = c7ui.backupView();
+	// the program memory only keeps the run short
+	for (const cb of all(box).filter((e) => e.tagName === "INPUT" && e.attrs.type === "checkbox").slice(1)) {
+		cb.checked = false;
+		for (const f of cb.listeners.change || []) f({ target: cb });
+	}
+	forwards.at(-1).click();
+	for (let i = 0; i < 500 && !/Backup saved/.test(box.textContent); i++) await sleep(20);
+	assert.match(box.textContent, /Backup saved/);
+	const leave = forwards.at(-1);
+	assert.equal(leave.textContent, "Restart Radio");
+	leave.click();
+	assert.ok(leave.disabled, "one reset: a second click does nothing");
+	for (let i = 0; i < 100 && !rendered; i++) await sleep(20);
+	assert.equal(rendered, 1);
+	assert.ok(r.events.includes("reset"));
+	const after = c7ui.backupView();
+	assert.match(after.textContent, /Backup saved as/);
+	assert.match(after.textContent, /back in normal mode/);
+	assert.doesNotMatch(after.textContent, /Choose Cable/);
+	// the simulated radio runs its original firmware: Update has nothing to update
+	assert.deepEqual(forwards.at(-1).map((b) => b.textContent), ["Install", "Finish"]);
+	// another radio picked meanwhile (Back, then the radio step) starts its own backup at the connect step
+	const other = { ...radio, id: `${radio.id}-other` };
+	state.radio = other;
+	assert.match(c7ui.backupView().textContent, /Connect Your/);
+	state.radio = radio;
+	c7ui.backupView();
+	forwards.at(-1)[0].click();
+	assert.equal(state.task, "install");
+	assert.equal(state.step, 0);
+	assert.equal(state.c7, null, "the install starts with a new session: its check step reads the radio itself");
+	assert.equal(state.backupDone, undefined, "nothing tells the next task its backup is done");
 });

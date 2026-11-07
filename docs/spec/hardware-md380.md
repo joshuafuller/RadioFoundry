@@ -362,6 +362,43 @@ go to the stack as bursts A to F. A read that hasn't changed, or has no frame th
 row end the reception (0x22 = 0x17). The chip's voice class reports are ignored, and its 25 ms report delay doesn't
 count as out of step.
 
+A burst is in the port one tick after its slot's report, so the read at a tick holds the burst of the slot that
+started two ticks before. The engine takes this as fixed: the read is named, and given its slot counter, from the
+tick before it. It used to learn the relation from the first read that checked after a header, which with traffic on
+both slots can be the other call's (issue 279). With traffic on both slots both phases hold bursts that check, so the
+search for the call's phase is limited:
+
+| Rule | Detail |
+|---|---|
+| A header started the read | Lock only the header's phase. A late entry report while searching drops that limit |
+| Repeater channel (`rx_lock_slot` 1 or 2) | Lock only a phase the CACH TC names as the channel's slot, never one with the slot unknown. A header is kept unless the TC names its phase the other slot |
+| A lock whose phase the TC names the other slot | Search again, without the header's phase. The burst index goes on counting one per frame, so a lock back on the same phase keeps A-F |
+| The slot unknown while locked (a receiver restart) | The lock stays; its bursts carry no slot number until the TC locks again |
+| The call's own bursts skipped while its slot is unknown | Counted, so the index stays A-F. After a quiet-period restart that costs the first bursts of a call (two in the host test, about 150 ms until the TC locks) |
+
+All of these are host-tested (`hrc5000Test` `test_two_slots`: a call on each slot, a restart mid-call, a TC wrong
+from the start, both slots heard with `rx_lock_slot` 0). On air (2026-11-04, the SDR bench sending repeater bursts
+with the CACH on both slots): the reads alternate as above (phase 0 TS1's frames, phase 1 TS2's), and the wanted call
+plays with the other slot already talking (77 of 78 bursts; 0 before the fix).
+
+The embedded LC isn't per slot (page 2, [modem-hrc6000.md](modem-hrc6000.md) 5.2). On the same bench run, the other
+call's LC was in page 2 at the wanted call's F: the core took it for a new call, and the wanted call went quiet with
+the other call's source shown (23 of 78 bursts when the wanted call started first). The engine keeps each slot's
+call LC and holds back an embedded LC that is the other slot's call's (the rules are in modem-hrc6000.md 5.2).
+Host-tested (`test_two_slots`, the `LC`, `alias` and `mixed LC` cases: page 2 gets a call's LC or alias block the
+tick after its F). On air (2026-11-04, the SDR bench, a call on each slot, 78 bursts sent to the wanted slot, two
+runs each):
+
+| Case | Before | After |
+|---|---|---|
+| Wanted call first, the other starts beside it | 23 | 78, 78 (both slots) |
+| Other call first, wanted call with its headers | 75-77, TS2 once 13-19 | 73-77 (both slots) |
+| Wanted call joined mid-stream (no header) beside the other, TS1 | 0 played | 56-57 |
+| Single call: headers, late entry, no header | 77-78, 38, 68 | the same |
+
+Left as they were: both calls joined at once after a channel switch (0-20 bursts) and TS2 joined mid-stream beside a
+call (0) play as before.
+
 On air with this (2026-10-18): calls are taken with the caller and talk group, and 393 frames reached the codec with
 2 bit errors in all. The decoded audio is speech (peak 3521 of 32767) and streams to the chip (`aud blk` climbing),
 but the speaker plays only a faint buzz (4.8). Leads, not checked: 0x0E (HPoutEn, bit 7; RadioFoundry writes 0x44, which
@@ -407,7 +444,7 @@ pull request. Each test started from a power-on, and register reads confirmed th
 while a call played. `hrc5000_speaker_voice()` now writes, when a DMR PCM stream opens the route: 0x0D = 0x9C, 0x0E = 0x4C
 (HPMute stays set, HPoutEn stays off, Mic1En on) and 0x37 = 0xC2, with 0x36 = 0x00 already written; it writes 0x0D = 0x8C and
 0x0E = 0x44 back when the route closes, which should also end the buzz after a call. `-DHRC5000_SPK_VOICE=0` leaves it out.
-On an MD-380 (UHF, D002.032 codec) against an AT-D878UV on 446.075 TS1, with the build at 17d89001 plus the codec
+On an MD-380 (UHF, D002.032 codec) against an AT-D878UV on a 70 cm test frequency, TS1, with the build at 17d89001 plus the codec
 move: received speech plays clear from the speaker and transmit is clear (one 10 s call: 498 frames, 10 bit errors, 3
 concealed, 0 lost). Why both bits are needed together isn't in the manual (unverified). Not yet checked with it: the buzz after
 a call or after our own transmit, the key beep in DMR and FM, and FM receive.
@@ -434,7 +471,7 @@ Skyworks SKY72310-11 (unverified as the part fitted to this radio). From the dat
 - **The driver uses the signed mode** (register 14 bit 5): N_reg = round(N) - 32 and a two's complement dividend for a
   fraction of -0.5..+0.5. Sent unsigned, every channel whose fraction was over one half came out one phase detector
   step (8.4 MHz) low with lock detect high: at 443.7, 444.0-444.5, 435 and 450 MHz the radio received nothing, at
-  440, 445 and 446.075 it did (DM-32UV as the sender, 2026-10-20, issue 108). Either the unsigned-mode write doesn't
+  440, 445 and 446 MHz it did (DM-32UV as the sender, 2026-10-20, issue 108). Either the unsigned-mode write doesn't
   take or the part runs signed; signed encoding is right in both cases on air.
 - A new ratio takes effect on the dividend MSB write: order divider, LSB, MSB.
 - Lock detect high = locked (on the Mux_out / LD pin, wired to PD10 (unverified)). The pin is the PS output, open collector
@@ -605,8 +642,10 @@ Bias from MICPWR_SW (PA14), on whenever the radio runs (section 2.6). Mic level 
 
 CTCSS / DCS are decoded in software from QT_DQT_IN (PA2) and generated as PWM on
 CTC/DCS_OUT (PC7) (unverified). RadioFoundry does the same behind `CONFIG_SUBTONE` (on by default, 3.3 KB of
-flash). CTCSS 100.0 Hz works on air both ways (tester, 2026-10-19); DCS and the deviation aren't checked yet. Without
-the switch, channels with a tone open on carrier and send no tone.
+flash). CTCSS 100.0 Hz works on air both ways (tester, 2026-10-19). DCS receive works on air (D023N, 2026-11-02). DCS
+transmit went out inverted (D023N decoded as D023I by another radio, 2026-11-02), so `MD380_SUBTONE_TX_INVERT` is on
+by default. At `MD380_SUBTONE_PERCENT` 30 the deviation is 0.60 kHz peak for CTCSS 100.0 Hz and about 0.72 kHz for DCS
+(SDR, 2026-11-02), inside the usual 0.5 to 0.75 kHz. Without `CONFIG_SUBTONE`, channels with a tone open on carrier and send no tone.
 The FM TX tones (1750 Hz, roger beep) and APRS AFSK are not written (`CONFIG_FM_TX_TONES`, `CONFIG_APRS_RX` in
 `config.mk`).
 
@@ -827,7 +866,9 @@ size.
 On a 16 MB part RadioFoundry uses the DM-1701's map (settings 0x011000, journal 0x019000, open-firmware codeplug 0x000000 and
 0x020000-0xE00000, native area 0xE00000, TFTP staging 0xF00000), so the open-firmware CPS works the same. The TYT codeplug at 0 is overwritten
 by the first open-firmware write: read it out with the manufacturer's CPS first if it matters ([md380-migration.md](md380-migration.md) does that, converts it with qdmr and writes it back). There is no calibration window in the
-main array (11.1). On a smaller part the core gets no areas: settings live in RAM and nothing is written.
+main array (11.1). On a smaller part the core gets no areas: settings live in RAM and nothing is written. The CPS still
+reads the chip (area 1, up to its end) and the radio info gives its size, so a backup saves all of it; the Codeplug
+Editor and the flasher's channel step say that the radio stores no codeplug.
 
 ---
 

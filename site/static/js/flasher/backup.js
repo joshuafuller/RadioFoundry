@@ -6,7 +6,8 @@
 //   backup.json              what's in the bundle: the radio, its firmware before and now, each part's address,
 //                            size, SHA-256 and whether the read was complete
 //   internal-flash.bin       the MCU flash from the application base (the bootloader is never read or written)
-//   spi-flash.bin            the external SPI flash: codeplug, calibration, the stock firmware's resources
+//   spi-flash.bin            the external SPI flash: codeplug, calibration, the stock firmware's resources. As big as
+//                            the radio's chip, which can be smaller than the board's usual one (radios.json backup.spi_size)
 //   security-registers.bin   the SPI flash's security registers (the factory calibration on the DM-1701); not in a
 //                            backup taken over another open firmware's CPS (openfw.js), which never asks area 10
 //   radio-info.bin           the CPS radio info block (open-firmware-cps.md 4)
@@ -19,6 +20,7 @@
 import { equal, hex, sha256 } from "./bytes.js";
 import { zip, unzip } from "./zip.js";
 import { debugLinkReader } from "./readers.js";
+import { parseRadioInfo, flashBytes } from "./link.js";
 
 export const FORMAT = "rfoundry-backup/1";
 // Bundles made before the project was renamed: same layout, the old format id and firmware kind
@@ -39,8 +41,9 @@ export async function readRadio(link, board, radio, { what = {}, progress = () =
 	const parts = [];
 	const want = { internal: true, spi: "full", security: true, ...what };
 	const step = (name) => (done, total) => progress(name, done, total);
-	// a build without the codeplug protocol's areas refuses these, or doesn't answer them
-	const cps = async (area, addr, len) => { try { return await link.cpsRead(area, addr, len); } catch (e) { return null; } };
+	// a build without the codeplug protocol's areas refuses these, or doesn't answer them: not the long retries of a
+	// read that must finish
+	const cps = async (area, addr, len) => { try { return await link.cpsRead(area, addr, len, 3); } catch (e) { return null; } };
 	const info = await cps(CPS_INFO, 0, 128);
 	if (info) parts.push({ file: "radio-info.bin", what: "radio-info", addr: 0, data: info, complete: true });
 	let security = null;
@@ -97,7 +100,7 @@ export async function readRadio(link, board, radio, { what = {}, progress = () =
 			parts.push({ file: "internal-flash.bin", what: "internal-flash", addr: base, data: r.data, complete: r.complete });
 		}
 		if (want.spi !== "none") {
-			const size = want.spi === "full" ? radio.backup.spi_size : CODEPLUG_SPAN;
+			const size = Math.min(want.spi === "full" ? radio.backup.spi_size : CODEPLUG_SPAN, spiBytes(radio, info, reader));
 			const r = await reader.read("spi", 0, size, { progress: step("spi"), signal });
 			parts.push({ file: "spi-flash.bin", what: "spi-flash", addr: 0, data: r.data, complete: r.complete && want.spi === "full" });
 		}
@@ -107,6 +110,14 @@ export async function readRadio(link, board, radio, { what = {}, progress = () =
 	}
 	await reader.close();
 	return parts;
+}
+
+// The radio's SPI flash in bytes: the board's (radios.json backup.spi_size), or less when the radio reports a smaller
+// chip, in its radio info (info: its raw bytes) or the reader's own probe (the loader's HELLO). Some radios of a model
+// came with a smaller chip; a read past its end is refused, or wraps around to its start
+export function spiBytes(radio, info, reader = null) {
+	const sizes = [radio.backup.spi_size, flashBytes(parseRadioInfo(info)?.flashId), reader?.spiSize].filter((n) => n > 0);
+	return Math.min(...sizes);
 }
 
 // meta: {radio: {board, name, chip, version}, firmware_now, firmware_before, notes}
