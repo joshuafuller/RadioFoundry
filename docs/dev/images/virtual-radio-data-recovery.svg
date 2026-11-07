@@ -1,0 +1,57 @@
+<!-- SPDX-License-Identifier: MIT -->
+<!-- Copyright (c) 2026 The RadioFoundry Authors -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="620" viewBox="0 0 1120 620" role="img" aria-labelledby="title description">
+<title id="title">DMR data recovery: the host regression before and after the fix</title>
+<desc id="description">The existing host test injects one modem refusal, then allows a second call-alert reply. Before the fix, the completion callback arrives before the data service marks the transmission running; the callback is ignored, the service remains busy and the next reply is blocked. The fix marks the transmission running before calling the host. The callback then records the failure and clears the busy state, allowing the next reply to succeed. The regression checks error accounting, recovery and the acknowledgement contents. This diagram illustrates the documented host-test results in issue 284 and merged pull request 305; it is not a physical-radio measurement.</desc>
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 1 1 L 9 5 L 1 9 Z" fill="#506a79"/></marker>
+<style>
+text { font-family: 'IBM Plex Sans', 'DejaVu Sans', sans-serif; fill: #172c3a; }
+.title { font-size: 28px; font-weight: 600; }
+.label { font-size: 19px; font-weight: 600; }
+.body { font-size: 18px; }
+.note { font-size: 16px; fill: #4b626f; }
+.code { font-family: 'IBM Plex Mono', 'DejaVu Sans Mono', monospace; font-size: 14px; fill: #4b626f; }
+.section { font-family: 'IBM Plex Mono', 'DejaVu Sans Mono', monospace; font-size: 14px; fill: #246482; }
+.wire { fill: none; stroke: #506a79; stroke-width: 1.6; marker-end: url(#arrow); }
+</style>
+</defs>
+<rect width="1120" height="620" fill="#ffffff"/>
+
+<text x="40" y="52" class="title">One refused send should not block the next.</text>
+<text x="40" y="84" class="note">Documented host regression: issue #284 → merged fix #305</text>
+<line x1="40" y1="109" x2="1080" y2="109" stroke="#c8d3da"/>
+<text x="182" y="158" class="section">01  INJECT A REFUSAL</text>
+<text x="490" y="158" class="section">02  OBSERVE RECOVERY</text>
+<text x="798" y="158" class="section">03  ALLOW THE NEXT REPLY</text>
+<text x="40" y="230" class="section" style="fill:#9a3b36">BEFORE FIX</text>
+<rect x="182" y="190" width="248" height="84" fill="#ffffff" stroke="#728997" stroke-width="1.2"/>
+<rect x="490" y="190" width="248" height="84" fill="#ffffff" stroke="#9a3b36" stroke-width="1.2"/>
+<rect x="798" y="190" width="282" height="84" fill="#ffffff" stroke="#9a3b36" stroke-width="1.2"/>
+<text x="200" y="223" class="label">Modem refuses</text>
+<text x="200" y="251" class="body">the first reply</text>
+<text x="508" y="223" class="label">Service stays busy</text>
+<text x="508" y="251" class="note">Completion was ignored</text>
+<text x="816" y="223" class="label" style="fill:#9a3b36">Reply blocked</text>
+<text x="816" y="251" class="note">Same test, next call alert</text>
+<path d="M 430 232 H 482" class="wire"/>
+<path d="M 738 232 H 790" class="wire"/>
+<text x="40" y="414" class="section" style="fill:#286449">AFTER FIX</text>
+<rect x="182" y="374" width="248" height="84" fill="#ffffff" stroke="#728997" stroke-width="1.2"/>
+<rect x="490" y="374" width="248" height="84" fill="#ffffff" stroke="#286449" stroke-width="1.2"/>
+<rect x="798" y="374" width="282" height="84" fill="#ffffff" stroke="#286449" stroke-width="1.2"/>
+<text x="200" y="407" class="label">Modem refuses</text>
+<text x="200" y="435" class="body">the first reply</text>
+<text x="508" y="407" class="label">Service returns idle</text>
+<text x="508" y="435" class="note">Refusal is counted</text>
+<text x="816" y="407" class="label" style="fill:#286449">Reply sent</text>
+<text x="816" y="435" class="note">Same test, next call alert</text>
+<path d="M 430 416 H 482" class="wire"/>
+<path d="M 738 416 H 790" class="wire"/>
+<text x="182" y="320" class="body">Fix: mark the transmission running before calling the host.</text>
+<text x="182" y="345" class="note">An immediate completion can then clear the state correctly.</text>
+<line x1="40" y1="496" x2="1080" y2="496" stroke="#c8d3da"/>
+<text x="40" y="531" class="body">Retained regression: failure accounting, recovery, ACK type, CRC and IDs.</text>
+<text x="40" y="558" class="code">test_refused_reply_recovers  /  tests/host/dmrDataChainTest.c</text>
+<text x="40" y="594" class="note">Illustration of the reported host-test results. The PR did not validate the trigger on a physical radio.</text>
+</svg>

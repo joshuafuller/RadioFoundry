@@ -7,32 +7,37 @@
 
 Support for common DMR features and more radios gives more people a reason to try RadioFoundry. A good first
 experience, useful responses when something goes wrong, and dependable updates give them reasons to keep using it
-and recommend it to others.
+and recommend it to others. Better tools can help more contributors investigate problems and keep that work
+manageable as the project grows.
 
-As that community grows, so does the range of hardware combinations, feature interactions and bug reports to
-investigate. Making that work easier to reproduce and share could help more contributors take part and spread the
-support workload.
+The goal here is to bring a repeatable failing test to a bug report or pull request, then show the fix passing.
+A maintainer can investigate the same modeled failure without first assembling the contributor's radio setup.
 
-This work explores one way to help: let contributors investigate modeled radio behavior with a laptop, share a
-repeatable failure, and leave a regression test behind when they fix it. A maintainer could run the same case without
-first assembling the contributor's radio setup. The aim is a shorter path from a user's report to a verified fix,
-while keeping real-radio checks for behavior the models cannot establish.
+RadioFoundry already has host tests, software-in-the-loop tests, a UI simulator and hardware-in-the-loop tests.
+**This preview runs several radios through their actual firmware tasks, controls the conditions, and repeats the
+same interaction.** Each radio runs on Linux with modeled hardware and a controlled clock. The firmware's own
+startup, FreeRTOS tasks, debug link and suitable HIL test scripts are reused.
 
-This preview runs RadioFoundry's own firmware tasks on Linux, with modeled hardware and communication between
-virtual radios. It records the inputs and results so a software failure can be investigated again in fresh processes.
+## A result already upstream
 
-```mermaid
-flowchart LR
-    reproduce["Reproduce a bug in virtual radios"] --> test["Keep a failing test"]
-    test --> fix["Show the fix passing"]
-    fix --> bench["Check hardware-dependent behavior on real radios"]
-```
+During the broader SIL work, an injected modem refusal exposed a bug: after one failed transmission, the data
+service remained busy and blocked later replies. The investigation was reduced to a small reproduction in the
+project's existing host tests. [Issue #284](https://github.com/RadioFoundry/RadioFoundry/issues/284) records that
+reproduction; [merged PR #305](https://github.com/RadioFoundry/RadioFoundry/pull/305) contains the fix and regression.
 
-## One working example
+![Before the fix, an immediate modem refusal leaves the data service busy and blocks the next reply. After the fix, the refusal is counted, the service returns idle and the next reply succeeds.](images/virtual-radio-data-recovery.svg)
 
-The included two-radio check exercises call setup and delivery of an acknowledged text message. It records the run,
-then repeats the inputs in new processes at different playback speeds. The traces and screen, UI-state and storage
-checkpoints must match. It also checks that a raw codeplug write stops the recording before its contents are saved.
+[Open the before-and-after diagram](images/virtual-radio-data-recovery.svg).
+The retained test checks recovery, failure accounting, and the next acknowledgement's type, CRC and source and
+destination IDs. The fix and test landed independently of the virtual-radio infrastructure. This earlier SIL
+finding illustrates the contribution model: use the tools to investigate, then bring upstream a focused correction
+and a regression it can maintain in its existing test framework.
+
+## Try the multi-radio workflow
+
+The preview's two-radio check exercises call setup and an acknowledged text message. It records the inputs and
+replays them in fresh processes at different speeds, comparing traces and screen, UI-state and storage checkpoints.
+It also checks that raw codeplug writes stop recording before their contents are saved.
 
 After [building the preview](virtual-radio-quickstart.md#build-and-start), run:
 
@@ -40,44 +45,37 @@ After [building the preview](virtual-radio-quickstart.md#build-and-start), run:
 python3 tools/conductor/checks/interaction_check.py
 ```
 
-Success ends with `interaction_check: PASS --part all`. This check passed on the refreshed preview, along with
-startup, boot/UI tests over the virtual debug link, and focused conductor tests. These are software results; the
-virtual vocoder does not validate decoded speech. Full CI and physical-radio validation were not run for the refresh.
+Success ends with `interaction_check: PASS --part all`. The [quickstart](virtual-radio-quickstart.md) also covers
+browser controls and running existing boot/UI tests through the virtual debug link.
 
-For a maintainer, the useful result is an executable account of what happened and what should happen. Once a bug
-can be reproduced in this environment, its scenario can help verify a correction and catch the same failure later.
+## Scope and validation
 
-## How it fits the existing tests
+These checks establish behavior in the modeled software paths. RF, interrupt timing, audio quality and unmodeled
+peripherals still need physical-radio tests. The virtual vocoder does not validate decoded speech. The case study
+above reports host-test results; the upstream PR did not validate the triggering condition on physical radios.
 
-RadioFoundry already has host tests, software-in-the-loop tests, a UI simulator and hardware-in-the-loop tests.
-This experiment runs the firmware's own startup and FreeRTOS tasks, then coordinates several radio processes on one
-controlled timeline. That lets a scenario exercise interactions between task scheduling, radio behavior, UI input
-and storage. It also reuses the existing debug link and suitable HIL test scripts.
-
-Hardware testing remains necessary for RF, interrupt timing, audio quality and peripheral behavior that the models
-do not reproduce. A passing virtual test is evidence about the modeled path, not proof that every supported radio
-works. The [architecture diagram](virtual-radio-architecture.md#layers) shows where that boundary sits.
+For the refreshed preview, startup, the two-radio interaction and replay, boot/UI tests, and focused conductor tests
+passed. Full CI and physical-radio validation were not run for that refresh. See [checks and CI](virtual-radio-checks.md)
+for the commands and [engine capabilities](virtual-radio-architecture.md#engine-capabilities) for differences between
+the host virtual radio and the optional firmware emulators.
 
 ## What maintaining it would involve
 
-The preview adds a host FreeRTOS port, virtual hardware models and Python tools for coordinating and replaying runs.
-Those carry ongoing costs:
+Reusing the firmware tasks and protocol engines avoids a second implementation of their behavior. The added test
+environment still needs upkeep:
 
-- The host port must stay aligned with FreeRTOS and firmware startup changes.
-- Models need checks against real behavior; an inaccurate model can give a convincing but misleading result.
-- Scenarios, recording formats and CI runtime need upkeep as firmware behavior changes.
+- Keep the host FreeRTOS port aligned with kernel and firmware startup changes.
+- Check the hardware models against real behavior so their results remain useful.
+- Maintain scenarios and recording formats, and keep CI runtime practical.
 
-The firmware tasks and protocol engines are reused, which avoids maintaining a second implementation of them.
-It does not eliminate the cost of maintaining the test environment. The optional firmware emulators add further
-models and dependencies; their [capabilities and limits](virtual-radio-architecture.md#engine-capabilities) differ
-from the host virtual radio. The time saved investigating and reviewing fixes needs to justify this ongoing work;
-that benefit still needs to be demonstrated in regular use.
+The time saved investigating and reviewing fixes needs to justify that work. That broader benefit still needs to
+be demonstrated in regular use.
 
-## A useful first contribution
+## Where this work can help next
 
-The proposal is to use this fork to demonstrate one useful bug reproduction and a regression test for its fix.
-That would give maintainers a concrete example to judge before deciding which infrastructure, if any, belongs
-upstream. This preview is available to try; it does not require adopting the whole system to benefit from a finding.
+The next step is to repeat the pattern above: investigate a useful problem, isolate its cause, and contribute a
+focused fix and regression test using existing upstream tests wherever practical. That gives maintainers concrete
+results to judge before considering which additional infrastructure belongs upstream.
 
 | To explore further | Start here |
 |---|---|
