@@ -5,7 +5,7 @@
 
 | Field | Value |
 |---|---|
-| Status | Implemented |
+| Status | Implemented on this fork |
 | Date | 2026-10-31 |
 | Shapes | [Architecture, "Record and replay"](../virtual-radio-architecture.md#record-and-replay) |
 

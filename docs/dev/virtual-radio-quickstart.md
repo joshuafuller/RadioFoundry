@@ -52,5 +52,18 @@ as its serial port. Both tests should pass. The Hub test accounts for the virtua
 timeline. World control is opt-in and uses a separate one-time control code; watching does not acquire a radio lease.
 Use `python3 tools/vradio.py status` to list worlds and `python3 tools/vradio.py down --name NAME` to stop one.
 
-[Checks and proposed CI](virtual-radio-checks.md) lists focused commands. Read the
-[synchronous data-completion fix dependency](virtual-radio.md#what-the-work-has-found) before running SMS checks.
+[Checks and proposed CI](virtual-radio-checks.md) lists focused commands and explains the reproduction verdicts.
+
+## Common setup problems
+
+| Symptom | What to check |
+|---|---|
+| Build reports missing FreeRTOS headers | Run `git submodule update --init -- third_party/FreeRTOS-Kernel` from the repository root |
+| A world name already exists | Choose a new `--name`; use the same name in the replay path |
+| The completed world folder is gone | Add `--keep` when starting the run; successful launcher runs otherwise remove their folder |
+| A printed browser URL no longer opens a session | The bootstrap token is single-use and the world must still be running; a new browser session needs a fresh URL |
+| Replay refuses a build or VIEW version | Use the recorded build, or make a new recording. Compare mode still enforces compatible schemas and VIEW versions |
+| `pytest` or `serial` cannot be imported | Use the Python interpreter where `pytest` and `pyserial` were installed |
+
+Keep builds and firmware-backed checks sequential within one checkout. A test can rebuild the shared executable;
+starting a second build while another test launches it can cause a transient execution failure.

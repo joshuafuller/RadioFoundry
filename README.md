@@ -1,5 +1,8 @@
 # RadioFoundry
 
+> **Virtual radio preview, work in progress on this fork.** These tools are not merged upstream.
+> Start with [the goals, quickstart and limits](docs/dev/virtual-radio.md).
+
 **Free, MIT-licensed firmware for affordable DMR radios.** One shared core runs the DMR stack, the UI, the codeplug and
 the host tools; each radio adds a thin board layer. It brings the FM and DMR features low-cost stock firmware leaves
 out, with a UI designed from first principles. Anyone can use it for anything, commercial products included.

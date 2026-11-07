@@ -5,7 +5,7 @@
 
 | Field | Value |
 |---|---|
-| Status | Implemented |
+| Status | Implemented on this fork |
 | Date | 2026-10-31 |
 | Shapes | [Architecture, "Who may control"](../virtual-radio-architecture.md#who-may-control-0004-accepted) and check control ownership |
 

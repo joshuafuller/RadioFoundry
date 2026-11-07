@@ -3,46 +3,73 @@
 
 # Virtual radio
 
+**Status:** an unmerged development preview on this fork, refreshed with upstream `ad79ab67` on November 7, 2026.
+The newer experimental board models and Codec2 speech work remain on separate development branches.
+
 The virtual radio runs RadioFoundry's firmware tasks on Linux with a virtual board in place of hardware.
 Each radio is a separate process. A conductor supplies the clock, connects radios through a shared simulated air,
-and records inputs and checkpoints. The firmware tasks and protocol engines are unchanged. The shared browser
-page carries an optional gateway session proof.
+and records inputs and checkpoints. The firmware tasks and protocol engines are unchanged. The browser front panel
+adds a session check when accessed through the virtual-radio gateway.
 
 Use it to test firmware without a radio, reproduce interactions between several radios, and replay a run in fresh
 processes. A browser shows the firmware's front panel. Scripts and existing hardware-in-the-loop tests can use the
 debug link through the conductor.
 
+## Better tools to move faster
+
+The aim is to shorten the path from a user's bug report to a reproducible failure, a verified fix, and a regression
+test. As more radios and DMR features are supported, contributors need ways to check interactions without owning
+every radio involved. Repeatable software tests can reduce that setup time and leave more hardware test time for
+the behavior that needs a real radio.
+
+- Run several radios against one controlled clock and simulated air, with repeatable inputs and fault conditions.
+- Record a failure and replay it in fresh processes so another contributor can investigate it.
+- Exercise the firmware's front panel and debug link through a browser or script.
+- Reuse suitable hardware-in-the-loop test scripts against virtual radios, then verify hardware behavior on a bench.
+
+The host virtual radio is **software-in-the-loop simulation**: firmware tasks run natively against modeled hardware.
+The Renode and QEMU adapters provide **firmware emulation**: compiled firmware runs against modeled processors and
+peripherals. **Hardware-in-the-loop testing** uses physical radios. Running a HIL test script against a virtual radio
+is still a software test. These approaches complement each other; none of the modeled results establishes RF,
+analog, audio quality or physical timing performance.
+
+This preview is a place to try the approach and discuss useful pieces. The extraction sequence below is a proposal
+for smaller contributions, not an agreed upstream roadmap or a request to merge the whole branch.
+
 ## Five-minute quickstart
 
-You need Linux (including WSL2), GCC, GNU make and binutils, Python 3.11 or newer, and the populated FreeRTOS submodule.
-Run these commands from the repository root. They build the firmware, run two radios for two virtual seconds, and exit:
+You need Linux (including WSL2), Git, GCC, GNU make and binutils, and Python 3.11 or newer. These commands clone this
+preview, initialize its FreeRTOS dependency, build the firmware, run two radios for two virtual seconds, and exit:
 
 ```sh
-tools/checkout-submodules.sh
+git clone --branch virtual-radio-preview https://github.com/joshuafuller/RadioFoundry.git
+cd RadioFoundry
+git submodule update --init -- third_party/FreeRTOS-Kernel
 make BOARD=vhost
 python3 tools/vradio.py up --radios 2 --ratio max --until-ms 2000 --no-browser
 ```
 
+If you already checked out this branch, start at the submodule command from the repository root.
 The launcher prints a world folder and two loopback URLs, then `ended: virtual time limit`. No hardware is opened.
 For a browser session, key presses, a hardware-in-the-loop test and replay, see the
 [quickstart](virtual-radio-quickstart.md).
 
 ## What the work has found
 
-These are observations from the source work, not claims that every issue is fixed by this branch.
+These are historical observations from the source work. A reproduction's outcome depends on the firmware version;
+it may report that a bug is fixed after an upstream update.
 
 | Observation | Reproduction |
 |---|---|
 | After a sender restarts, an identical new SMS can be treated as a duplicate at the receiver | `tools/conductor/checks/sms_restart_check.py` compares repeated and changed text after restart or reboot |
 | A repeater's parrot echo can be ignored by the original caller while another radio receives it | `tools/conductor/checks/parrot_check.py --part echo`, for caller echo bug |
-| A dual-watch restart immediately after stopping could be lost by the UI | The debug-link sequence led to a separate upstream UI correction; no UI fix is included here |
+| A dual-watch restart immediately after stopping could be lost by the UI | The debug-link sequence led to a separate upstream UI correction, now inherited through the upstream update |
 | Codeplug transfers needed a visible busy screen | CPS busy-screen work is separate from the virtual-radio infrastructure |
 | A DMR VFO could lose its color code when switching to a channel and back | `tools/emu/vfo_channel_check.py` follows the VFO channel-switch bug steps in an emulator |
 
-The synchronous data-completion firmware fix is separate and deliberately absent here. SMS, data
-acknowledgment and data-dependent replay checks may fail until that fix is available. This includes the SMS portion
-of `interaction_check.py`, `sms_restart_check.py`, and the SMS step in `tools/demo.py`. A failure in those checks is not a
-reason to copy the firmware fix into this branch. Voice-only and boot checks can run independently.
+The upstream synchronous data-completion fix ([PR #305](https://github.com/RadioFoundry/RadioFoundry/pull/305)) is
+included through the upstream update. SMS and data-dependent replay checks no longer need a separate firmware patch.
+See [the checks page](virtual-radio-checks.md) for commands and what their results mean.
 
 ## Limits and clean room
 
@@ -80,9 +107,9 @@ checks use the separate `debug()` probe explicitly. These probes do not provide 
 
 ## Proposed upstream sequence
 
-The local preview remains six commits. Extract the following features in order; each future PR needs its working
-command and focused check. Sizes below are **measured current source slices**, not forecasts of extracted patches.
-They count tracked source lines (including comments and tests) on 2026-11-01. Globs include tracked files only;
+A possible extraction order follows; each future PR needs its working command and focused check.
+Sizes below are **source slices measured on November 1, 2026**, not forecasts of extracted patches or current counts.
+They count tracked source lines, including comments and tests. Globs include tracked files only;
 earlier rows own any overlapping file. Extraction glue and future installation docs are not counted.
 
 | Order | PR contents | Measured lines | Counted paths (repository-relative) |

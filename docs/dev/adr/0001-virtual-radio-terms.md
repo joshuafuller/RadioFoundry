@@ -5,7 +5,7 @@
 
 | Field | Value |
 |---|---|
-| Status | Implemented |
+| Status | Implemented on this fork |
 | Date | 2026-10-31 |
 | Shapes | [Architecture, "Terms"](../virtual-radio-architecture.md#terms) |
 
@@ -18,21 +18,20 @@ both "built for a PC" and "the computer on the USB link". Without one rule per w
 
 ## Decision
 
-1. Nineteen terms with one definition each, landed in `docs/glossary.json` under the category "Virtual radio", scope
-   `dev`, `preview` false: virtual radio, virtual board, host platform, world, world controller, controller,
-   observer, air, air model, session, scenario, recording, replay, checkpoint, screen frame, virtual time, radio view,
-   UI simulator, practice mode.
+1. Define virtual-radio terms in [the architecture's term tables](../virtual-radio-architecture.md#terms).
+   This preview does not add them to the project's shared `docs/glossary.json`.
 2. A bare "frame" is not a term. Say screen frame, burst, link frame or Ethernet frame.
 3. "View" alone means the radio view. A browser page is a page or front panel.
 4. "Session" alone means a virtual radio session, only in virtual radio docs. Other kinds keep their prefix.
 5. "Host platform" is only the platform layer. The computer on a link is "the computer".
-6. Not used for new work: "digital twin", "lab", "emulator", "simulator" for the virtual radio, "snapshot", "monitor"
-   for watching.
+6. The tool is called the virtual radio. "Software-in-the-loop simulation" describes its host execution mode;
+   "firmware emulation" describes the Renode and QEMU adapters. Avoid calling either a digital twin, which can
+   suggest a model validated against a particular physical unit.
 7. The UI simulator and practice mode keep their names for their own tools only.
 
 ## Consequences
 
-- Specs, code and the browser page use the same words. The glossary check guards the data.
+- Specs, code and the browser page use the same words. The architecture tables are the reference for these terms.
 - "Controller" and "world controller" are one prefix apart. The architecture spec keeps "world controller" for the
   part that moves time, calls the client role with world rights a "world client", and calls the host process that
   holds them all the "conductor".
@@ -41,4 +40,4 @@ both "built for a PC" and "the computer on the USB link". Without one rule per w
 
 - **Keep the research words** ("digital twin", "lab"). Rejected: a twin suggests a copy kept in step with one real
   unit, and "lab" names a bundle of harnesses, not a thing you run.
-- **No glossary, define words per spec.** Rejected: the clashes above are already in the tree.
+- **Define the same words independently on every page.** Rejected: the clashes above need one reference table.

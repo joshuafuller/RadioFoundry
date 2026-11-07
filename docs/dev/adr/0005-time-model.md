@@ -5,7 +5,7 @@
 
 | Field | Value |
 |---|---|
-| Status | Implemented |
+| Status | Implemented on this fork |
 | Date | 2026-10-31 |
 | Shapes | [Architecture, "Time model"](../virtual-radio-architecture.md#time-model) |
 
@@ -47,9 +47,8 @@ Two rules keep control and replay deterministic:
 - **Pause.** While paused, client commands are refused and held keys
   and PTT are released. Those releases are recorded inputs from the conductor. Leases are
   revoked; the same holds while Stepping.
-- **Causal tie-break.** Events made at the same virtual time by different sources never run before their cause
-. An event
-  created while time T is handled and due at T joins the next round at T, whatever its class.
+- **Causal tie-break.** Events made at the same virtual time by different sources never run before their cause.
+  An event created while time T is handled and due at T joins the next round at T, whatever its class.
 
 ## Added by the architecture spec
 

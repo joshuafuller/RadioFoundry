@@ -48,14 +48,16 @@ its round count. Output sequence includes `DONE` packets and is transport order,
 | ETH_OUT | 10 | Radio to parent: one Ethernet frame |
 | FRAME | 11 | Radio to parent: opaque screen checkpoint, produced by its owner |
 | TRACE | 12 | Radio to parent: one complete trace line, without its newline |
-| AIR_OUT | 13 | Reserved: radio to parent, one burst per message |
-| AIR_IN | 14 | Reserved: parent to radio, one burst per message |
-| VIEW | 15 | Reserved: view checkpoint; registered owner defines payload |
-| STORE | 16 | Reserved: storage checkpoint; registered owner defines payload |
+| AIR_OUT | 13 | Radio to parent: one modeled burst per message |
+| AIR_IN | 14 | Parent to radio: one modeled burst per message |
+| VIEW | 15 | Radio to parent: UI checkpoint from `platform/host/vview.c` |
+| STORE | 16 | Reserved wire kind; current storage checkpoints are extracted from STORE trace lines |
 
-The air reservations use the header's radio-relative time and a payload prefix of slot u8, burst kind u8, then burst
-bytes. Their owner defines and validates the slot and kind values. This channel does not implement a DMR modem.
-VIEW and STORE can also have registered input owners; neither has one by default.
+The air record is defined by [the virtual modem channel](../../boards/vhost/dmr_air_vchan.c) and
+[the conductor's air adapter](../../tools/conductor/parts/air.py). Its 24-byte prefix holds the slot, burst kind,
+air-start time, color code, voice index, sync, flags, embedded link control and payload length. Burst bytes follow.
+The channel header gives the delivery time; the payload carries the original air-start time. The modem validates
+these fields; the channel transport itself does not implement DMR. VIEW and STORE have no registered input owner.
 
 `DONE` next due time is `UINT64_MAX` when the queue is empty. Its round count is the last handled round plus one,
 or zero if no event ran at this time. It is a round watermark, not a count of callbacks or of nonempty rounds.

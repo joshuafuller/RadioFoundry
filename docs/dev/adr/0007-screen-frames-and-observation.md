@@ -5,7 +5,7 @@
 
 | Field | Value |
 |---|---|
-| Status | Implemented |
+| Status | Implemented on this fork |
 | Date | 2026-10-31 |
 | Shapes | [Architecture, "Screen frames and observation"](../virtual-radio-architecture.md#screen-frames-and-observation) and checks observer isolation, screenshot control |
 

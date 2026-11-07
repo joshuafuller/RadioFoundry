@@ -4,7 +4,9 @@
 # Architecture decisions
 
 These records explain the virtual radio implementation and its alternatives.
-They describe this branch; they do not imply upstream acceptance.
+They describe this branch; they do not imply upstream acceptance. Context sections describe the design at the
+record's date. Rejected alternatives and possible extensions are not implemented features. The
+[preview overview](../virtual-radio.md) and [quickstart](../virtual-radio-quickstart.md) describe what to try now.
 
 ## Index
 

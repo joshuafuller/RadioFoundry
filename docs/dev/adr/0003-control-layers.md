@@ -5,7 +5,7 @@
 
 | Field | Value |
 |---|---|
-| Status | Implemented |
+| Status | Implemented on this fork |
 | Date | 2026-10-31 |
 | Shapes | [Architecture, "Control APIs"](../virtual-radio-architecture.md#control-apis) |
 
@@ -34,7 +34,8 @@ only the research IPC controls them.
 
 ## Consequences
 
-- The same HIL test runs on a real radio and a virtual one. Testing the virtual panel tests the shipped panel.
+- Suitable HIL test scripts can run on a real radio and a virtual one. Tests that require unmodeled hardware still
+  need a bench. Testing the virtual panel exercises the shipped panel code.
 - The world API can change freely: no real radio depends on it.
 - Multi-client rules live on the host ([0004](0004-control-ownership.md)). The firmware has one debug link parser and
   admits one `/ws`.

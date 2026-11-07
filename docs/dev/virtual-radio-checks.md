@@ -21,7 +21,8 @@ make -C tests/host
 JOBS=8 tools/ci.sh --steps host,python
 ```
 
-Default GCC 13.3 emits the same two baseline `origin/main` format-truncation warnings at `core/codeplug/zone_import.c:198` and `tests/host/zoneShareSvcTest.c:121`; they still fail CI's unchanged zero-warning gate.
+These commands describe the full developer gate; passing a focused check below does not imply that full CI passed.
+The zero-warning gate is unchanged.
 
 ## Focused checks
 
@@ -60,8 +61,19 @@ Both engines use the owner-death watcher to kill their process group when the Py
 
 `python3 tools/conductor/checks/interaction_check.py` drives a voice call and an SMS between two radios, replays the run,
 and checks that raw storage writes cannot enter shareable recordings. `make -C tests/host interaction-check` runs it too.
-The SMS portion depends on upstream synchronous data-completion fix, which is absent from this branch. See the
-[dependency note](virtual-radio.md#what-the-work-has-found); this command is not a passing gate yet.
+The upstream synchronous data-completion fix is included in this preview's refreshed base.
+
+The committed `tests/recordings/two-radio-dmr.json` is a synthetic comparison fixture, not a portable snapshot of
+arbitrary firmware. Replay requires its recorded build; compare permits another build but still checks schema and
+VIEW-version compatibility. After a firmware change deliberately updates that contract, regenerate the fixture
+from the checked scenario, then run the committed-recording regression:
+
+```sh
+python3 tools/conductor/checks/interaction_check.py --write-recording
+build/venv/bin/python -m pytest -q tools/conductor/tests/test_replay.py::test_committed_recording_travels_with_compare
+```
+
+Do not relabel a recording's version or weaken the replay checks to make an old fixture pass.
 
 ## observe_check
 
@@ -97,7 +109,7 @@ small world and checks repeated traces. This is a local measurement, not a suppo
 
 `python3 tools/conductor/checks/sms_restart_check.py` compares repeated and changed text across a sender restart.
 Add `--mode reboot` to keep persisted flash. The verdict is `CONFIRMED` or `REFUTED`; either can exit zero if the
-experiment completed consistently. It also needs the synchronous data-completion fix.
+experiment completed consistently. Neither verdict alone means a firmware fix was verified.
 
 ## parrot_check
 
@@ -126,7 +138,7 @@ timeout -k 10 600 build/venv/bin/python -m pytest -q tools/emu tests/emu
 ```
 
 Absent firmware or emulator prerequisites are explicit skips. Browser checks also need Playwright and Chromium.
-The SMS acceptance command remains separate until the synchronous data-completion firmware fix is available.
+The SMS acceptance command can also be run separately as `python3 tools/conductor/checks/interaction_check.py`.
 Timing checks use synthetic clocks for pacing correctness; reported wall times are observations, not performance
 gates. The stall gate has a 30-second outer timeout independent of its virtual clock and five-second stall budget.
 Conductor-managed emulators use private command channels and reject any child TCP listener. A passing run does not

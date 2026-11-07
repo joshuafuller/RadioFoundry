@@ -7,6 +7,11 @@ How the virtual radio is built: its layers, its seams, how time works, how clien
 recording holds. Start with [virtual-radio.md](virtual-radio.md).
 Each decision has an ADR in [adr/](adr/README.md).
 
+This page describes the host virtual radio in this unmerged fork. The optional Renode and QEMU adapters have a
+smaller supported interface; see [engine capabilities](virtual-radio.md#engine-capabilities). Accepted decisions
+below are decisions within this preview, not upstream approvals. Alternatives and future extensions are not shipped
+features.
+
 ## What the virtual radio is
 
 A **virtual radio** is one radio's firmware core built for a PC and run on a **virtual board**. It runs the
@@ -15,8 +20,8 @@ and it does not emulate the chip. Many virtual radios form a **world**: the radi
 **virtual time**.
 
 One example shows the idea. The UI task waits 1000 ms for its splash (`vTaskDelay`). On a virtual radio that wait is
-1000 ms of virtual time, and it takes about 12 ms of PC time, because time jumps when every task waits. The
-same boot, run twice, gives the same trace byte for byte.
+1000 ms of virtual time. In max-speed mode, elapsed wall time depends on the host because virtual time advances
+when every task waits. The same boot can then be checked for a byte-identical trace across runs.
 
 ## Terms
 
@@ -109,7 +114,7 @@ times, with code taking no virtual time, and repeats that order byte for byte. I
 - a task that runs late because code took too long (the radio task's "fell behind" branch never runs);
 - what a loop does that spins without sleeping (the clock stops; the run ends as stuck and names the task).
 
-The bench and HIL tests cover these.
+These require appropriate bench or HIL tests; a passing virtual run does not cover them.
 
 ## Seams
 
@@ -151,7 +156,7 @@ NULL (0007, 0008).
 
 The clock stands still while firmware code runs. **Reading the clock never moves it.** When every task waits, the
 clock jumps to the next due event. A loop that polls the clock without sleeping never ends and the run is ended as
-stuck. An opt-in "assist after many still reads" stays a later switch for bench tools.
+stuck. An opt-in "assist after many still reads" was considered as a future alternative; it is not implemented.
 
 ### What a wait means
 
@@ -168,8 +173,8 @@ stuck. An opt-in "assist after many still reads" stays a later switch for bench 
 The world controller owns world time. It sends every radio a **grant**: "run until T". T is the earliest of:
 
 1. the next world event (a scripted input, a fault);
-2. now plus the **air lookahead**: 1 ms while radios share an air, until the virtual modem states a longer one and a
-   check proves it; no limit when radios share no air;
+2. now plus the **air lookahead**: 1 ms by default while radios share an air, or the modem's stated 30 ms with
+   `lookahead_proven` enabled after checking the scenario; no air cap when radios share no air;
 3. now plus the **pacing cap**: 1 ms by default at a speed ratio or with a live client; none in max mode with no
    live client.
 
@@ -299,7 +304,7 @@ side.
 
 Clients share firmware behavior through the control layers in ADR 0003, rather than one
 wire protocol: both protocols end in the same firmware code (input injection, the radio view), and the world API is
-the same for every world client. Neither the browser nor an scripts has a private path to radio behavior.
+the same for every world client. Neither the browser nor a script has a private path to radio behavior.
 
 | Layer | Clients | Owns | Firmware change |
 |---|---|---|---|
@@ -365,7 +370,9 @@ So 0, 1 or many observers give the same run (the world control check), and the s
 
 ### World API message set
 
-Versioned, owned by the conductor, grown from the research IPC's ideas but not its wire format (0003).
+Versioned and owned by the conductor (0003). The table groups operations conceptually; it is not a copy-and-paste
+wire schema. Exact command names and fields are registered in [worldapi.py](../../tools/conductor/worldapi.py) and
+the modules in [parts](../../tools/conductor/parts/).
 
 | Group | Messages |
 |---|---|
@@ -433,7 +440,7 @@ banned on the virtual radio path.
 | Checkpoint key | (radio, boot, frame id). A reboot is a new process, so ids restart; the conductor counts boots |
 | Complete screen frame | When `gfx_flush` returns, caught by a link wrap. A frame with no changed row still gets a checkpoint |
 | FRAME checkpoint fields | radio, boot, frame id, virtual µs, CRC-32 of the panel copy, palette, backlight |
-| Observers | Read only the panel copy and checkpoint list, each through a bounded latest-wins queue. The radio never waits for an observer; its link to the conductor never blocks |
+| Observers | Read only host copies through bounded queues. A slow observer does not block a radio; the conductor must still drain its radio channel to avoid transport backpressure |
 | Firmware captures | Debug link SCREENSHOT, `/api/screen.bmp`, web control rows are inputs, recorded |
 
 ## Record and replay
@@ -468,7 +475,7 @@ difference and names it.
 | Start | Always from the recorded start state at time 0. Recording is on from world creation. No saved RAM or flash state to resume from |
 | Another build | Called a **compare**, not a replay. Compares VIEW records and assertions only. For bisecting |
 | VIEW checkpoint | The UI status fields (`screen`, `depth`, `focus`, `count`, `locked`, `banner`, `toast`, `query`) from a link wrap of the firmware's own `ui_app_status` call, strings copied at once, written on change, tagged with the frame id. Checked before FRAME at the same time, so the first difference reads as a screen name |
-| Files | `original.json`, `scenario.json` (the recording), `trace`, `result.json`, `replay.json`, `report.md`; while live, `events.jsonl` |
+| Files | World folder: `events.jsonl`, `audit.jsonl`, `result.json`, `report.md`; recording folder: `recording/scenario.json`, `recording/radio-N.trace` |
 | Version 1 files | Read only through a converter that maps each old action or refuses it with a named reason |
 
 **Privacy (enforced).** No recording holds a flash image or storage bytes.

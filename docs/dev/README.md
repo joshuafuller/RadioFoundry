@@ -13,6 +13,7 @@ tooling and link the specs for behavior; they don't repeat them. Users read [doc
 | 2. Layout | [Architecture](architecture.md) | The layers (core, hal, drivers, platform, boards), the tasks, where each feature lives |
 | 3. Build | [Building](building.md) | Toolchains, make targets, feature switches, build options, image size, flashing your own build |
 | 4. Test | [Testing](testing.md) | Host tests, the UI simulator and gallery, sanitizers, fuzzing, HIL and the SDR bench |
+| | [Virtual radio preview](virtual-radio.md) | Unmerged fork work: goals, software simulation, firmware emulation, quickstart and limits |
 | 5. CI | [CI](ci.md) | The workflows per push, per pull request and nightly; running each piece locally; coverage |
 | | [CI runners and images](ci-runners.md) | The Gitea and GitHub runners, the csky-elf image, the HIL runner |
 | | [Stack check](stack-check.md) | The static worst-case stack depth of every task |
