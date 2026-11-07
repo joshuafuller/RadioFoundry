@@ -4,7 +4,6 @@
 # Virtual radio
 
 **Status:** an unmerged development preview on this fork, refreshed with upstream `ad79ab67` on November 7, 2026.
-The newer experimental board models and Codec2 speech work remain on separate development branches.
 
 The virtual radio runs RadioFoundry's firmware tasks on Linux with a virtual board in place of hardware.
 Each radio is a separate process. A conductor supplies the clock, connects radios through a shared simulated air,
