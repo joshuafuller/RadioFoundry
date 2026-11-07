@@ -5,13 +5,21 @@
 
 **Development preview on this fork. Not merged upstream.**
 
-The goal is to let a contributor bring a repeatable failing test to a bug report or pull request, then show the fix
-passing. A maintainer could run the same case without first assembling the contributor's radio setup.
+Support for common DMR features and more radios gives more people a reason to try RadioFoundry. A good first
+experience, useful responses when something goes wrong, and dependable updates give them reasons to keep using it
+and recommend it to others.
+
+As that community grows, so does the range of hardware combinations, feature interactions and bug reports to
+investigate. Making that work easier to reproduce and share could help more contributors take part and spread the
+support workload.
+
+This work explores one way to help: let contributors investigate modeled radio behavior with a laptop, share a
+repeatable failure, and leave a regression test behind when they fix it. A maintainer could run the same case without
+first assembling the contributor's radio setup. The aim is a shorter path from a user's report to a verified fix,
+while keeping real-radio checks for behavior the models cannot establish.
 
 This preview runs RadioFoundry's own firmware tasks on Linux, with modeled hardware and communication between
 virtual radios. It records the inputs and results so a software failure can be investigated again in fresh processes.
-The intended benefit is less back-and-forth reproducing problems and stronger regression coverage as radio and
-feature support grows. Whether that saves enough effort to justify maintaining the tools still needs to be shown.
 
 ```mermaid
 flowchart LR
@@ -62,7 +70,8 @@ Those carry ongoing costs:
 The firmware tasks and protocol engines are reused, which avoids maintaining a second implementation of them.
 It does not eliminate the cost of maintaining the test environment. The optional firmware emulators add further
 models and dependencies; their [capabilities and limits](virtual-radio-architecture.md#engine-capabilities) differ
-from the host virtual radio.
+from the host virtual radio. The time saved investigating and reviewing fixes needs to justify this ongoing work;
+that benefit still needs to be demonstrated in regular use.
 
 ## A useful first contribution
 
