@@ -3,8 +3,36 @@
 
 # Virtual radio quickstart
 
-Start with the build and two-second run in [Virtual radio](virtual-radio.md#five-minute-quickstart).
-All commands below run from the repository root on Linux. Nothing opens a connected radio or transmits RF.
+This guide builds the preview and runs its first checks. For the purpose and scope, read the
+[overview](virtual-radio.md). Nothing here opens a connected radio or transmits RF.
+
+## Build and start
+
+
+You need Linux (including WSL2), Git, GCC, GNU make and binutils, and Python 3.11 or newer. These commands clone this
+preview, initialize its FreeRTOS dependency, build the firmware, run two radios for two virtual seconds, and exit:
+
+```sh
+git clone --branch virtual-radio-preview https://github.com/joshuafuller/RadioFoundry.git
+cd RadioFoundry
+git submodule update --init -- third_party/FreeRTOS-Kernel
+make BOARD=vhost
+python3 tools/vradio.py up --radios 2 --ratio max --until-ms 2000 --no-browser
+```
+
+If you already checked out this branch, start at the submodule command from the repository root.
+The launcher prints a world folder and two loopback URLs, then `ended: virtual time limit`. No hardware is opened.
+
+A successful startup checks that the radios boot. To exercise communication and repeatability, run this next from
+the repository root:
+
+```sh
+python3 tools/conductor/checks/interaction_check.py
+```
+
+It checks call setup, an acknowledged text message, repeatable replay, and recording privacy. A passing run ends
+with `interaction_check: PASS --part all`. The modeled vocoder does not validate decoded speech.
+All remaining commands also run from the repository root.
 
 ## Browser controls
 

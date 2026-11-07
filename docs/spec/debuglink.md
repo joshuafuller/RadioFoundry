@@ -19,7 +19,7 @@ Emulator transports preserve this byte protocol. The standalone Renode check use
 scripts leave TCP debug terminals off by default. Outside lockstep, the standalone QEMU bridge uses a loopback
 listener retained from allocation through shutdown; its GDB endpoint is a private Unix socket. Conductor adapters reject unsupported
 common debug-link inputs by name while allowing time and shared-air operation. See
-[emulator channel limits](../dev/virtual-radio.md#engine-capabilities) and
+[emulator channel limits](../dev/virtual-radio-architecture.md#engine-capabilities) and
 [standalone channels](../dev/virtual-radio-checks.md#standalone-emulator-channels).
 
 ## 1. Coexistence on the host port

@@ -8,7 +8,7 @@ recording holds. Start with [virtual-radio.md](virtual-radio.md).
 Each decision has an ADR in [adr/](adr/README.md).
 
 This page describes the host virtual radio in this unmerged fork. The optional Renode and QEMU adapters have a
-smaller supported interface; see [engine capabilities](virtual-radio.md#engine-capabilities). Accepted decisions
+smaller supported interface; see [engine capabilities](#engine-capabilities). Accepted decisions
 below are decisions within this preview, not upstream approvals. Alternatives and future extensions are not shipped
 features.
 
@@ -60,7 +60,7 @@ side grows around it. The shared browser page has an optional hook for the gatew
 [Open the architecture diagram at full size](images/virtual-radio-architecture.svg). Each downward stack shows
 execution and interface layers; bidirectional channels carry inputs and results between the conductor and each
 radio. The diagram covers the host virtual radio. The emulator adapters have the more limited capabilities listed
-in the [preview overview](virtual-radio.md#engine-capabilities).
+in [engine capabilities](#engine-capabilities).
 
 | Layer | Owns | New or kept |
 |---|---|---|
@@ -466,3 +466,48 @@ The observation caches hold the latest panel and bounded client queues. Disk use
 Build hashes are captured from the running host executable at launch, and the conductor source hash is captured
 when recording is installed. If a later boot uses a different build, recording stops with `RECORD_BUILD_CHANGED`;
 the current schema cannot describe different builds in successive boots of one radio.
+
+## Engine capabilities
+
+| Operation | Host firmware | Renode adapter | QEMU adapter |
+|---|---|---|---|
+| Time grants and shared burst air | Yes | Yes | Yes |
+| Common KEY / ENC input | Yes | Yes | Unsupported |
+| Common debug-link bytes / Ethernet input | Yes | Unsupported | Unsupported |
+| VIEW / STORE checkpoints | Yes | Unsupported | Unsupported |
+| Panel frames | Yes | Modeled LCD snapshots | Unsupported |
+| Browser front panel and virtual HIL | Yes | Unsupported | Unsupported |
+| Full recording/replay contract | Yes | Unsupported | Unsupported |
+
+Unsupported channel operations return a named capability error before they enter the input queue. Emulator-only
+checks use the separate `debug()` probe explicitly. These probes do not provide browser, HIL or replay equivalence.
+
+## Limits and clean room
+
+Board-owned emulator descriptions, wiring and boot fixtures live in `boards/<id>/emu/`. Shared tools discover
+those descriptions; the generic-code and board-registry checks cover that layout.
+
+- The virtual vocoder and `tools/emu/codec_stub.py` are stubs. There is no real codec or decoded speech validation.
+- The air model carries bursts and applies timing, loss and collision rules. It does not calibrate RF propagation,
+  analog performance, or regulatory behavior.
+- Renode and QEMU run firmware images against peripheral models written from the project's specifications and
+  datasheets. Those models cover the paths implemented here; a passing run does not establish hardware equivalence.
+- Replay checks the recorded inputs and checkpoints against a particular build. Changing a build requires comparison
+  mode or explicit build selection. Live browser activity must first be recorded to become repeatable.
+- Local recordings can contain typed text. They start private. Use the recording lint and promotion commands before
+  sharing one. No codec, vendor firmware, flash dump or codeplug is supplied.
+
+The implementation follows [the clean-room rules](../CLEANROOM.md): project specifications, public standards,
+datasheets and permissively licensed code are the inputs. Other radio firmware source, restrictive vendor SDKs and
+disassembly are not implementation references. Emulator executables are separate tools, not source copied here.
+
+## Source layout
+
+| Path | Purpose |
+|---|---|
+| `platform/host`, `boards/vhost` | Host execution, virtual clock, peripheral interfaces and focused host tests |
+| `tools/conductor` | Worlds, time grants, leases, debug link multiplexing, air, recording and replay |
+| `tools/vradio.py`, `tools/console.py`, `tools/console` | Launcher, front-panel gateway and shared-world console |
+| `tools/emu`, `tests/emu` | Renode and QEMU bridges, peripheral models and tests |
+| `tools/digital-twin` | Scenario schema, conversion, recording validation and their required helpers and tests |
+| `tests/recordings`, `tools/testdata` | Synthetic recording examples and task-loop checker fixtures |
