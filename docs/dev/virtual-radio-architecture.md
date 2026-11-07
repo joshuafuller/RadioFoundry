@@ -55,42 +55,12 @@ This spec adds five working terms. They are not in the glossary yet; they can be
 The firmware tasks and protocol engines are unchanged. The lowest layer supplies the virtual board, and the host
 side grows around it. The shared browser page has an optional hook for the gateway's session proof.
 
-```mermaid
-flowchart TB
-    subgraph clients["Clients"]
-        scripts["Test scripts"]
-        hil["HIL test"]
-        browser["Browser"]
-        ci["CI and world clients"]
-    end
-    subgraph conductor["Conductor: one host process per world"]
-        mux["Debug link multiplexer"]
-        gw["Web gateway"]
-        wapi["World API endpoint"]
-        wc["World controller: time, air, faults"]
-        rec["Recorder and audit log"]
-    end
-    subgraph radio["Virtual radio: one process per radio"]
-        core["core/: firmware tasks and protocol engines"]
-        hal["hal/: unchanged interfaces"]
-        vboard["boards/vhost: virtual board"]
-        hostp["platform/host: main, virtual clock, grant gate, trace"]
-        port["Host FreeRTOS port"]
-    end
-    scripts --> mux
-    hil --> mux
-    browser --> gw
-    ci --> wapi
-    mux --> wc
-    gw --> wc
-    wapi --> wc
-    wc --> rec
-    wc <-->|"per-radio control channel"| hostp
-    core --> hal
-    hal --> vboard
-    vboard --> hostp
-    hostp --> port
-```
+![Clients enter one conductor, which controls time and shared air and connects to independent radio processes. Each process runs firmware tasks through unchanged HAL interfaces on a virtual board.](images/virtual-radio-architecture.svg)
+
+[Open the architecture diagram at full size](images/virtual-radio-architecture.svg). Each downward stack shows
+execution and interface layers; bidirectional channels carry inputs and results between the conductor and each
+radio. The diagram covers the host virtual radio. The emulator adapters have the more limited capabilities listed
+in the [preview overview](virtual-radio.md#engine-capabilities).
 
 | Layer | Owns | New or kept |
 |---|---|---|
