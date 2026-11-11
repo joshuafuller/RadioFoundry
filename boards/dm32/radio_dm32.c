@@ -16,6 +16,7 @@
 #include "hrc_afsk.h"
 #include "radio/ref_trim.h"
 #include "radio/pa_keyup.h"
+#include "radio/radio.h"
 
 #define DAC_C_INIT		0x06E2u
 
@@ -97,6 +98,11 @@ static pa_keyup_t ku;
 static uint16_t last_rssi_raw, last_noise_raw;
 static bool pcm_on;		// a beep or DMR voice plays through the codec
 static bool rx_audio;		// the squelch is open (the radio's audio hook)
+// Soft volume (rf-i7t): the knob is analog on the amplifier and the MCU can't read it, so the firmware's volume sits
+// under it. FM: the FD6818's AF DAC gain, 0x48 bits 3:0 (the mode tables write 0xF: the default step keeps it);
+// DMR voice and beeps: the HR_C7000's line out (dac_gain). Step 0 keeps the amplifier off for receive audio
+static uint8_t vol_nibble = 0xFu;
+static bool vol_muted;
 static bool asleep;		// the receiver is powered down between listen windows (rx_sleep)
 static bool aprs_listen;	// APRS takes the HR_C7000's FM audio (aprs_listen_route)
 static bool afsk_tx;		// APRS tones play through the prompt FIFO into the modulator (afsk_tx_route)
@@ -109,6 +115,8 @@ static bool afsk_tx;		// APRS tones play through the prompt FIFO into the modula
 static void speaker_source(void);
 static void ring_play(void);
 static void amp(uint8_t who, bool on);
+static void vol_apply(void);
+static void audio(bool on);
 
 // ---- FD6818 bus ----
 
@@ -387,6 +395,7 @@ static void set_mode(radio_mode_t m)
 		hrc7000_fm_idle(&modem);
 		mode = RADIO_MODE_FM;
 	}
+	vol_apply();		// the mode tables wrote 0x48 back to 0xBBBF
 	have_rx = false;	// the next rx() retunes everything
 }
 
@@ -432,6 +441,7 @@ static bool rx_tune(uint32_t hz, radio_bw_t bw, const subtone_t *tone, bool am, 
 #if CONFIG_AM_RX
 		fd6818_set_am(&fd, am);	// every AM tune: full gain again for the new channel; FM: AM off
 #endif
+		vol_apply();
 	}
 	rx_hz = hz;
 	rx_bw = bw;
@@ -676,9 +686,40 @@ static void amp(uint8_t who, bool on)
 	hrc_irq_restore(s);
 }
 
+static void vol_apply(void)
+{
+	if (fd.bus == NULL || asleep) {
+		return;		// wake() and the next tune apply it
+	}
+	uint16_t r = rfbus_read(fd.bus, FD6818_REG_VOLUME);
+	fd6818_write(&fd, FD6818_REG_VOLUME, (uint16_t)((r & ~0xFu) | vol_nibble));
+}
+
+// percent of the volume scale back to its step; FM: the default step and above keep the full nibble (the knob is the
+// ceiling), each step below takes 2 off; the line out: 0 dB at the default step, as on the DB25-D
+static void volume(uint8_t percent)
+{
+	unsigned step = (percent * RADIO_VOLUME_MAX + 50u) / 100u;
+	if (step > RADIO_VOLUME_MAX) {
+		step = RADIO_VOLUME_MAX;
+	}
+	vol_muted = step == 0;
+	unsigned down = step >= RADIO_VOLUME_DEFAULT ? 0u : (RADIO_VOLUME_DEFAULT - step) * 2u;
+	vol_nibble = (uint8_t)(down >= 15u ? 0u : 15u - down);
+	uint8_t code = hrc7000_dac_code(hrc7000_volume_db(step, RADIO_VOLUME_DEFAULT, RADIO_VOLUME_MAX, 12));
+	if (fd.bus != NULL) {
+		hrc7000_set_dac_gain(&modem, code);
+	} else {
+		modem.dac_gain = code;	// before init(): its codec set-up writes the kept gain
+	}
+	vol_apply();
+	audio(rx_audio);	// step 0 and back: the amplifier
+}
+
 static void audio(bool on)
 {
 	rx_audio = on;
+	on = on && !vol_muted;
 	if (!on) {
 		amp(AMP_RADIO, false);	// before the source switch, so the switch doesn't click
 	}
@@ -805,7 +846,8 @@ const hal_radio_t dm32_radio = {
 #endif
 	.status = status,
 	.audio = audio,
-	.volume = NULL,
+	.volume = volume,
+	.volume_pcm = true,	// the line out gain scales DMR voice and beeps
 #if CONFIG_REF_TRIM
 	.ref_trim = ref_trim,
 #endif
