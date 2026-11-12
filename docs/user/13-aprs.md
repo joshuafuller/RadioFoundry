@@ -39,7 +39,7 @@ frequency, your position and its source, and when the next beacon goes out. If t
 | SmartBeaconing | More often when you move fast, at once after a turn, rarely when you stand still |
 | Send via | AFSK (on FM), DMR, or both |
 | KISS on USB | The radio works as a KISS TNC for APRS programs on the computer |
-| Stations heard | Stations the radio heard (radios that can receive APRS), newest first. A station that sent its position shows how far away and which way it was from yours, when the radio has a position too; the age on that row is then the age of that position. Other rows show when the station was last heard. Objects and items a station sends don't count as its position, and a position more than a day old is dropped. Select one and choose Message to fill its callsign |
+| Stations heard | Stations the radio heard (radios that can receive APRS), sorted as described below. A station that sent its position shows how far away and which way it was from yours, when the radio has a position too; the age on that row is then the age of that position. Other rows show when the station was last heard. Objects and items a station sends don't count as its position, and a position more than a day old is dropped. Select one and choose Message to fill its callsign |
 
 A firmware built with only one way to send APRS shows only the rows for it. With APRS over DMR only there is no
 Frequency, Power, Path, Send via or Stations heard, and KISS on USB is called NMEA on USB (the computer can still give
@@ -47,6 +47,22 @@ the radio its position).
 
 The symbol, comment and the DMR destination are set with the debug tool for now
 (`tools/rfoundry_debug.py aprs set ...`), later with qdmr.
+
+## Sort and filter stations
+
+**Stations heard** starts with **Nearest** when your position is known, otherwise **Recent**. Press **\*** to
+cycle **Recent**, **Nearest**, and **Callsign**. New packets keep that order, and the selection follows the same
+callsign. Nearest puts stations without a known range last and uses receipt time when no ranges are available.
+Your chosen sort and filter last until power off.
+
+Press **#** (or hold **OK**) for **All / Weather / Mobiles / Objects / Digipeaters**. Select with OK or a numbered
+key. **#**, **1** returns to All. The title shows the view and count, such as **Weather only, 3 of 14**; a dim row
+shows the sort and how many stations are hidden. Filtering does not delete stations or stop reception.
+
+Weather uses a weather packet or weather symbol. Mobiles means a retained position with a known speed above zero.
+Objects shows stations whose last packet was an object or item, under the publisher's callsign. Digipeaters uses
+the advertised digipeater symbol; hearing a station through a digipeater does not put it in that filter.
+If the selected station leaves the view, the list selects the first remaining station.
 
 ## Station details
 

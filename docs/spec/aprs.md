@@ -355,7 +355,7 @@ position now, Automatic beacons, Frequency (region: N America 144.390, Europe 14
 144.575, Japan 144.660, China 144.640, Custom), Power (As channel, then each of the board's levels), Path (the
 digipeater path of RF packets: None, WIDE1-1, WIDE1-1,WIDE2-1, WIDE2-1, WIDE2-2; OK steps to the next and WIDE2-2
 wraps to None), Interval (Off, 1, 2, 5, 10, 30 min), SmartBeaconing, Send via (AFSK, DMR, Both), KISS on USB, Stations
-heard (RX builds: the list, most recent first, dimmed when heard through a digipeater; a station with a position shows
+heard (RX builds: the sorted list described below, dimmed when heard through a digipeater; a station with a position shows
 its distance and compass point from ours, `position_now` as DMR GPS Info uses it, "14.5 km NE" by `sb_range`,
 left out first when the row is too narrow, and nothing without a position on either side; that row's age is the
 position's, `pos_ms`, else the last packet's. An object's or item's position is not stored as its sender's; a
@@ -372,6 +372,23 @@ The page shows the rows the build has:
 
 The digit keys follow the rows shown. Where the position comes from, the fixed position and "Send in DMR calls" are
 in Settings > Location ([position.md](position.md) 6).
+
+The station list (`ui_aprs_list.c`, `CONFIG_APRS_RX`) starts with Nearest when our position is valid, otherwise
+Recent. `*` cycles Recent / Nearest / Callsign. An explicit sort and the filter last for the powered session.
+Without a usable range, Nearest puts the station after known ranges; ties use receipt age, then callsign.
+Recent compares unsigned elapsed times, including across the millisecond clock wrap. Callsign uses lexical order.
+Each list refresh reapplies the sort and follows the focused callsign, including when returning from detail.
+The UI stores only callsigns and ordering keys in main RAM and resolves rows through `ui_svc_aprs_station_find`.
+
+`#` (or hold OK) opens the numbered `aprs-filter` menu: All, Weather, Mobiles, Objects, Digipeaters. Weather
+matches the last packet's weather type or the retained weather symbol (`_`); Mobiles requires a retained position
+with known speed above zero; Objects matches the last packet's object or item type; Digipeaters matches an advertised
+digipeater symbol (`#`, including overlays), not a station merely heard via a digipeater. Objects still identifies
+publishers in this station table, not separate named entities. These filters use only the retained fields.
+They never remove table entries or change receive, acknowledgment or gating behavior. The title gives the filter
+and visible/total counts; a dim information row gives the sort and hidden count. Reset to All takes `#`, `1`.
+If the focused station is hidden or evicted, the list selects its first remaining station; an already open detail
+keeps its original callsign. With no matches, the counts remain and the filter menu is still reachable.
 
 Selecting a heard station opens `aprs-station`, a scrollable detail list. The UI retains its callsign in main RAM,
 not its row index, and resolves the current station through `ui_svc_aprs_station_find` on each draw. New packets

@@ -760,9 +760,73 @@ msgstr "Símbolo"
 msgid "Packets"
 msgstr "Paquetes"
 
-#: core/ui/ui_aprs.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_list.c
 msgid "OK choose  Back"
 msgstr "OK elegir  Atrás"
+
+#: core/ui/ui_aprs_list.c core/ui/ui_find.c core/ui/ui_menus.c
+msgid "Recent"
+msgstr "Recientes"
+
+#: core/ui/ui_aprs_list.c
+msgid "Nearest"
+msgstr "Más cercanos"
+
+#: core/ui/ui_aprs_list.c core/ui/ui_menus.c
+msgid "Callsign"
+msgstr "Indicativo"
+
+#: core/ui/ui_aprs_list.c core/ui/ui_screens.c
+msgid "All"
+msgstr "Todos"
+
+#: core/ui/ui_aprs_list.c
+msgid "Weather"
+msgstr "Tiempo"
+
+#: core/ui/ui_aprs_list.c
+msgid "Mobiles"
+msgstr "Móviles"
+
+#: core/ui/ui_aprs_list.c
+msgid "Objects"
+msgstr "Objetos"
+
+#: core/ui/ui_aprs_list.c
+msgid "Digipeaters"
+msgstr "Digirrepetidores"
+
+#: core/ui/ui_aprs_list.c
+msgid "Weather only"
+msgstr "Solo tiempo"
+
+#: core/ui/ui_aprs_list.c
+msgid "Mobiles only"
+msgstr "Solo móviles"
+
+#: core/ui/ui_aprs_list.c
+msgid "Objects only"
+msgstr "Solo objetos"
+
+#: core/ui/ui_aprs_list.c
+msgid "Digipeaters only"
+msgstr "Solo digirrepetidores"
+
+#: core/ui/ui_aprs_list.c
+msgid " hidden"
+msgstr " ocultos"
+
+#: core/ui/ui_aprs_list.c core/ui/ui_gps.c core/ui/ui_menus.c core/ui/ui_screens.c
+msgid " of "
+msgstr " de "
+
+#: core/ui/ui_aprs_list.c
+msgid "* sort  # filter  OK open  Back"
+msgstr "* ordenar  # filtrar  OK abrir  Atrás"
+
+#: core/ui/ui_aprs_list.c
+msgid "Filter"
+msgstr "Filtro"
 
 #: core/ui/ui_dual.c core/ui/ui_screens.c
 msgid "No tone"
@@ -941,10 +1005,6 @@ msgid "Messages"
 msgstr "Mensajes"
 
 #: core/ui/ui_find.c core/ui/ui_menus.c
-msgid "Recent"
-msgstr "Recientes"
-
-#: core/ui/ui_find.c core/ui/ui_menus.c
 msgid "Channels"
 msgstr "Canales"
 
@@ -1087,10 +1147,6 @@ msgstr "Aún sin posiciones"
 #: core/ui/ui_gps.c
 msgid "No satellites yet"
 msgstr "Aún sin satélites"
-
-#: core/ui/ui_gps.c core/ui/ui_menus.c core/ui/ui_screens.c
-msgid " of "
-msgstr " de "
 
 #: core/ui/ui_gps.c
 msgid " in the fix"
@@ -1255,10 +1311,6 @@ msgstr "No se envió: reintenta"
 #: core/ui/ui_menus.c
 msgid "Sending to "
 msgstr "Enviando a "
-
-#: core/ui/ui_menus.c
-msgid "Callsign"
-msgstr "Indicativo"
 
 #: core/ui/ui_menus.c
 msgid "To"
@@ -3763,10 +3815,6 @@ msgstr "Tono RX"
 #: core/ui/ui_screens.c
 msgid "Copy"
 msgstr "Copiar"
-
-#: core/ui/ui_screens.c
-msgid "All"
-msgstr "Todos"
 
 #: core/ui/ui_screens.c
 msgid "{Up/Dn: +/- offset  Type: TX freq|Up/Dn +/- offset  0-9 TX freq|Up/Dn offset  0-9 TX freq|Up/Dn +/-  0-9 TX freq}"

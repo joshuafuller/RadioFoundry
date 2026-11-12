@@ -610,7 +610,7 @@ static const flow_t flows[] = {
 	{ "G GPS grid page", "ok 6 2", "4", "shows=FN42li", 1, false },
 	{ "G GPS pages wrap", "ok 6 2", "up down", "shows=Status", 2, false },
 	{ "A KISS on USB", "ok 6 8", "up up ok", "aprs_kiss=1", 3, false },
-	{ "A stations heard", "", "ok 6 8 up ok", "screen=aprs-heard count=2", 5, false },
+	{ "A stations heard", "", "ok 6 8 up ok", "screen=aprs-heard count=3", 5, false },
 	{ "A station message survives a newer packet", "ok 6 8 up ok ok aprs:reorder", "ok",
 	  "screen=compose shows=Q4WABC-15", 1, false },
 	{ "A station opens its Message action", "ok 6 8 up ok", "ok", "screen=aprs-station shows=Message", 1, false },
@@ -1576,8 +1576,51 @@ static int check_name_is_id(void)
 	return bad;
 }
 
-int main(void)
+static void station_list_checks(void)
 {
+	static const char *const scripts[] = {
+		"ok 6 8 up ok expect:shows=Nearest expect:focus=Q4WABC-15 quick expect:shows=Callsign "
+		"quick expect:shows=Recent aprs:reorder expect:focus=Q4WABC-15 up expect:focus=QJ4XYZ "
+		"ok expect:screen=aprs-station back expect:focus=QJ4XYZ",
+		"aprs:nopos ok 6 8 up ok expect:shows=Recent quick expect:shows=Nearest quick expect:shows=Callsign "
+		"back up ok expect:shows=Callsign",
+		"ok 6 8 up ok aprs:near expect:focus=Q4WABC-15 up expect:focus=QJ4XYZ",
+		"ok 6 8 up ok ctx expect:screen=aprs-filter 2 expect:count=1 expect:shows=2_hidden "
+		"ctx 1 expect:count=3 expect:focus=Q4WABC-15",
+		"aprs:weather ok 6 8 up ok ctx 2 expect:focus=QJ4XYZ expect:shows=1_hidden "
+		"ctx 1 expect:count=3 expect:focus=QJ4XYZ",
+		"aprs:weather-type ok 6 8 up ok ctx 2 expect:focus=QJ4XYZ",
+		"ok 6 8 up ok ctx 3 expect:focus=Q4WABC-15 expect:count=2",
+		"aprs:nospeed ok 6 8 up ok ctx 3 expect:count=1",
+		"aprs:object ok 6 8 up ok ctx 4 expect:focus=QJ4XYZ expect:count=2",
+		"aprs:item ok 6 8 up ok ctx 4 expect:focus=QJ4XYZ expect:count=2",
+		"aprs:digi ok 6 8 up ok ctx 5 expect:focus=QJ4XYZ expect:count=2",
+		"ok 6 8 up ok ctx 5 expect:count=1",
+		"ok 6 8 up ok down quick expect:focus=QJ4XYZ quick expect:focus=QJ4XYZ "
+		"quick expect:focus=QJ4XYZ ok ok expect:shows=QJ4XYZ",
+		"ok 6 8 up ok aprs:evict expect:count=1 ctx expect:screen=aprs-filter back expect:screen=aprs-heard",
+	};
+	char err[300];
+	for (int g = 0; g < sim_geom_count; g++) {
+		for (size_t i = 0; i < sizeof scripts / sizeof scripts[0]; i++) {
+			sim_reset(&sim_geoms[g], SIM_MAP_K);
+			if (!sim_run(scripts[i], err, sizeof err)) {
+				printf("FAIL station list %zu [%s]: %s\n", i, sim_geoms[g].name, err);
+				fails++;
+			}
+		}
+	}
+}
+
+int main(int argc, char **argv)
+{
+	if (argc == 2 && strcmp(argv[1], "--aprs") == 0) {
+		heard_checks();
+		station_checks();
+		station_list_checks();
+		printf("APRS UI: %s\n", fails ? "FAIL" : "PASS");
+		return fails ? 1 : 0;
+	}
 	if (check_name_is_id() != 0)
 		return 1;
 	static const struct { sim_map_t map; const char *name, *geom; } runs[] = {
@@ -1607,6 +1650,7 @@ int main(void)
 	call_screen_checks();
 	heard_checks();
 	station_checks();
+	station_list_checks();
 	vfo_split_dmr_checks();
 	no_battery_checks();
 #if CONFIG_VOLUME_BAR

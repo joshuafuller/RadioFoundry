@@ -1802,6 +1802,9 @@ static bool roams_known;
 
 void ui_app_init(void)
 {
+#if CONFIG_APRS_RX
+	ui_aprs_list_reset();
+#endif
 #if CONFIG_DMR_ROAMING
 	roams_known = false;
 #endif
@@ -2117,7 +2120,8 @@ void ui_app_key(const input_event_t *ev)
 	// QUICK opens quick settings from any screen; BACK returns to where the user was
 	const ui_scr_def_t *d = ui_scr[stack[sp].scr];
 	if (ev->action == ACT_QUICK && ev->gesture == GESTURE_PRESS && stack[sp].scr != SCR_QUICK &&
-			stack[sp].scr != SCR_DIAG && stack[sp].scr != SCR_HOME && !typing) {
+			stack[sp].scr != SCR_DIAG && stack[sp].scr != SCR_HOME &&
+			!(CONFIG_APRS_RX && stack[sp].scr == SCR_APRS_HEARD) && !typing) {
 		ui_push(SCR_QUICK, 0);
 		return;
 	}

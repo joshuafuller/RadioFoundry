@@ -289,6 +289,13 @@ const ui_scr_def_t ui_aprs_screen = {
 static char station_call[AX25_CALL_LEN + 4];
 #endif
 
+#if CONFIG_APRS_RX
+void ui_aprs_station_open(const char *call)
+{
+	str_copy(station_call, sizeof station_call, call);
+	ui_push(SCR_APRS_STATION, 0);
+}
+#else
 static uint16_t heard_count(void) { return ui_svc_aprs_station_count(); }
 
 static void heard_select(uint16_t i, bool hold)
@@ -334,6 +341,8 @@ const ui_scr_def_t ui_aprs_heard_screen = {
 	.empty = TRN("Nothing heard yet"),
 	.count = heard_count, .item = heard_item, .select = heard_select,
 };
+
+#endif
 
 #if CONFIG_APRS_RX
 enum { ST_MESSAGE, ST_RANGE, ST_HEARD, ST_PATH, ST_POS_AGE, ST_SPEED, ST_COURSE, ST_SYMBOL, ST_TEXT, ST_PACKETS, ST_COUNT };
