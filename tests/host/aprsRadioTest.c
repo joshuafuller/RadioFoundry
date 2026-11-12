@@ -1890,12 +1890,75 @@ static void test_objects_bulletins(void)
 }
 #endif
 
+static void test_frequency_tune(void)
+{
+	reset();
+#if CONFIG_APRS_RX
+	aprs_station_t station;
+	rx_line("Q1ABC>APRS:>146.520MHz T100 R25m +060");
+	CHECK(aprs_station(0, &station) && station.frequency.hz == CH_HZ && station.frequency.offset == 60);
+	rx_line("Q1ABC>APRS:;442.440md*092345z4803.50N/07001.75W>T077");
+	CHECK(aprs_station(0, &station) && station.frequency.hz == CH_HZ);
+	rx_line("Q1ABC>APRS:>No frequency");
+	CHECK(aprs_station(0, &station) && station.frequency.hz == 0);
+#endif
+	radio_req_t r = {RREQ_FM_TUNE, 145500000, radio_fm_tune_arg(-60, 13, false)};
+	radio_sm_request(&sm, &r, now);
+	CHECK(sm.view.ch.rx_hz == 145500000 && sm.view.ch.tx_hz == 144900000 && sm.view.temporary);
+	CHECK(sm.view.ch.tx_tone.type == TONE_CTCSS && !hw.keyed);
+	req(RREQ_CLEAR_TEMP, 0);
+	CHECK(sm.view.ch.rx_hz == CH_HZ && sm.view.ch.tx_hz == CH_HZ && !sm.view.temporary);
+	r.arg = 999000000;
+	radio_sm_request(&sm, &r, now);
+	CHECK(sm.view.ch.rx_hz == CH_HZ && !sm.view.temporary);
+	r.arg = 144000000;
+	r.arg2 = radio_fm_tune_arg(-999, 0, false);
+	radio_sm_request(&sm, &r, now);
+	CHECK(sm.view.ch.rx_hz == CH_HZ && !sm.view.temporary);
+	req(RREQ_VFO, 1);
+	uint32_t before = sm.view.ch.rx_hz;
+	r.arg = 145500000;
+	r.arg2 = radio_fm_tune_arg(0, 0, true);
+	radio_sm_request(&sm, &r, now);
+	CHECK(sm.view.vfo && sm.view.ch.rx_hz == 145500000 && sm.view.temporary);
+	req(RREQ_CLEAR_TEMP, 0);
+	CHECK(sm.view.ch.rx_hz == before && !sm.view.temporary);
+	reset();
+	aprs_set_test_call("Q1TST");
+	configure(0, false);
+	aprs_cfg_t c;
+	aprs_get_cfg(&c);
+	CHECK(!c.my_frequency && !c.decay);
+	c.decay = true;
+	c.my_frequency = true;
+	aprs_set_cfg(&c, now);
+	reload_settings();
+	run(200);
+	aprs_get_cfg(&c);
+	CHECK(c.my_frequency && c.decay);
+	c.decay = false;
+	aprs_set_cfg(&c, now);
+	reload_settings();
+	run(200);
+	aprs_get_cfg(&c);
+	CHECK(c.my_frequency && !c.decay);
+	CHECK(aprs_send_now() && wait_start(1, 5000));
+	CHECK(strstr(frames[0], "146.520MHz RadioFoundry test") != NULL);
+	wait_idle();
+	radio_sm_request(&sm, &r, now);
+	run(6000);
+	CHECK(aprs_send_now() && wait_start(2, 5000));
+	CHECK(strstr(frames[1], "145.500MHz RadioFoundry test") != NULL);
+	wait_idle();
+}
+
 int main(void)
 {
 	test_proportional();
 	#if CONFIG_APRS_WX
 	test_weather_store();
 	#endif
+	test_frequency_tune();
 	test_defaults();
 	test_beacon_on_air();
 	test_tx_limit();

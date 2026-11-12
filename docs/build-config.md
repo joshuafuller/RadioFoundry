@@ -105,6 +105,7 @@ below are for an STM32F4 radio.
 | `CONFIG_APRS_HOME` | = APRS_RX | Home APRS status, repeat evidence and task hub. Needs APRS; off keeps the compact page and allocates no feature state |
 | `CONFIG_APRS_RX` | = APRS_AFSK (n where no receive audio is written) | APRS receive: the AFSK demodulator on the board's received audio, station list, messages to us with acks, the digipeater. Useful only where the board can sample received audio: its own AFSK receive path, or FM receive audio on the PCM stream (`docs/spec/aprs.md` 5.3). About 6 KB RAM more for receive, plus about 1.8 KB main RAM for eight objects/items and eight bulletins |
 | `CONFIG_UNITS` | y | Radio-wide US/Metric display preference. Off: metric formatting, no setting. See [APRS](spec/aprs.md#display-units) |
+| `CONFIG_APRS_TUNE` | = APRS_AFSK (off on constrained builds) | Advertised voice frequency parsing, temporary Tune to, and current frequency in beacons |
 | `CONFIG_GPS_SKY` | = GPS | the GPS screen under Tools > Position: satellites on a sky plot and signal bars, fix quality, grid locator (`core/position/nmea_sky.c`, `core/ui/ui_gps.c`; `docs/spec/ui.md` 2.3). Off, that page is text |
 | `CONFIG_APRS_WX` | = APRS_RX | Weather decoding and Weather pages. Fixed main-RAM table, board-sized by `APRS_WX_STATIONS` (default four); US units. Needs APRS_RX |
 | `CONFIG_APRS_IGATE` | = APRS_RX and HOSTLINK (n where flash is short) | the iGate rules, RF to APRS-IS and messages back, with the host helper `tools/aprs_gate.py` holding the APRS-IS connection |

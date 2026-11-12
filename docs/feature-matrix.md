@@ -454,3 +454,6 @@ iGate, USB, broadcast FM, air band AM, `FONT_XL`, `AUDIO_PROBE` (`boards/db25d/c
 | default (hotspot, PPP, gateway, every service but USRP, 3 TCP connections; no split duplex) | 362,364 | 150,080 (15,344 free) | 28,584 (24,328 free) |
 
 `CONFIG_UNITS` adds a radio-wide US/Metric display preference; see [display units](spec/aprs.md#display-units).
+
+Advertised APRS voice frequencies, temporary tuning and the beacon frequency prefix are controlled by
+`CONFIG_APRS_TUNE` (see [APRS](spec/aprs.md#14-advertised-voice-frequency)). Hardware validation is pending.

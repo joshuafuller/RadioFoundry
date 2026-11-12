@@ -73,9 +73,15 @@ typedef struct {
 	uint32_t host_refill_ms;
 	uint32_t ident_ms;
 	uint32_t cp_serial;
-	char info[AX25_INFO_MAX + 1];	// scratch for information fields (under the lock)
+	// Both scratch buffers are consumed synchronously under the engine lock, never together.
+	union {
+		char info[AX25_INFO_MAX + 1];
 #if CONFIG_APRS_RX
-	aprs_station_t st[APRS_STATIONS];
+		char gate[AX25_TNC2_MAX + 20];
+#endif
+	};
+#if CONFIG_APRS_RX
+
 	uint8_t nst;
 	aprs_msg_t msgs[APRS_MESSAGES];
 	uint8_t nmsg;
@@ -86,7 +92,7 @@ typedef struct {
 	uint32_t rx_start_fails, rx_retry_ms;	// starts the board refused; the next try (RX_RETRY_MS later)
 	bool rx_retry_wait;			// the last start was refused: wait for rx_retry_ms
 	int16_t rxbuf[160];
-	char gate[AX25_TNC2_MAX + 20];
+
 #endif
 #endif
 } aprs_state_t;

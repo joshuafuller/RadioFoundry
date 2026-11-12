@@ -714,6 +714,10 @@ msgid "Weather"
 msgstr "Meteo"
 
 #: core/ui/ui_aprs.c
+msgid "My frequency in my beacon"
+msgstr "La mia frequenza nel beacon"
+
+#: core/ui/ui_aprs.c
 msgid "NMEA on USB"
 msgstr "NMEA su USB"
 
@@ -1370,6 +1374,30 @@ msgstr "A "
 #: core/ui/ui_aprs_thread.c
 msgid "OK reply  Back"
 msgstr "OK rispondi  Indietro"
+
+#: core/ui/ui_aprs_tune.c
+msgid "Tune to"
+msgstr "Sintonizza"
+
+#: core/ui/ui_aprs_tune.c
+msgid "This radio can't receive that frequency"
+msgstr "La radio non può ricevere questa frequenza"
+
+#: core/ui/ui_aprs_tune.c
+msgid "This radio can't transmit on that frequency"
+msgstr "La radio non può trasmettere su questa frequenza"
+
+#: core/ui/ui_aprs_tune.c
+msgid "This radio can't use that tone"
+msgstr "La radio non può usare questo tono"
+
+#: core/ui/ui_aprs_tune.c
+msgid "Radio busy"
+msgstr "Radio occupata"
+
+#: core/ui/ui_aprs_tune.c
+msgid "Tuned for now. Back to undo"
+msgstr "Sintonia temporanea. Indietro per annullare"
 
 #: core/ui/ui_aprs_wx.c
 msgid "No weather reports"

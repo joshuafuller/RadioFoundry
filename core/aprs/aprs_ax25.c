@@ -23,6 +23,10 @@
 #define MIN_FLAGS	8
 #define RF_TRIES	3		// a frame given up after this many failed transmissions
 #define RF_RETRY_MS	15000u		// after a failed transmission
+#if CONFIG_APRS_RX
+static aprs_station_t stations[APRS_STATIONS]; // MAIN RAM
+#endif
+
 // A heard station's position older than this is dropped: other packets keep the entry, and its age would wrap at
 // 2^32 ms (49.7 days)
 #define STATION_POS_MS	(24u * 3600000u)
@@ -466,6 +470,13 @@ static size_t build_beacon(const position_fix_t *f)
 	r.messaging = aprs_s.cfg.messaging;
 	r.ambiguity = aprs_s.cfg.compressed ? 0 : position_ambiguity();
 	r.comment = beacon_comment;
+#if CONFIG_APRS_TUNE
+	char comment[APRS_COMMENT_MAX + 1];
+	if (aprs_s.cfg.my_frequency) {
+		aprs_freq_comment(beacon_comment, comment, sizeof comment);
+		r.comment = comment;
+	}
+#endif
 	return aprs_build_position(&r, aprs_s.info, sizeof(aprs_s.info));
 }
 
@@ -553,8 +564,8 @@ void aprs_ax25_tick(uint32_t now_ms)
 	aprs_objects_tick(now_ms);
 	bool expired = false;
 	for (uint8_t i = 0; i < aprs_s.nst; i++) {
-		if (aprs_s.st[i].has_pos && now_ms - aprs_s.st[i].pos_ms >= STATION_POS_MS) {
-			aprs_s.st[i].has_pos = false;
+		if (stations[i].has_pos && now_ms - stations[i].pos_ms >= STATION_POS_MS) {
+			stations[i].has_pos = false;
 			expired = true;
 		}
 	}
@@ -626,8 +637,8 @@ static void addr_text(const ax25_addr_t *x, char *out)
 static aprs_station_t *station_find(const char *call)
 {
 	for (uint8_t i = 0; i < aprs_s.nst; i++) {
-		if (strcmp(aprs_s.st[i].call, call) == 0) {
-			return &aprs_s.st[i];
+		if (strcmp(stations[i].call, call) == 0) {
+			return &stations[i];
 		}
 	}
 	return NULL;
@@ -668,15 +679,15 @@ static aprs_station_t *station_touch(const char *call)
 		if (aprs_s.nst < APRS_STATIONS) {
 			aprs_s.nst++;
 		}
-		memmove(&aprs_s.st[1], &aprs_s.st[0], (size_t)(aprs_s.nst - 1u) * sizeof(aprs_station_t));
-		s = &aprs_s.st[0];
+		memmove(&stations[1], &stations[0], (size_t)(aprs_s.nst - 1u) * sizeof(aprs_station_t));
+		s = &stations[0];
 		memset(s, 0, sizeof(*s));
 		memcpy(s->call, call, strnlen(call, sizeof(s->call) - 1u));
-	} else if (s != &aprs_s.st[0]) {
+	} else if (s != &stations[0]) {
 		aprs_station_t t = *s;	// most recent first
-		memmove(&aprs_s.st[1], &aprs_s.st[0], (size_t)(s - &aprs_s.st[0]) * sizeof(aprs_station_t));
-		aprs_s.st[0] = t;
-		s = &aprs_s.st[0];
+		memmove(&stations[1], &stations[0], (size_t)(s - &stations[0]) * sizeof(aprs_station_t));
+		stations[0] = t;
+		s = &stations[0];
 	}
 	return s;
 }
@@ -709,6 +720,11 @@ static void station_update(const ax25_frame_t *f, const aprs_parsed_t *p)
 #if CONFIG_APRS_WX
 	if (p->has_wx && p->type == APRS_T_WEATHER) {
 		aprs_wx_receive(s, &p->wx);
+	}
+#endif
+#if CONFIG_APRS_TUNE
+	if (p->type == APRS_T_POSITION || p->type == APRS_T_MICE || p->type == APRS_T_STATUS) {
+		aprs_freq_parse(p->text, p->text_len, NULL, &s->frequency);
 	}
 #endif
 	if (p->text != NULL && p->type != APRS_T_MESSAGE && p->type != APRS_T_OBJECT && p->type != APRS_T_ITEM) {
@@ -821,7 +837,7 @@ static void packet_in(const ax25_frame_t *f, const aprs_parsed_t *p)
 	r->ms = aprs_s.now;
 	addr_text(&f->src, r->call);
 	r->type = p->type;
-	r->direct = aprs_s.st[0].direct;
+	r->direct = stations[0].direct;
 	r->has_pos = p->has_pos;
 	r->lat = p->pos.lat;
 	r->lon = p->pos.lon;
@@ -1264,7 +1280,7 @@ bool aprs_station(uint8_t i, aprs_station_t *out)
 	LOCK();
 	bool ok = i < aprs_s.nst;
 	if (ok) {
-		*out = aprs_s.st[i];
+		*out = stations[i];
 	}
 	UNLOCK();
 	return ok;

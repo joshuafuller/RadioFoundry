@@ -709,3 +709,31 @@ packets do not change. Builds without `CONFIG_UNITS` retain metric displays and 
 Distance uses one decimal below 100 mi/km and whole units above, switching to whole units when rounding
 would reach 100. Other values round to the nearest displayed unit; exact halves round away from zero.
 Received weather uses these same display units.
+
+## 14. Advertised voice frequency
+
+`CONFIG_APRS_TUNE` adds the frequency parser, temporary tuning and the optional beacon prefix. It needs
+`CONFIG_APRS_AFSK`; constrained builds may leave it off. New station data and tune undo state use main RAM.
+The grammar comes from [APRS frequency specification](https://www.aprs.org/info/freqspec.txt).
+
+The comment must start with `FFF.FFFMHz` or `FFF.FF MHz` (MHz is case insensitive). Optional space-separated
+fields are `Tnnn` or `Cnnn` (whole Hz of a standard CTCSS tone), `Dnnn` (octal DCS), signed `+nnn`/`-nnn`
+(offset in 10 kHz), and `Rnnm`/`Rnnk` (range in miles/km). Lowercase tone letters request narrow FM.
+`Toff` clears the tone. Missing offset means simplex; no regional repeater offset is guessed.
+The parser also accepts a frequency object name with a two- or three-digit fractional MHz prefix.
+Different frequencies in the object name and comment are refused rather than guessing a cross-band split.
+
+Position and status comments update the sender's frequency before display-text truncation. A comment without a
+frequency clears it. Objects, items and messages do not change the sender's tuning target. Object details retain their separate frequency display.
+
+Station detail offers Tune to with the frequency and tone. It refuses an unsupported receive or transmit
+frequency, an unusable tone, or a busy radio with a reason. The radio task checks the request again and applies
+frequency, explicit offset, FM bandwidth and transmit tone in one transaction. Receive tone is cleared.
+Tuning does not key the transmitter or write the codeplug. It returns Home with temporary state; Back restores
+the previous frequency (also in the VFO). Selecting a channel drops the temporary tune.
+
+My frequency in my beacon defaults off, stored in the appended `aprs_my_frequency` setting. When enabled, position comments start
+with the current voice channel's receive frequency and transmit tone. The radio task refreshes this prefix before
+beacon generation, including after a channel change. It preserves the configured comment after a space, within
+`APRS_COMMENT_MAX`. Digital channels, inverted DCS, or frequencies not representable in whole kHz omit the prefix.
+The setting changes content only; it does not trigger transmission.

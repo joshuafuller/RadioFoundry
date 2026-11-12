@@ -343,3 +343,19 @@ Report age is how long ago your radio received the weather, not the age of the s
 Reports stay in a small memory table until replaced or the radio restarts. A new report replaces that station's
 old measurements; missing fields do not keep older values. Weather appears only in builds with weather receive
 support enabled.
+
+### Tune to a station's voice frequency
+
+When a station advertises a voice frequency, its detail list offers **Tune to**, followed by the frequency and
+tone. Select it to listen there in FM. Any advertised offset and transmit tone are applied together. Missing
+an offset means simplex. An unsupported frequency or tone shows a reason and leaves the channel unchanged.
+
+Tuning returns to Home and is temporary. Press Back on Home to undo it, or select another channel. It does not
+transmit or save a channel. On a single receiver you leave the APRS frequency while listening to voice.
+
+### My frequency in my beacon
+
+This APRS setting is **Off** by default. Turn it on to put your current voice frequency and tone at the start of
+position beacon comments. Changing channels updates the next beacon; it does not send one immediately. Your
+existing comment follows if it fits. Digital channels and inverted DCS do not advertise an FM frequency.
+These controls require a build with `CONFIG_APRS_TUNE`.

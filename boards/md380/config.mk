@@ -13,6 +13,8 @@ CONFIG_DISPLAY_INSET_LEFT ?= 2
 CONFIG_FM_TX_TONES ?= n
 CONFIG_DTMF ?= n
 CONFIG_APRS_BEACON ?= n	# keep flash for the core radio functions
+
+CONFIG_APRS_TUNE ?= n
 CONFIG_APRS_RX ?= n
 CONFIG_APRS_PATHING ?= n # conserve flash
 

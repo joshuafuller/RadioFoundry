@@ -509,3 +509,8 @@ spec = "docs/spec/usb-audio.md"
 switch = "UNITS"
 spec = "docs/spec/aprs.md"
 source = ["core/ui/fmt.c", "core/ui/ui_svc_storage.c", "core/settings/settings.h"]
+
+[feature.aprs_tune]
+switch = "APRS_TUNE"
+spec = "docs/spec/aprs.md"
+source = ["core/aprs/aprs_freq.c", "core/ui/ui_aprs_tune.c"]
