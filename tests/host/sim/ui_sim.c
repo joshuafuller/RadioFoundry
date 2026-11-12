@@ -2754,6 +2754,7 @@ static bool check(const char *kv, char *err, size_t len)
 	else if (strcmp(key, "crash_have") == 0) snprintf(got, sizeof got, "%u", crash_sim.have);
 	else if (strcmp(key, "aprs_comment") == 0) snprintf(got, sizeof got, "%s", aprs_sim.comment);
 	else if (strcmp(key, "aprs_symbol") == 0) snprintf(got, sizeof got, "%c%c", aprs_sim.cfg.sym_table, aprs_sim.cfg.sym_code);
+	else if (strcmp(key, "aprs_listen_voice") == 0) snprintf(got, sizeof got, "%u", aprs_sim.cfg.listen_voice);
 	else if (strcmp(key, "aprs_auto") == 0) snprintf(got, sizeof got, "%u", aprs_sim.cfg.tx_on);
 	else if (strcmp(key, "aprs_region") == 0) snprintf(got, sizeof got, "%u", aprs_sim.cfg.region);
 	else if (strcmp(key, "aprs_interval") == 0) snprintf(got, sizeof got, "%u", aprs_sim.cfg.interval_s);
@@ -3142,6 +3143,12 @@ static bool run_token(char *t, char *err, size_t len)
 			memcpy(p->info, ">hi\x01", 4);
 			p->len = 4;
 			p->truncated = true;
+			advance(200);
+			return true;
+		}
+		if (strcmp(arg, "timeshare") == 0) {
+			aprs_sim.listening = APRS_LISTEN_SHARED;
+			ui_dirty();
 			advance(200);
 			return true;
 		}

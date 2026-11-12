@@ -100,6 +100,7 @@ void ui_aprs_status(char *out, size_t len, bool second)
 		case APRS_LISTEN_OFF: why = TR("Not listening: off"); break;
 		case APRS_LISTEN_UNAVAILABLE: why = TR(TEXT_ALT_OPEN "Not listening: no receiver" TEXT_ALT_NEXT "No APRS receiver" TEXT_ALT_CLOSE); break;
 		case APRS_LISTEN_CHANNEL: why = TR(TEXT_ALT_OPEN "Not listening: voice channel" TEXT_ALT_NEXT "APRS off: voice channel" TEXT_ALT_CLOSE); break;
+		case APRS_LISTEN_SHARED: why = TR("Listening: time share"); break;
 		case APRS_LISTEN_BUSY: why = TR("Not listening: radio busy"); break;
 		default: why = TR(TEXT_ALT_OPEN "Not listening: receiver busy" TEXT_ALT_NEXT "APRS receiver busy" TEXT_ALT_CLOSE); break;
 		}

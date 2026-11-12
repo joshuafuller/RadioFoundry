@@ -74,6 +74,7 @@ typedef struct {
 	uint32_t dmr_dst;	// destination ID (private call)
 	bool kiss;		// KISS TNC on the host port
 	bool to_is;		// our beacons to APRS-IS through the host helper
+	bool listen_voice;	// time-share the idle voice receiver (RX and dual watch builds)
 	bool rx_on;		// receive on the APRS frequency (boards with a receive path)
 	bool igate;		// RF -> APRS-IS
 	bool igate_tx;		// APRS-IS -> RF
@@ -228,6 +229,7 @@ bool aprs_message_action(const aprs_thread_msg_t *message, bool retry);
 
 typedef struct {
 	bool can_rf;		// an FM APRS transmission could start now (nothing else on the air, no PTT, no scan ...)
+	bool time_share;	// scheduler is listening by time share, not continuous reception
 	bool fm_rx;		// receiving FM (the receive path's audio is worth demodulating)
 	uint32_t rx_hz;		// on this frequency: APRS receive runs only on the APRS frequency
 	bool on_dmr;		// the channel is DMR with the call stack running (digital positions can go out)

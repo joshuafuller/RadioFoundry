@@ -1016,6 +1016,7 @@ void aprs_ax25_rx_service(const aprs_radio_t *r, uint32_t now_ms)
 	LOCK();
 	aprs_home_listening(!aprs_s.cfg.rx_on ? APRS_LISTEN_OFF :
 		!(own || rx_by_stream()) ? APRS_LISTEN_UNAVAILABLE :
+		r->time_share && (!want || aprs_s.rx_running) ? APRS_LISTEN_SHARED :
 		r->rx_hz != aprs_cfg_freq(&aprs_s.cfg) ? APRS_LISTEN_CHANNEL :
 		!r->fm_rx ? APRS_LISTEN_BUSY : !aprs_s.rx_running ? APRS_LISTEN_FAILED : APRS_LISTEN_ON);
 	UNLOCK();

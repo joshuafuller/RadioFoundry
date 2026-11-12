@@ -12,7 +12,7 @@ def test_aprs_home_evidence(radio):
     view = radio.view(["aprs"])
     assert view["aprs.home_built"] == "1"
     assert view["aprs.sent"] in ("0", "1")
-    assert 0 <= int(view["aprs.listening_state"]) <= 5
+    assert 0 <= int(view["aprs.listening_state"]) <= 6
     assert int(view["aprs.sent_ms"]) >= 0
     assert int(view["aprs.repeat_ms"]) >= 0
     assert int(view["aprs.repeat_serial"]) >= 0

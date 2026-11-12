@@ -811,3 +811,41 @@ Stop is a session inhibit, independent of stored automatic-beacon settings. Reop
 repeated OK on its result cannot resume. Canceled outgoing messages keep their text and require an explicit Retry.
 Resume permits future scheduled work but never requeues canceled frames. Traffic already handed to an external
 network host cannot be recalled. Unexpected power loss still loses session drafts, phrases and message history.
+
+### Receive while a voice channel is selected
+
+With `CONFIG_APRS_RX` and `CONFIG_DUAL_WATCH`, **Listen on voice channels** is a saved setting, off by default.
+It borrows the existing scan engine's idle state and carrier-resume timing in the radio state machine; no new task runs.
+It requires an available AFSK receive path and APRS RX on. It does not enable any transmit setting.
+The selected FM or DMR voice channel and PTT target remain unchanged.
+
+| State | Receiver behavior |
+|---|---|
+| Idle voice channel | 750 ms on voice, then 250 ms on the configured APRS frequency in FM |
+| Retune | The scan engine ignores carrier readings for 50 ms while the receiver settles |
+| APRS carrier | Hold until carrier ends; bridge noise gaps up to 100 ms, then return within two 25 ms polls |
+| Observed voice activity | Stay on voice; start a fresh 750 ms interval after the radio is idle |
+| PTT | Restore voice in the PTT request before normal keying; no dwell, carrier or timer wait |
+| User scan/dual watch, monitor, hotspot, other radio work | Suspend APRS time sharing |
+| RX off, setting off, frequency change, channel change | Cancel the excursion and restore voice |
+
+Home shows **Listening: time share** while the scheduler runs, including its voice intervals. This is not
+continuous reception. A single receiver cannot detect voice that begins while tuned to APRS. Detection waits
+until it returns; an APRS carrier can extend that absence. PTT still interrupts immediately. Receive-only
+sharing never calls the transmitter; the existing amateur-band transmit block is unchanged.
+
+#### Expected packet loss (model, not an RF measurement)
+
+With no traffic or holds, the tuning duty cycle is 250/1000 = 25%. Subtracting 50 ms of settling gives at most
+200/1000 = 20% of the cycle for catching packet starts. For independent uniformly timed starts, negligible
+preamble acquisition time and a perfect RF path, expect about **80% missed starts**, plus demodulator acquisition,
+poll-boundary and RF losses. A preamble that overlaps a dwell can improve this, but no particular improvement is
+promised. Voice activity reduces the available duty cycle further. Repeated packets are not independent if their
+periods align with this one-second cycle.
+
+At 1200 baud, 60, 120 and 250 bytes take 0.40, 0.80 and 1.67 seconds respectively, before preamble, flags and bit
+stuffing (worst-case stuffing adds 20%). All exceed the 200 ms settled window. Without carrier hold, none could
+fit wholly in a dwell; with hold, a captured start can complete regardless of those lengths. Hearing only a
+frame's tail is not successful reception. Host tests model the 25% idle tuning duty, voice priority, PTT at each
+25 ms point, a real AFSK frame held beyond the dwell, and short noise gaps. Hardware loss and retune latency
+remain unmeasured.

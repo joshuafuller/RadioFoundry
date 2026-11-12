@@ -63,6 +63,7 @@ static void cfg_from_settings(const settings_t *s, aprs_cfg_t *c)
 	c->boot = (f & SETTINGS_APRS_BOOT) != 0;
 	c->kiss = (f & SETTINGS_APRS_KISS) != 0;
 	c->narrow = (f & SETTINGS_APRS_NARROW) != 0;
+	c->listen_voice = s->aprs_listen_voice == 1;
 	c->rx_on = (f & SETTINGS_APRS_RX) != 0;
 	c->igate = (f2 & SETTINGS_APRS2_IGATE) != 0;
 	c->igate_tx = (f2 & SETTINGS_APRS2_IGATE_TX) != 0;
@@ -99,6 +100,7 @@ static void cfg_from_settings(const settings_t *s, aprs_cfg_t *c)
 static void cfg_to_settings(const aprs_cfg_t *c, settings_t *s)
 {
 	position_cfg_store(s);
+	s->aprs_listen_voice = c->listen_voice;
 	s->aprs_flags = (uint8_t)((c->tx_on ? SETTINGS_APRS_TX : 0) | (c->smart ? SETTINGS_APRS_SMART : 0) |
 				  (c->compressed ? SETTINGS_APRS_COMPRESSED : 0) |
 				  (c->after_ptt ? SETTINGS_APRS_AFTER_PTT : 0) | (c->boot ? SETTINGS_APRS_BOOT : 0) |

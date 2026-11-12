@@ -15,7 +15,7 @@
 #include <stdbool.h>
 #include "codeplug/codeplug.h"
 
-typedef enum { SCAN_OFF, SCAN_ZONE, SCAN_VFO, SCAN_DUAL } scan_kind_t;
+typedef enum { SCAN_OFF, SCAN_ZONE, SCAN_VFO, SCAN_DUAL, SCAN_APRS } scan_kind_t;
 typedef enum { SCAN_PH_LISTEN, SCAN_PH_PROBE, SCAN_PH_HOLD, SCAN_PH_RESUME, SCAN_PH_PAUSED } scan_phase_t;
 typedef enum { SCAN_RESUME_TIME, SCAN_RESUME_CARRIER, SCAN_RESUME_STOP } scan_resume_t;
 typedef enum { SCAN_ACT_NONE, SCAN_ACT_NEXT, SCAN_ACT_STOP } scan_act_t;
@@ -70,7 +70,8 @@ typedef bool (*scan_usable_fn)(uint16_t pos, void *ctx);
 
 void scan_begin(scan_t *s, uint8_t kind, const scan_cfg_t *cfg, uint32_t now_ms);
 void scan_end(scan_t *s);
-static inline bool scan_on(const scan_t *s) { return s->kind != SCAN_OFF; }
+// APRS borrows the idle scan timer; it is not a user scan.
+static inline bool scan_on(const scan_t *s) { return s->kind != SCAN_OFF && s->kind != SCAN_APRS; }
 
 // The radio core tuned a new stop
 void scan_tuned(scan_t *s, uint32_t now_ms);
