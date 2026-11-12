@@ -10,12 +10,12 @@ feature, Android plugin, network listener or production API. No radio, USB devic
 From this worktree's root:
 
 ```sh
-make -C tools/atak-lab check
+flock /tmp/rf-build.lock nice make -C tools/atak-lab check
 ```
 
 Requirements are the installed host C compiler, make, `uv` and system Python 3. The runner uses `uv` with the
 existing interpreter and standard library; there is no dependency installation. `PYTHON=/path/to/python` can select
-another installed interpreter. This is a Linux/WSL host tool using Unix sequenced-packet sockets and subprocesses.
+another installed interpreter. This is a Linux/WSL host tool using length-prefixed subprocess pipes (no network sockets).
 
 ## Agreed test boundary and flow
 
@@ -48,17 +48,21 @@ The chat-shaped fixture is not captured ATAK output, and successful XML parsing 
 
 ## Results and artifacts
 
-| Payload | Bytes | DMR bursts | Modeled air time | Plus one default separate-TX guard |
-|---|---:|---:|---:|---:|
-| Position fixture | 262 | 28 | 1.68 s | 1.93 s |
-| Chat-shaped fixture | 302 | 31 | 1.86 s | 2.11 s |
+| Path | Payload | Bytes | DMR bursts | Modeled air time | Separate-TX guard |
+|---|---|---:|---:|---:|---:|
+| Direct builder (original cases) | Position fixture | 262 | 28 | 1.68 s | Not executed |
+| Direct builder (original cases) | Chat-shaped fixture | 302 | 31 | 1.86 s | Not executed |
+| Real queue and data service | Position fixture | 262 | 42 | 2.52 s | 250 ms |
+| Real queue and data service | Chat-shaped fixture | 302 | 45 | 2.70 s | 250 ms |
 
-The virtual clock advances 60 ms per burst. Guard time is reported separately and is not executed by a service
-scheduler in this fixture. These are source-derived timing estimates, not observed RF throughput. They correspond
-to approximately 1.1 kbit/s of useful payload for these separate transmissions under ideal access conditions.
+The direct builder retains its two preambles. The real service widens these packets to 16 preambles, adding
+840 ms. The modeled transmitter emits one coded burst every 60 ms and reports completion only after the last
+burst. The service executes its guard between transmissions, not before the first transmission. Pipe delays and
+waiting for channel access are additional. These are deterministic source-derived timings, not RF measurements.
 
 - `build/atak-lab/results.json`: machine-readable passed result, mappings, packet sizes, burst
-  counts and modeled timing for the four successful message/direction combinations.
+  counts and modeled timing for the four direct and four PPP message/direction combinations, plus the names
+  of all 12 passed link-model case groups. The pcap covers the original Ethernet cases only.
 - `build/atak-lab/ethernet.pcap`: generated sender-input and receiver-output Ethernet frames,
   timestamped by the virtual burst clock, for independent packet inspection. Coordinates are synthetic zeroes.
 
@@ -77,8 +81,10 @@ direction handling and duplicate suppression when it injects events back into lo
 Boards without a USB data port reach the gateway through PPP on the serial host port
 ([PPP specification](../../docs/spec/ppp.md)). The same check then runs both nodes that way: each "phone" is a
 minimal PPP client in `lab.py`, written from RFC 1661, 1662 and 1332 only and sharing no code with the firmware's
-engine. Its bytes enter the node's host port in writes of at most 20 bytes, the size of a default BLE write, so a
-frame is always split across many writes.
+engine. The original cases use 20-byte writes. `Pipe` in `lab.py` also accepts chunk sizes from 20 through 244,
+per-write latency, seeded additive jitter, writes per interval, and selected byte or chunk loss. The uplink and
+downlink have separate pacing state. Both directions advance the node clock; `ppp_input` gets that clock and
+`ppp_poll` runs each virtual millisecond. There are no wall-clock sleeps.
 
 | Step | Checked |
 |---|---|
@@ -88,7 +94,39 @@ frame is always split across many writes.
 
 The mapping takes the link's UDP limit as an argument: 558 on the USB network adapter, 556 on PPP.
 
-Sabotage check: with the node's PPP delivery removed, or with PPP never entered, the run fails at the first PPP case.
+The original 12 reported case groups remain. `model_checks.py` adds 12 groups:
+
+| Case group | Checks |
+|---|---|
+| `partial` | 499 ms gap passes; 500 and 501 ms gaps discard the incomplete frame; the next complete frame passes |
+| `echo` | No request at 14,999 ms; Echo-Request at 15,000 ms; the phone replies with its magic and matching identifier; five replies keep the link up beyond 60 s |
+| `dead` | Silent peer stays up at 59,999 ms and is down at 60,000 ms |
+| `restart` | Fresh phone negotiation after dead-peer teardown restores IP and air delivery |
+| `pipe_profiles` | 24 seeded profiles, chunk endpoints 20/244, payload endpoints 1/556, arbitrary escaped bytes, latency, jitter, pacing and exact delivery; invalid chunk sizes 19/245 refused; exact schedule checked independently |
+| `loss` | One interior byte or chunk lost: one PPP FCS error and no air bursts; next complete frame passes. A whole frame lost: no FCS error because nothing arrived, then recovery |
+| `coalescing` | Newer position with the same UID replaces the unsent one in place; older/equal positions cannot undo it; other UIDs and chat remain separate |
+| `oversize` | A 556-byte CoT event queues; 557 bytes is refused with actual size and limit, leaving the queue unchanged |
+| `capacity` | Real 2048-byte air queue holds 42 records of 48 bytes; next is refused; blocked channel reaches the 2 s offer timeout exactly |
+| `aging` | Queued packets expire strictly after 10 s from the first tick that sees them, without transmission |
+| `chaining_guard` | Busy channel holds traffic; two compatible unconfirmed packets share a list; a different destination starts the next list exactly 250 ms after completion; all three payloads arrive in order |
+| `scheduled_cot` | Both fixtures through paced PPP, gateway, real air queue/service, FEC, receiving gateway and paced PPP; 42/45 bursts and completion time checked |
+
+`Pending` in `bridge.py` is an unsent host queue, separate from the firmware air queue. Position means an `a-`
+event with a point. Coalescing uses `(destination, UID)` and the event's timezone-aware `time`; it does not replace
+an event already handed to the radio. Invalid XML, missing UID/time and oversized events are refused before any
+queue change. It does not add firmware CoT parsing or application segmentation.
+
+The scheduled node links the real `dmrAirQueue.c` and `dmrDataService.c`. Their injected lock callbacks are unused
+in this single-threaded process; neither requires RTOS calls. Channel permission and channel-clear state are
+runner-controlled inputs. The transmit callback is a 60 ms/burst model, not the call stack or a modem. The receive
+side still uses the original packet receiver directly, so the data service's receive-window timing is not tested.
+
+Sabotage checks: 13 temporary mutations were detected by assertions, then restored. They froze PPP input time,
+removed polling, delayed dead-peer teardown, disabled restart, removed pipe delays, bypassed FCS validation,
+disabled coalescing, admitted one oversize byte, bypassed the air queue, disabled aging, limited chains to one
+packet, removed the guard, and emitted the first scheduled burst 1 ms early. Every new group detected its
+corresponding mutation; chaining and guard were sabotaged separately. The original PPP delivery/entry sabotage
+checks from the initial lab are retained as historical evidence.
 
 ## Original implementation versus this lab
 
@@ -97,25 +135,31 @@ Sabotage check: with the node's PPP delivery removed, or with PPP never entered,
 | IPv4 routing/filtering, multicast CAI mapping and host delivery | Two isolated host processes and the private IPC link |
 | DMR packet headers, CRCs, reassembly and frame FEC | Explicit application/radio destination translation |
 | Existing protocol and simulator test interfaces | CoT fixtures, host producer/consumer, boundary checks and capture output |
-| The PPP engine and its netif to the gateway | The phone's PPP client and the chunked byte pipe |
+| The PPP engine and its netif to the gateway | The phone's PPP client, virtual clock and impaired byte pipe |
+| Air queue, unconfirmed chaining and data-service transmission guard | Controlled channel availability and modeled burst completion |
 
 The original project already supports host/SIL testing. Our contribution connects selected real modules through
 a repeatable harness. This is not a full virtual handset: it does not boot the MCU image, run all FreeRTOS tasks,
-model a physical modem or execute the radio's complete host-link/data-service path.
+model a physical modem or execute the radio's complete host-link/call-stack path.
 
 ## Evidence limits
 
-The gateway, packet/FEC code, PPP engine and PPP netif are real; the USB driver, the host link's port dispatch,
-PPP timers (the clock stays at 0), DHCP negotiation, the air queue, data-service timers,
-channel access, voice/PTT scheduling, modem admission, RF loss/interference and repeater distribution are not
-executed here. Loss injection drops one coded data burst. It is not a physical RF noise or bit-error model, and
-there is no group ACK or automatic retry. The later successful packet is an explicit new transmission.
+The gateway, packet/FEC code, PPP engine/netif, air queue and transmit data-service timing are real. USB drivers,
+the host link's port dispatch, DHCP, FreeRTOS concurrency, voice/PTT arbitration, call-stack/modem admission,
+RF interference and repeater distribution are not executed. Channel access is a supplied boolean, not a
+contention or collision model. Unconfirmed group delivery has no ACK or automatic retry; recovery sends a new
+complete frame or datagram explicitly.
 
-Android NCM binding, USB routing, multicast socket selection, actual ATAK event/chat consumption, application
-segmentation, queue saturation and stale-event policy remain untested. No Bluetooth adapter is modeled: the byte
-pipe is ordered and lossless, with no latency, flow control, pairing or reconnect, and nothing shows that a given
-radio's Bluetooth module passes these bytes through. Firmware
-replay security is not added, and the host PQC/OTAR lab does not encrypt this production gateway path.
+The pipe is an ordered, deterministic transport model, not a BLE controller. Its loss injection represents a
+missing byte/write at the application pipe boundary, not measured BLE packet error rates or BLE link-layer
+retransmissions. It has no pairing, GATT negotiation, adapter buffers, duplex overlap or hardware reconnect.
+Chunk loss that removes a whole frame is invisible to FCS. FCS is error detection, not delivery acknowledgment.
+PPP restart proves protocol re-entry only; the radio's Bluetooth module and other serial personalities are absent.
+
+Android binding/routing, multicast socket selection, ATAK event/chat consumption and real phone throughput remain
+untested. Host coalescing is opt-in to `Pending`, has no persistent storage or queue-size bound, and only covers
+unsent positions; no live bridge invokes it yet. Firmware replay security is not added, and the host PQC/OTAR lab
+does not encrypt this production gateway path. No hardware, network service or RF is used.
 
 The radio needs no ATAK-specific map screen to perform this gateway role. Generic link, group, queue, drop and
 error status are the useful radio-side diagnostics; the map and messages belong on the ATAK device. No new radio

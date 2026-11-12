@@ -7,13 +7,14 @@ from contextlib import ExitStack
 from datetime import datetime, timedelta, timezone
 import ipaddress
 import json
+import random
 from pathlib import Path
-import socket
+import select
 import struct
 import subprocess
 import xml.etree.ElementTree as ET
 
-from bridge import to_app, to_radio
+from bridge import Pending, to_app, to_radio
 
 HOST_MAC = bytes.fromhex("025246000002")
 
@@ -67,40 +68,52 @@ def decode(frame: bytes) -> tuple[str, int, bytes]:
 class Node:
     def __init__(self, worker: str, radio_id: int):
         self.id = radio_id
-        self.sock, child = socket.socketpair(socket.AF_UNIX, socket.SOCK_SEQPACKET)
-        self.sock.settimeout(5)
-        try:
-            self.process = subprocess.Popen(
-                [worker, str(radio_id), str(child.fileno())], pass_fds=(child.fileno(),), stderr=subprocess.PIPE
-            )
-        except BaseException:
-            self.sock.close()
-            raise
-        finally:
-            child.close()
+        self.now = 0
+        self.process = subprocess.Popen([worker, str(radio_id)], stdin=subprocess.PIPE,
+                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0)
 
     def __enter__(self):
         return self
 
+    def read(self, length: int) -> bytes:
+        result = b""
+        while len(result) < length:
+            if not select.select([self.process.stdout], [], [], 5)[0]:
+                raise RuntimeError("radio-node IPC timed out")
+            data = self.process.stdout.read(length - len(result))
+            if not data:
+                raise RuntimeError("radio-node closed its IPC pipe")
+            result += data
+        return result
+
     def command(self, packet: bytes) -> list[bytes]:
-        assert self.sock.send(packet) == len(packet)
+        self.process.stdin.write(struct.pack("!H", len(packet)) + packet)
         replies = []
         while True:
-            reply = self.sock.recv(4096)
-            if not reply:
-                raise RuntimeError("radio-node closed its IPC socket")
+            reply = self.read(int.from_bytes(self.read(2), "big"))
             if reply == b"Z":
                 return replies
-            assert reply[:1] in (b"B", b"F", b"E", b"S"), "unknown node reply"
+            assert reply[:1] in (b"B", b"F", b"E", b"S", b"J"), "unknown node reply"
             replies.append(reply)
+
+    def advance(self, milliseconds: int) -> list[bytes]:
+        assert milliseconds >= 0
+        self.now += milliseconds
+        return self.command(b"T" + struct.pack("!I", self.now))
+
+    def status(self) -> dict:
+        replies = self.command(b"J")
+        assert len(replies) == 1 and replies[0][:1] == b"J"
+        return json.loads(replies[0][1:])
 
     def __exit__(self, *_):
         try:
             if self.process.poll() is None:
-                self.sock.send(b"Q")
+                self.process.stdin.write(b"\0\x01Q")
         except OSError:
             pass
-        self.sock.close()
+        self.process.stdin.close()
+        self.process.stdout.close()
         try:
             code = self.process.wait(timeout=2)
         except subprocess.TimeoutExpired:
@@ -123,6 +136,39 @@ def fcs16(data: bytes) -> int:
     return fcs ^ 0xFFFF
 
 
+class Pipe:
+    """Ordered writes with seeded jitter and fixed-window pacing, separately in each direction.
+
+    Loss indices are zero-based within each transfer; byte loss removes a wire byte before chunking.
+    """
+
+    def __init__(self, chunk=20, latency=0, jitter=0, writes=1, interval=0, seed=11):
+        if not 20 <= chunk <= 244 or min(latency, jitter, interval) < 0 or writes < 1:
+            raise ValueError("invalid pipe profile")
+        self.chunk, self.latency, self.jitter = chunk, latency, jitter
+        self.writes, self.interval = writes, interval
+        self.random = random.Random(seed)
+        self.window, self.used = 0, 0
+        self.trace = []
+
+    def transfer(self, data, now, drop_byte=None, drop_chunk=None, clock=None):
+        if drop_byte is not None:
+            data = data[:drop_byte] + data[drop_byte + 1:]
+        for index, at in enumerate(range(0, len(data), self.chunk)):
+            if clock is not None:
+                now = max(now, clock())
+            if now >= self.window + self.interval:
+                self.window, self.used = now, 0
+            if self.used == self.writes:
+                now = max(now, self.window + self.interval)
+                self.window, self.used = now, 0
+            self.used += 1
+            now += self.latency + self.random.randint(0, self.jitter)
+            chunk = data[at:at + self.chunk]
+            self.trace.append((now, len(chunk), index == drop_chunk))
+            yield now, b"" if index == drop_chunk else chunk
+
+
 class Ppp:
     """A minimal PPP client written from RFC 1661, 1662 and 1332: the phone's end of the serial pipe to a radio.
 
@@ -131,7 +177,9 @@ class Ppp:
     LCP, IPCP, IPV4 = 0xC021, 0x8021, 0x0021
 
     def __init__(self, node: Node, chunk: int = 20):
-        self.node, self.chunk, self.rx, self.rf = node, chunk, b"", []
+        self.node, self.rx, self.rf = node, b"", []
+        self.uplink, self.downlink = Pipe(chunk), Pipe(chunk)
+        self.echoes = 0
         self.address = self.radio = self.mru = None
 
     @staticmethod
@@ -141,20 +189,38 @@ class Ppp:
         escaped = b"".join(bytes((0x7D, b ^ 0x20)) if b < 0x20 or b in (0x7D, 0x7E) else bytes((b,)) for b in body)
         return b"\x7e" + escaped + b"\x7e"
 
-    def write(self, data: bytes) -> list[tuple[int, bytes]]:
-        """Serial bytes to the radio. Returns the PPP frames it answered with; its RF bursts collect in self.rf."""
-        for at in range(0, len(data), self.chunk):
-            self.take(self.node.command(b"P" + data[at:at + self.chunk]))
+    def write(self, data: bytes, **loss) -> list[tuple[int, bytes]]:
+        """Serial bytes to the radio; RF bursts collect separately."""
+        for due, chunk in self.uplink.transfer(data, self.node.now, clock=lambda: self.node.now, **loss):
+            self.take(self.node.advance(max(0, due - self.node.now)))
+            if chunk:
+                self.take(self.node.command(b"P" + chunk))
         return self.frames()
 
     def take(self, replies: list[bytes]) -> None:
-        for reply in replies:
+        pending = list(replies)
+        while pending:
+            reply = pending.pop(0)
             if reply[:1] == b"S":
-                self.rx += reply[1:]
+                for due, chunk in self.downlink.transfer(reply[1:], self.node.now, clock=lambda: self.node.now):
+                    pending.extend(self.node.advance(max(0, due - self.node.now)))
+                    self.rx += chunk
             elif reply[:1] == b"B":
                 self.rf.append(reply)
             else:
                 raise AssertionError("PPP host port answered with an Ethernet frame or an error")
+
+    def poll(self, milliseconds: int, answer=True) -> list[tuple[int, bytes]]:
+        self.take(self.node.advance(milliseconds))
+        frames = self.frames()
+        for protocol, packet in frames:
+            assert protocol == self.LCP and packet[0] == 9, "expected LCP Echo-Request"
+            assert len(packet) == 8 and int.from_bytes(packet[2:4], "big") == 8
+            if answer:
+                self.echoes += 1
+                magic = b"LAB" + bytes((self.node.id & 255,))
+                assert not self.write(self.frame(self.LCP, b"\x0a" + packet[1:4] + magic))
+        return frames
 
     def frames(self) -> list[tuple[int, bytes]]:
         *complete, self.rx = self.rx.split(b"\x7e")
@@ -357,6 +423,9 @@ def check(worker: str, output: Path) -> None:
             raise AssertionError("mapping accepted a datagram over the PPP limit")
         print(f"PASS: PPP opens on 20-byte serial writes; exact limit ({ppp_udp_max} B) delivered; oversize and bad-FCS frames stay off the air", flush=True)
 
+    from model_checks import check_models
+    model_results = check_models(worker, event, chat)
+
     with (output / "ethernet.pcap").open("wb") as capture:
         capture.write(struct.pack("<IHHIIII", 0xA1B2C3D4, 2, 4, 0, 0, 65535, 1))
         for milliseconds, frame in captures:
@@ -364,8 +433,8 @@ def check(worker: str, output: Path) -> None:
             capture.write(frame)
     (output / "results.json").write_text(json.dumps({"passed": True, "transport": "two isolated host processes",
         "firmware_data_path": "IPv4 gateway + DMR data + 33-byte frame FEC", "cases": results,
-        "ppp_serial_cases": ppp_results,
-        "limits": ["no RF or Android/ATAK app", "no queue/RTOS/USB driver timing", "no production encryption"]}, indent=2) + "\n")
+        "ppp_serial_cases": ppp_results, "link_model_cases": model_results,
+        "limits": ["no RF or Android/ATAK app", "no RTOS/USB driver or physical BLE timing", "no production encryption"]}, indent=2) + "\n")
     print(f"PASS: multicast proof; artifacts: {output}")
 
 
