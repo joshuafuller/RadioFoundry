@@ -299,6 +299,7 @@ void aprs_tick(const aprs_radio_t *r, uint32_t now_ms)
 	}
 	aprs_ax25_service();
 	// The view
+	aprs_s.v.ambiguity = position_ambiguity();
 	aprs_s.v.pos_src = src;
 	aprs_s.v.pos_valid = f != NULL;
 	if (f != NULL) {

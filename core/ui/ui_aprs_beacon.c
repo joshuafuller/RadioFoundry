@@ -131,9 +131,9 @@ static void beacon_item(uint16_t i, ui_item_t *it)
 
 static void comment_kept(void)
 {
-	if (!ui_svc_aprs_set_comment(comment)) {
-		ui_toast(TR("Comment not saved"));
-	}
+	aprs_cfg_t c;
+	ui_svc_aprs_cfg(&c);
+	ui_aprs_review(&c, comment);
 }
 
 static void beacon_select(uint16_t i, bool hold)
@@ -152,7 +152,7 @@ static void beacon_select(uint16_t i, bool hold)
 	case 4: ui_push(SCR_APRS_REACH, 0); return;
 	default: return;
 	}
-	ui_svc_aprs_set_cfg(&c);
+	ui_aprs_review(&c, NULL);
 	ui_dirty();
 }
 
@@ -190,8 +190,8 @@ static void symbol_select(uint16_t i, bool hold)
 	ui_svc_aprs_cfg(&c);
 	c.sym_table = symbols[i].table;
 	c.sym_code = symbols[i].code;
-	ui_svc_aprs_set_cfg(&c);
 	ui_pop();
+	ui_aprs_review(&c, NULL);
 }
 const ui_scr_def_t ui_aprs_symbol_screen = {
 	.name = "aprs-symbol", .flags = SF_LIST, .prefix = TRN("Symbol"), .hint = TRN("OK choose  Back"),
@@ -218,8 +218,8 @@ static void pace_select(uint16_t i, bool hold)
 	if (i != 0) {
 		c.interval_s = pace_seconds[i];
 	}
-	ui_svc_aprs_set_cfg(&c);
 	ui_pop();
+	ui_aprs_review(&c, NULL);
 }
 const ui_scr_def_t ui_aprs_pace_screen = {
 	.name = "aprs-pace", .flags = SF_LIST | SF_NUMBERED, .prefix = TRN("Pace"), .hint = TRN("OK choose  Back"),
@@ -243,8 +243,8 @@ static void reach_select(uint16_t i, bool hold)
 	aprs_cfg_t c;
 	ui_svc_aprs_cfg(&c);
 	c.path = (uint8_t)i;
-	ui_svc_aprs_set_cfg(&c);
 	ui_pop();
+	ui_aprs_review(&c, NULL);
 }
 const ui_scr_def_t ui_aprs_reach_screen = {
 	.name = "aprs-reach", .flags = SF_LIST | SF_NUMBERED, .prefix = TRN("Reach"), .hint = TRN("OK choose  Back"),

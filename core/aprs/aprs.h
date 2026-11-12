@@ -117,6 +117,7 @@ typedef struct {
 	uint16_t speed_kmh;	// 0xFFFF unknown
 	uint16_t course;	// 0xFFFF unknown
 	uint32_t pos_age_s;
+	uint8_t ambiguity; // position precision for the beacon review
 	uint16_t next_s;	// to the next time based beacon, 0xFFFF none
 	uint8_t last_why;	// aprs_why_t of the last beacon
 	uint32_t last_ms;	// when (0 = none yet)

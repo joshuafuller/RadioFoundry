@@ -25,8 +25,9 @@ room. The [Radio reference](23-radios.md) lists them and says where APRS is veri
 
 ## The APRS page
 
-Press **OK**, **6** (Tools), **8** (APRS). The top of the page shows your callsign, the APRS
-frequency, your position and its source, and when the next beacon goes out. If the radio can't send, it says why.
+Press **OK**, **6** (Tools), **8** (APRS). The header shows callsign-SSID, position source, TX state and path. Send position now is the first
+choice, including on mono. Local TX and matching-repeat evidence precede station and message counts.
+Open **0 Settings** for the policy controls below. Each changed setting opens a review before saving.
 
 | Row | What it does |
 |---|---|
@@ -63,8 +64,8 @@ and comment for FM packets. DMR gateways use their own profile for symbol and co
 | Pace | Smart, or a fixed interval of 1, 2, 5, 10 or 30 minutes | Smart, with a 10-minute fallback |
 | Reach | Direct, Local relay, Local then wide, Wide one hop, Wide two hops or Proportional | Local then wide |
 
-In Comment, **OK** saves. **Back** deletes a character; when empty, Back cancels. To clear the saved comment,
-delete its text and press OK. Hold Back cancels and returns Home. A saved comment, including an empty one,
+In Comment, **OK** opens the review. **Back** deletes a character; when empty, Back cancels. To clear the saved comment,
+delete its text and press OK, then complete the review. Hold Back cancels and returns Home. A saved comment, including an empty one,
 overrides the codeplug comment and survives restart. Symbols outside the list show **Custom** until you replace them.
 
 Reach names correspond to None, WIDE1-1, WIDE1-1,WIDE2-1, WIDE2-1, WIDE2-2 and Proportional, respectively; see Path below.
@@ -345,12 +346,22 @@ Open **Tools > APRS** for the hub:
 |---|---|
 | 1 | Stations: count and new stations since your last visit |
 | 2 | Messages: unread count; opens the shared inbox |
-| 3 | Weather: received reports (when enabled) |
-| 4 | Send position now |
-| 5 | My beacon: review identity, frequency, position and symbol |
+| 3 | Bulletins |
+| 4 | Weather |
+| 5 | Objects |
+| 6 | My beacon |
+| 7 | Recent packets |
+| 8 | My position: opens Location settings |
+| 0 | APRS settings |
 
-The existing beacon settings follow these rows. Keys 1-9 and 0 pick the first ten rows; use Up / Down and OK for
-later rows. Builds without this feature keep the compact APRS settings page.
+Numbers stay the same across display classes and feature builds. Unbuilt tasks are omitted without renumbering.
+On entry, **OK** selects Send position now. Up / Down reaches all tasks and transmission evidence.
+
+Beacon changes open five review pages: precision, voice-frequency inclusion, position source and age,
+effective timing, and Save. **Up / Down** scrolls the complete text; **OK** advances and finally saves.
+**Back** cancels without changing the saved setting. Fixed positions show that their entry age is unknown.
+SmartBeaconing shows its speed-dependent rates and turn rule, and explains that interval and decay do not apply.
+Reviewing or canceling never sends a packet. Saving an enabled automatic policy permits future automatic beacons.
 
 ## Weather
 

@@ -56,7 +56,7 @@ extern const ui_scr_def_t ui_aprs_weather_screen, ui_aprs_weather_detail_screen;
 #if CONFIG_APRS_BEACON
 extern const ui_scr_def_t ui_aprs_beacon_screen, ui_aprs_symbol_screen, ui_aprs_pace_screen, ui_aprs_reach_screen;
 #endif
-extern const ui_scr_def_t ui_aprs_screen, ui_aprs_heard_screen, ui_aprs_station_screen;	// ui_aprs.c
+extern const ui_scr_def_t ui_aprs_settings_screen, ui_aprs_review_screen, ui_aprs_screen, ui_aprs_heard_screen, ui_aprs_station_screen;	// ui_aprs.c
 #if CONFIG_APRS_HOME
 extern const ui_scr_def_t ui_aprs_beacon_screen;
 #endif
@@ -6446,7 +6446,8 @@ const ui_scr_def_t *const ui_scr[SCR_COUNT] = {
 	#if CONFIG_APRS_RX
 	[SCR_APRS_FILTER] = &ui_aprs_filter_screen,
 #endif
-	[SCR_ROAM] = &roam_screen, [SCR_APRS] = &ui_aprs_screen, [SCR_APRS_HEARD] = &ui_aprs_heard_screen,
+	[SCR_ROAM] = &roam_screen, [SCR_APRS] = &ui_aprs_screen,
+	[SCR_APRS_SETTINGS] = &ui_aprs_settings_screen, [SCR_APRS_REVIEW] = &ui_aprs_review_screen, [SCR_APRS_HEARD] = &ui_aprs_heard_screen,
 #if CONFIG_APRS_RX
 	[SCR_APRS_PACKETS] = &ui_aprs_packets_screen,
 	[SCR_APRS_PACKET] = &ui_aprs_packet_screen,

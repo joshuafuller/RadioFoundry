@@ -1068,3 +1068,6 @@ status page.
   Application sectors 3-7 (464 KB), codec sectors 8-11 (D002.032: 8, 10, 11; 35.14: 9-11), so an update keeps the
   codec. Profile `md380-d2032-s11` (a build from before the move reports `md380-d2032`). `tools/md380_migrate.py` flashes it and keeps
   the codeplug.
+
+The maximal CI configuration keeps the default bitmap fonts (`FONT_AA=n`) to leave flash for APRS setting review.
+Default builds and font sizes are unchanged; an explicit anti-aliased build still requires a feature set that fits.

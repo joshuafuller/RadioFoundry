@@ -17,7 +17,7 @@
 typedef enum {
 	SCR_HOME, SCR_QUICK, SCR_HUB, SCR_FIND, SCR_ACTIONS, SCR_CONTACTS, SCR_MESSAGES, SCR_MESSAGE, SCR_COMPOSE,
 	SCR_RECENT, SCR_ZONES, SCR_ZONE, SCR_TOOLS, SCR_SETTINGS, SCR_GROUP, SCR_PICKER, SCR_INFO, SCR_CONFIRM,
-	SCR_DIAG, SCR_EMERGENCY, SCR_SCAN, SCR_ROAM, SCR_APRS, SCR_APRS_HEARD, SCR_FIXED_POS, SCR_ABOUT,
+	SCR_DIAG, SCR_EMERGENCY, SCR_SCAN, SCR_ROAM, SCR_APRS, SCR_APRS_SETTINGS, SCR_APRS_REVIEW, SCR_APRS_HEARD, SCR_FIXED_POS, SCR_ABOUT,
 	SCR_VOLUME,			// the volume editor (VOL key, radios without a knob)
 	SCR_CHANNELS, SCR_CHANNEL,	// every codeplug channel by number; one channel's settings (arg = its number)
 	SCR_CRASH,			// the crash log's record (arg 1: the prompt after the restart; CONFIG_CRASH_SCREEN)
@@ -138,6 +138,7 @@ void ui_open_actions(const ui_target_t *t);
 void ui_aprs_compose(const char *call);
 extern char ui_aprs_text[400]; // shared body scratch: only the current screen uses it
 const char *ui_aprs_beacon_status(void);
+void ui_aprs_review(const aprs_cfg_t *cfg, const char *comment);
 void ui_aprs_list_reset(void);
 #if CONFIG_APRS_RX
 void ui_aprs_station_open(const char *call);
