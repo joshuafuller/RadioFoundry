@@ -206,12 +206,23 @@ works whatever the receive setting. **Stations heard** shows the station and whe
 ## Radar (color displays)
 
 On **Tools > APRS**, press **#** to open Radar. Your position is the center cross; north is at the top.
-Three labeled rings in kilometers automatically scale to include the stations with positions. Small markers show
-the stations; positions older than 30 minutes have dim hollow markers.
+Three rings scale automatically to include the stations with positions. Their range is in miles or kilometers
+(**Settings > Display > Units**): written on the rings on a tall display, and for the outer ring after the ring
+mark in the info area on a wide one.
 
-Press **Up / Down** or turn the knob to select a station. Its outlined marker and the bottom area show which one
-is selected, with its callsign, distance, bearing and position age. **OK** opens that station's details; **Back**
-returns. New packets do not change the selected callsign. Stations without positions remain in **Stations heard**.
+| Marker (colors of the dark theme) | Station |
+|---|---|
+| Green dot | Moving: car, truck, bike, boat, aircraft, person |
+| Amber diamond | Digipeater or gateway |
+| Blue triangle | Weather station |
+| White square | Anything else |
+| Dim outline | A position older than 30 minutes |
+
+Press **Up / Down** or turn the knob to select a station. It gets a white ring, and the info area shows its
+callsign, distance, direction, position age, and its speed and heading when it sends them. An old position reads
+"Old 45m". The last line, after a cross, is where your own position comes from. **OK** opens that station's
+details; **Back** returns. New packets do not change the selected callsign. Stations without positions remain in
+**Stations heard**.
 
 If Radar asks you to set your position, use **Settings > Location** to choose GPS, Computer or a fixed position
 (see [Position](#position)). Radar is available in color builds with APRS receive enabled.

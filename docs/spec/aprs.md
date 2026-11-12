@@ -546,15 +546,29 @@ is evicted, the screen says "No longer in list" and Message still addresses the 
 and the saved callsign are guarded by `CONFIG_APRS_RX`; the engine storage is unchanged.
 
 On color displays, # on the APRS page opens `aprs-radar` (`ui_aprs_radar.c`, guarded by
-`CONFIG_APRS_RX && CONFIG_UI_COLOR`). The center cross is our position, its source is named beside north, and three equal range rings
-use a 1/2/5 times power-of-ten kilometer interval, rounded up to include every positioned station. Markers use
-existing theme colors: RX for mobile symbols, privacy for weather, warning for repeaters/gateways, foreground for
-others. Positions older than 30 minutes have dim hollow markers. The selected marker has an outline; the bottom
-shows its callsign, position age, distance and bearing in degrees and compass points. Up / Down or the encoder
-cycles positioned stations, wrapping at each end. Selection stays by callsign through packet reorder and OK opens
-the same station detail. Eviction shows "No longer in list" without changing the subject. Without our position,
-the page says "Set your position to see the radar" and directs the user to Settings > Location. The page writes
-no settings and allocates only the selected callsign in main RAM. Mono displays retain the station list.
+`CONFIG_APRS_RX && CONFIG_UI_COLOR`). North is up and the center cross is our position. Three equal range rings use a
+1/2/5 times power-of-ten interval of the display unit (Settings > Display > Units: miles or kilometers), rounded up to
+include every positioned station. A body taller than it is wide puts the info area under the radar and writes each
+ring's range inside the ring beside the north-south axis, in the first of four places no marker is in, the unit on
+the outermost one shown; a wide body puts the info area beside the radar and names the outer ring's range in it,
+after a ring mark.
+
+| Symbol class | Marker | Color |
+|---|---|---|
+| Moving stations (primary table `> [ b k v j < ^ s`) | Dot | RX |
+| Digipeaters and gateways (`/#`, `/&`) | Diamond | Warning |
+| Weather (`_`) | Triangle | Privacy |
+| Others | Square | Foreground |
+
+Markers use existing theme colors and have a background rim. Positions older than 30 minutes are dim outlines. The
+selected station is drawn last inside a foreground ring. The info area shows its callsign, distance, bearing as a
+compass point and degrees, position age ("Old 45m" for an old position), and speed with the compass point it is
+heading to when the position has them and the row has room. Its last row names the source of our position after a
+cross mark. Up / Down or the encoder cycles positioned stations, wrapping at each end. Selection stays by callsign
+through packet reorder and OK opens the same station detail. Eviction shows "No longer in list" without changing the
+subject; with no positioned station the area says "No positions yet" and the hint is Back alone. Without our
+position, the page says "Set your position to see the radar" and directs the user to Settings > Location. The page
+writes no settings and allocates only the selected callsign in main RAM. Mono displays retain the station list.
 A new recent packet raises an eight-second non-modal banner with sender, plain packet kind, and distance/direction
 when both station and local positions exist. `# Open` opens that sender through the same callsign-based station
 detail. New traffic replaces an earlier traffic banner, but never another kind of alert. Addressed messages retain the existing message path. Arrival

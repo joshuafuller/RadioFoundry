@@ -89,6 +89,16 @@ static const struct { const char *name, *script; } gallery[] = {
 	{ "aprs_station", "wait:600000 aprs:heard ok" },
 	{ "aprs_station_text", "aprs:heard ok up up" },
 	{ "aprs_station_evicted", "aprs:heard ok aprs:evict down" },
+	// Radar (color displays): many stations, one on the outer ring, an old position, metric units, one station,
+	// none with a position, a station that left the list, and no position of our own
+	{ "aprs_radar", "wait:12000000 aprs:radarmany ok 6 8 ctx" },
+	{ "aprs_radar_edge", "wait:12000000 aprs:radarmany ok 6 8 ctx down down down" },
+	{ "aprs_radar_old", "wait:12000000 aprs:radarmany ok 6 8 ctx up up" },
+	{ "aprs_radar_metric", "wait:12000000 units:metric aprs:radarmany ok 6 8 ctx" },
+	{ "aprs_radar_one", "ok 6 8 ctx" },
+	{ "aprs_radar_empty", "aprs:evict ok 6 8 ctx" },
+	{ "aprs_radar_gone", "ok 6 8 ctx aprs:evict down" },
+	{ "aprs_radar_no_position", "aprs:nopos ok 6 8 ctx" },
 	{ "hub", "ok" },
 	{ "contacts", "ok 1" },
 	{ "contacts_find", "ok 1 5 6" },
@@ -498,6 +508,14 @@ static const struct { const char *name; unsigned flags; } gallery_color[] = {
 #endif
 	{ "channels", G_COLORS | G_THEMES },	// the focus row in the color
 	{ "settings_display", G_THEMES },
+	{ "aprs_radar", G_COLOR | G_THEMES },
+	{ "aprs_radar_edge", G_COLOR },
+	{ "aprs_radar_old", G_COLOR },
+	{ "aprs_radar_metric", G_COLOR },
+	{ "aprs_radar_one", G_COLOR },
+	{ "aprs_radar_empty", G_COLOR },
+	{ "aprs_radar_gone", G_COLOR },
+	{ "aprs_radar_no_position", G_COLOR },
 };
 
 static unsigned gallery_flags(size_t i)

@@ -1327,6 +1327,10 @@ msgstr "Imposta la tua posizione per vedere il radar"
 msgid "Settings > Location"
 msgstr "Impostazioni > Posizione"
 
+#: core/ui/ui_aprs_radar.c
+msgid "Old"
+msgstr "Datata"
+
 #: core/ui/ui_aprs_radar.c core/ui/ui_gps.c
 msgid "No positions yet"
 msgstr "Ancora nessuna posizione"

@@ -431,7 +431,7 @@ static struct {
 	aprs_thread_msg_t outgoing;
 #endif
 	uint32_t message_ms;
-	bool radar;
+	uint8_t radar;		// "aprs:radar": four stations on the compass points; "aprs:radarmany": radar_many
 	bool evicted;
 	bool no_speed;
 	bool other_pos;
@@ -517,7 +517,34 @@ bool ui_svc_aprs_packet(uint8_t i, aprs_packet_t *out)
 }
 bool ui_svc_aprs_listening(void) { return aprs_sim.listening == APRS_LISTEN_ON; }
 bool ui_svc_aprs_can_receive(void) { return true; }
-uint8_t ui_svc_aprs_station_count(void) { return aprs_sim.off || aprs_sim.evicted ? 0 : aprs_sim.radar ? 4 : 2; }
+// "aprs:radarmany": every symbol class, a pair close together, one on our own position, old positions, and stations on
+// the outer ring at each compass point (the farthest sets the scale)
+static const struct {
+	const char *call;
+	char table, code;
+	uint32_t m;
+	uint16_t deg, age_min, speed_kn, course;
+} radar_many[] = {
+	{ "Q1ABC-9", '/', '>', 1900, 62, 2, 24, 250 },
+	{ "Q2WX", '/', '_', 8000, 135, 6, 0xFFFFu, 0xFFFFu },
+	{ "Q1XYZ-1", '/', '#', 16000, 310, 1, 0xFFFFu, 0xFFFFu },
+	{ "Q4WABC-15", '/', '>', 24100, 0, 12, 10, 40 },
+	{ "Q3HOME", '/', '-', 12000, 200, 20, 0xFFFFu, 0xFFFFu },
+	{ "Q5OLD-7", '/', '>', 20000, 80, 45, 0, 0xFFFFu },
+	{ "Q6DIGI-3", '/', '#', 24100, 225, 180, 0xFFFFu, 0xFFFFu },
+	{ "Q7ABC-5", '/', 'k', 2300, 70, 4, 105, 359 },
+	{ "Q8XYZ-10", '/', '[', 24100, 90, 1, 3, 180 },
+	{ "Q9ABC", '\\', 'n', 14000, 265, 9, 0xFFFFu, 0xFFFFu },
+	{ "Q0NEAR", '/', '-', 100, 180, 3, 0xFFFFu, 0xFFFFu },
+	{ "Q6WX-2", '/', '_', 24100, 180, 50, 0xFFFFu, 0xFFFFu },
+	{ "Q2ABC-7", '/', 'b', 24100, 270, 7, 8, 90 },
+};
+#define RADAR_MANY	(sizeof radar_many / sizeof radar_many[0])
+
+uint8_t ui_svc_aprs_station_count(void)
+{
+	return aprs_sim.off || aprs_sim.evicted ? 0 : aprs_sim.radar == 2 ? RADAR_MANY : aprs_sim.radar ? 4 : 2;
+}
 bool ui_svc_aprs_station(uint8_t i, aprs_station_t *out)
 {
 	static const char *const calls[] = { "Q4WABC-15", "QJ4XYZ" };	// the longest call there is, and one without a position
@@ -525,6 +552,17 @@ bool ui_svc_aprs_station(uint8_t i, aprs_station_t *out)
 		return false;
 	memset(out, 0, sizeof *out);
 	i ^= aprs_sim.reordered ? 1u : 0u;
+	if (aprs_sim.radar == 2) {
+		strcpy(out->call, radar_many[i].call);
+		out->has_pos = true;
+		out->sym_table = radar_many[i].table;
+		out->sym_code = radar_many[i].code;
+		out->speed_kn = radar_many[i].speed_kn;
+		out->course = radar_many[i].course;
+		uint32_t age = radar_many[i].age_min * 60000u;
+		out->pos_ms = out->heard_ms = now_ms > age ? now_ms - age : 0;
+		return true;
+	}
 	if (aprs_sim.radar) {
 		static const char *const radar_calls[] = { "NORTH", "EAST", "SOUTH", "WEST" };
 		strcpy(out->call, radar_calls[i]);
@@ -597,6 +635,13 @@ bool ui_svc_aprs_range(const aprs_station_t *s, uint32_t *m, uint16_t *deg)
 	if (aprs_sim.off || aprs_sim.no_call || aprs_sim.no_pos || !s->has_pos)
 		return false;
 	*m = strcmp(s->call, "QJ4XYZ") == 0 ? 100 : 14461;
+	for (size_t i = 0; aprs_sim.radar == 2 && i < RADAR_MANY; i++) {
+		if (strcmp(s->call, radar_many[i].call) == 0) {
+			*m = radar_many[i].m;
+			*deg = radar_many[i].deg;
+			return true;
+		}
+	}
 	if (aprs_sim.radar) {
 		*m = 10000;
 		*deg = s->course;
@@ -3022,6 +3067,12 @@ static bool run_token(char *t, char *err, size_t len)
 		return true;
 	}
 #endif
+	if (strcmp(t, "units") == 0 && arg != NULL) {	// units:metric, units:us (Settings > Display > Units)
+		ui_svc_setting_set(UI_SET_UNITS, strcmp(arg, "metric") == 0);
+		ui_dirty();
+		advance(200);
+		return true;
+	}
 	if (strcmp(t, "aprs") == 0 && arg != NULL) {	// aprs:off (not built), aprs:nocall, aprs:nopos, aprs:custom (a custom frequency set)
 		if (strcmp(arg, "packet") == 0 || strcmp(arg, "packet2") == 0 || strcmp(arg, "addressed") == 0) {
 			aprs_packet_t *p = &aprs_sim.packet;
@@ -3050,7 +3101,8 @@ static bool run_token(char *t, char *err, size_t len)
 		aprs_sim.message = strcmp(arg, "message") == 0;
 		if (aprs_sim.message)
 			aprs_sim.message_ms = now_ms;
-		aprs_sim.radar = aprs_sim.radar || strcmp(arg, "radar") == 0;
+		if (strcmp(arg, "radar") == 0 && !aprs_sim.radar) aprs_sim.radar = 1;
+		if (strcmp(arg, "radarmany") == 0) aprs_sim.radar = 2;
 		aprs_sim.no_pos = strcmp(arg, "nopos") == 0;
 		aprs_sim.repeat = strcmp(arg, "repeat") == 0;
 		if (strncmp(arg, "listen", 6) == 0)
