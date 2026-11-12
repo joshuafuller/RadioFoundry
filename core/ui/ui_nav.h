@@ -59,6 +59,7 @@ typedef enum {
 #if CONFIG_APRS_RX
 	SCR_APRS_OBJECTS, SCR_APRS_OBJECT, SCR_APRS_BULLETINS, SCR_APRS_BULLETIN,
 #endif
+	SCR_APRS_TASK, SCR_TEXT_EXIT, SCR_MESSAGE_REVIEW,
 	SCR_APRS_TUNE, SCR_APRS_TUNED,
 	SCR_COUNT
 } ui_scr_t;
@@ -136,6 +137,13 @@ void ui_focus_changed(void);
 // Open the actions for a target (SCR_ACTIONS)
 void ui_open_actions(const ui_target_t *t);
 void ui_aprs_compose(const char *call);
+bool ui_text_exit(void);
+#if CONFIG_APRS_BEACON && CONFIG_POSITION
+bool ui_position_dirty(void);
+#endif
+#if CONFIG_APRS_BEACON
+extern const ui_scr_def_t ui_aprs_task_screen;
+#endif
 extern char ui_aprs_text[400]; // shared body scratch: only the current screen uses it
 const char *ui_aprs_beacon_status(void);
 void ui_aprs_review(const aprs_cfg_t *cfg, const char *comment);

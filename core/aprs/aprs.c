@@ -6,6 +6,7 @@
 // storage mutex, so they happen outside LOCK().
 #include <string.h>
 #include "aprs/aprs_int.h"
+#include "aprs/aprs_thread.h"
 #include "aprs/aprs_home.h"
 #include "aprs/aprs_dmr.h"
 #include "aprs/aprs_pathing.h"
@@ -199,7 +200,10 @@ static bool beacon(uint8_t why, const position_fix_t *f)
 		path = why == APRS_WHY_MANUAL ? APRS_PATH_NONE : aprs_pathing_path(&pathing);
 	}
 #endif
+	if (aprs_s.tx_stopped) return false;
+	aprs_s.manual_build = why == APRS_WHY_MANUAL;
 	bool any = aprs_ax25_beacon(f, via != APRS_VIA_DMR, path);
+	aprs_s.manual_build = false;
 #if CONFIG_APRS_DMR
 	if (via != APRS_VIA_RF) {
 		aprs_s.dmr_due = true;
@@ -292,11 +296,16 @@ void aprs_tick(const aprs_radio_t *r, uint32_t now_ms)
 			timing.interval_s = aprs_pathing_interval(&pathing, &aprs_s.cfg);
 #endif
 		} else if (why == APRS_WHY_MANUAL) {
+			aprs_s.v.manual_result = APRS_SEND_BLOCKED;
 			aprs_s.bc.manual = false;	// nowhere to send it (the view's block says why)
 		}
 	} else if (why == APRS_WHY_MANUAL) {
+		aprs_s.v.manual_result = APRS_SEND_BLOCKED;
 		aprs_s.bc.manual = false;
 	}
+#if CONFIG_APRS_BEACON
+	if (why == APRS_WHY_MANUAL) aprs_s.emergency = false;
+#endif
 	aprs_ax25_service();
 	// The view
 	aprs_s.v.ambiguity = position_ambiguity();
@@ -334,14 +343,16 @@ void aprs_tick(const aprs_radio_t *r, uint32_t now_ms)
 	UNLOCK();
 
 #if CONFIG_APRS_DMR
-	if (dmr_due) {
+	if (dmr_due && !aprs_s.tx_stopped) {
 		bool ok = r->on_dmr && aprs_dmr_send(udt, dst, r->own_dmr_id, &dp);
 		LOCK();
 		if (ok) {
 			aprs_s.v.dmr_sent++;
+			if (aprs_s.v.manual_result == APRS_SEND_WAITING && via_now() == APRS_VIA_DMR) aprs_s.v.manual_result = APRS_SEND_DMR;
 			aprs_home_sent(NULL, 0, now_ms);
 		} else {
 			aprs_s.v.dmr_failed++;
+			if (aprs_s.v.manual_result == APRS_SEND_WAITING && via_now() == APRS_VIA_DMR) aprs_s.v.manual_result = APRS_SEND_FAILED;
 		}
 		aprs_changed();
 		UNLOCK();
@@ -401,12 +412,54 @@ void aprs_set_cfg(const aprs_cfg_t *c, uint32_t now_ms)
 	aprs_ax25_identity();
 }
 
+#if CONFIG_APRS_BEACON
+bool aprs_send_emergency(void)
+{
+	LOCK();
+	bool ok = aprs_s.v.pos_valid && !aprs_s.tx_stopped && aprs_s.v.manual_result != APRS_SEND_WAITING &&
+		aprs_s.cfg.via == APRS_VIA_RF && aprs_ax25_can_send();
+	if (ok) {
+		aprs_s.emergency = true;
+		aprs_s.bc.manual = true;
+		aprs_s.v.manual_result = APRS_SEND_WAITING;
+	}
+	UNLOCK();
+	return ok;
+}
+
+void aprs_stop_tx(bool stop)
+{
+	LOCK();
+	aprs_s.tx_stopped = stop;
+	aprs_s.bc.manual = false;
+	aprs_s.dmr_due = false;
+	if (stop) {
+		aprs_s.emergency = false;
+		if (aprs_s.v.manual_result == APRS_SEND_WAITING) aprs_s.v.manual_result = APRS_SEND_STOPPED;
+#if CONFIG_APRS_RX
+		aprs_thread_stop();
+#endif
+#if CONFIG_APRS_AFSK
+		aprs_s.out.active = false;
+		aprs_s.qn = aprs_s.taken; // the radio task releases the active frame when it unkeys
+#endif
+	}
+	aprs_beacon_init(&aprs_s.bc, &aprs_s.bcfg, aprs_s.now);
+	aprs_changed();
+	UNLOCK();
+}
+
+bool aprs_tx_stopped(void) { return aprs_s.tx_stopped; }
+#endif
+
 bool aprs_send_now(void)
 {
 	LOCK();
-	bool ok = via_now() != APRS_VIA_RF || aprs_ax25_can_send();
+	bool ok = !aprs_s.tx_stopped && aprs_s.v.manual_result != APRS_SEND_WAITING && (via_now() != APRS_VIA_RF || aprs_ax25_can_send());
 	if (ok) {
 		aprs_beacon_manual(&aprs_s.bc, aprs_s.now);
+		ok = aprs_s.bc.manual;
+		if (ok) aprs_s.v.manual_result = APRS_SEND_WAITING;
 	}
 	UNLOCK();
 	return ok;

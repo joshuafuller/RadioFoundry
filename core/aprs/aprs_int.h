@@ -38,6 +38,7 @@ typedef struct {
 typedef struct {
 	uint16_t len;
 	uint8_t kind;
+	bool manual;
 	uint8_t tries;
 	uint8_t data[AX25_FRAME_MAX];
 } qframe_t;
@@ -48,6 +49,10 @@ typedef struct {
 	aprs_beacon_cfg_t bcfg;
 	aprs_beacon_t bc;
 	uint32_t now;
+	bool tx_stopped, manual_build;
+#if CONFIG_APRS_BEACON
+	bool emergency;
+#endif
 	bool dmr_due;		// a digital beacon to send (outside the lock)
 	bool reload;
 	aprs_view_t v;

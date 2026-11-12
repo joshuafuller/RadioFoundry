@@ -25,7 +25,7 @@ bool aprs_thread_enqueue(const aprs_pending_t *message)
 	uint8_t waiting = 0;
 	for (uint8_t i = 0; i < count; i++)
 		waiting += outgoing[i].state <= APRS_MSG_SENDING;
-	if (waiting >= APRS_OUT_QUEUE)
+	if (aprs_s.tx_stopped || waiting >= APRS_OUT_QUEUE)
 		return false;
 	if (count == APRS_OUTBOX) {
 		uint8_t i = 0;
@@ -46,9 +46,20 @@ bool aprs_thread_enqueue(const aprs_pending_t *message)
 	return true;
 }
 
+void aprs_thread_stop(void)
+{
+	for (uint8_t i = 0; i < count; i++) {
+		if (outgoing[i].state <= APRS_MSG_SENDING) {
+			outgoing[i].state = APRS_MSG_CANCELED;
+			outgoing[i].done_ms = aprs_s.now;
+		}
+	}
+	active = -1;
+}
+
 void aprs_thread_advance(void)
 {
-	if (aprs_s.out.active || active >= 0)
+	if (aprs_s.tx_stopped || aprs_s.out.active || active >= 0)
 		return;
 	for (uint8_t i = 0; i < count; i++) {
 		if (outgoing[i].state == APRS_MSG_QUEUED) {
@@ -83,7 +94,8 @@ bool aprs_message_action(const aprs_thread_msg_t *message, bool retry)
 		    strcmp(p->to, message->call) || strcmp(p->text, message->text))
 			continue;
 		if (retry) {
-			if (outgoing[i].state != APRS_MSG_NO_ACK && outgoing[i].state != APRS_MSG_REJECTED)
+			if (aprs_s.tx_stopped) break;
+			if (outgoing[i].state != APRS_MSG_NO_ACK && outgoing[i].state != APRS_MSG_REJECTED && outgoing[i].state != APRS_MSG_CANCELED)
 				break;
 			uint8_t waiting = 0;
 			for (uint8_t j = 0; j < count; j++)

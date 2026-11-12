@@ -121,6 +121,7 @@ typedef struct {
 	uint16_t next_s;	// to the next time based beacon, 0xFFFF none
 	uint8_t last_why;	// aprs_why_t of the last beacon
 	uint32_t last_ms;	// when (0 = none yet)
+	uint8_t manual_result; // APRS_SEND_*: the current manual position request only
 	uint32_t rf_sent, rf_failed, rf_busy;	// RF transmissions done, failed, given up on a busy channel
 	uint8_t rf_fail;	// aprs_rf_result_t of the last failed one (APRS_RF_SENT: none yet)
 	uint32_t dmr_sent, dmr_failed;
@@ -208,7 +209,7 @@ typedef struct {
 #define APRS_THREAD_MAX (APRS_MESSAGES + APRS_OUTBOX)
 typedef enum {
 	APRS_MSG_INCOMING, APRS_MSG_QUEUED, APRS_MSG_SENDING, APRS_MSG_DELIVERED,
-	APRS_MSG_NO_ACK, APRS_MSG_REJECTED, APRS_MSG_SENT,
+	APRS_MSG_NO_ACK, APRS_MSG_REJECTED, APRS_MSG_SENT, APRS_MSG_CANCELED,
 } aprs_msg_state_t;
 typedef struct {
 	char call[AX25_CALL_LEN + 4];
@@ -285,7 +286,13 @@ void aprs_get_cfg(aprs_cfg_t *c);
 // Settings in effect now and saved (core/settings)
 void aprs_set_cfg(const aprs_cfg_t *c, uint32_t now_ms);
 // "Send now": a position beacon at once (on the configured paths)
+enum { APRS_SEND_NONE, APRS_SEND_WAITING, APRS_SEND_SENT, APRS_SEND_FAILED, APRS_SEND_BLOCKED, APRS_SEND_STOPPED, APRS_SEND_DMR };
 bool aprs_send_now(void);
+#if CONFIG_APRS_BEACON
+void aprs_stop_tx(bool stop);
+bool aprs_send_emergency(void);
+bool aprs_tx_stopped(void);
+#endif
 // Message options. Position appends a coordinate snapshot to the text; ACK adds a message number and retries.
 #define APRS_MSG_ACK		0x01u
 #define APRS_MSG_POSITION	0x02u

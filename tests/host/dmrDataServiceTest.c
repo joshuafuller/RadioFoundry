@@ -2451,6 +2451,32 @@ static void testTmsOff(void)
 }
 #endif
 
+#if CONFIG_APRS_BEACON && CONFIG_APRS_DMR
+static void testCancelTx(void)
+{
+	reset();
+	uint8_t data[] = { 1, 2, 3 };
+	CHECK(dmrDataServiceSendUDP(false, RADIO_A, 4001, 4001, data, sizeof data));
+	uint32_t serial = dmrDataServiceTxSerial();
+	CHECK(!dmrDataServiceCancelTx(serial));
+	runMainTask(SEND_MS);
+	CHECK(sentCount == 0 && !dmrDataServiceIsBusy());
+	CHECK(dmrDataServiceSendUDP(false, RADIO_A, 4001, 4001, data, sizeof data));
+	CHECK(!dmrDataServiceCancelTx(serial)); // a stale owner cannot cancel a later producer
+	runMainTask(SEND_MS);
+	CHECK(sentCount == 1);
+	txAutoDone = false;
+	CHECK(dmrDataServiceSendUDP(false, RADIO_A, 4001, 4001, data, sizeof data));
+	serial = dmrDataServiceTxSerial();
+	runMainTask(SEND_MS);
+	CHECK(dmrDataServiceCancelTx(serial));
+	dmrDataServiceTxDone(1);
+	txOpen = false;
+	txAutoDone = true;
+	CHECK(!dmrDataServiceIsBusy());
+}
+#endif
+
 int main(void)
 {
 	dmrDataServiceInit(&fakeEnv);
@@ -2490,6 +2516,9 @@ int main(void)
 #endif
 #if DMR_DATA_UDP_API
 	testUdpSend();
+#if CONFIG_APRS_BEACON && CONFIG_APRS_DMR
+	testCancelTx();
+#endif
 #endif
 #if !CONFIG_DMR_TMS
 	testTmsOff();

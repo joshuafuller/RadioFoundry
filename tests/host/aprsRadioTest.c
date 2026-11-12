@@ -459,7 +459,7 @@ static void test_tx_limit(void)
 	CHECK(hw.tx_calls == 0 && !hw.keyed && hw.starts == 0 && hw.rx_hz == CH_HZ);
 	CHECK(l.refused == l0.refused + 1 && l.last_hz == APRS_HZ);
 	CHECK(tx_limit_set(false, both, 2));
-	CHECK(aprs_send_now());
+	CHECK(!aprs_send_now()); // the original manual request is still waiting to retry
 	CHECK(wait_start(1, 8000) && hw.tx_hz == APRS_HZ);
 	wait_idle();
 	CHECK(tx_limit_set(false, NULL, 0));
@@ -2038,8 +2038,59 @@ static void test_frequency_tune(void)
 	wait_idle();
 }
 
+#if CONFIG_APRS_BEACON
+static void test_stop_and_emergency(void)
+{
+	reset();
+	aprs_set_test_call("Q1TST");
+	configure(0, false);
+	CHECK(aprs_send_message("Q1ABC-9", "Keep this text"));
+	CHECK(wait_start(1, 5000));
+	aprs_stop_tx(true);
+	run(50);
+	CHECK(aprs_tx_stopped());
+	CHECK(!aprs_rf_pending());
+	CHECK(!aprs_send_now());
+	CHECK(!aprs_send_emergency());
+	CHECK(!aprs_send_message("Q1ABC-9", "Blocked"));
+	CHECK(!aprs_send_status("Blocked"));
+#if CONFIG_APRS_RX
+	aprs_thread_msg_t messages[APRS_THREAD_MAX];
+	CHECK(aprs_thread("Q1ABC-9", messages, false) == 1);
+	CHECK(messages[0].state == APRS_MSG_CANCELED && strcmp(messages[0].text, "Keep this text") == 0);
+	rx_line("Q1ABC-9>APRS::Q1TST-7  :Hi{42");
+#endif
+	run(200000);
+	CHECK(hw.starts == 1);
+	aprs_stop_tx(false);
+	run(200000);
+	CHECK(hw.starts == 1); // canceled work does not restart
+	CHECK(aprs_send_emergency());
+	CHECK(wait_start(2, 5000));
+	CHECK(nframes > 0 && strstr(frames[nframes - 1], "EMERGENCY") != NULL);
+	wait_idle();
+	aprs_view_t v;
+	aprs_get_view(&v);
+	CHECK(v.manual_result == APRS_SEND_SENT);
+	run(6000);
+	CHECK(aprs_send_now());
+	CHECK(wait_start(3, 5000));
+	CHECK(strstr(frames[nframes - 1], "EMERGENCY") == NULL);
+	wait_idle();
+	aprs_cfg_t c;
+	aprs_get_cfg(&c);
+	c.region = APRS_REGION_CUSTOM;
+	c.freq_hz = 150000000;
+	aprs_set_cfg(&c, now);
+	CHECK(!aprs_send_emergency());
+}
+#endif
+
 int main(void)
 {
+#if CONFIG_APRS_BEACON
+	test_stop_and_emergency();
+#endif
 	test_proportional();
 	#if CONFIG_APRS_WX
 	test_weather_store();

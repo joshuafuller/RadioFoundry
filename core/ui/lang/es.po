@@ -712,7 +712,7 @@ msgstr "Ruta: "
 msgid "Beacon review"
 msgstr "Balizas on"
 
-#: core/ui/ui_aprs.c
+#: core/ui/ui_aprs.c core/ui/ui_menus.c core/ui/ui_position.c
 msgid "OK save  Back"
 msgstr "OK guardar  Atrás"
 
@@ -822,6 +822,14 @@ msgid "My frequency in my beacon"
 msgstr "Mi frecuencia en mi baliza"
 
 #: core/ui/ui_aprs.c
+msgid "Stop all APRS TX"
+msgstr "Parar toda TX APRS"
+
+#: core/ui/ui_aprs.c core/ui/ui_menus.c core/ui/ui_screens.c
+msgid "Emergency"
+msgstr "Emergencia"
+
+#: core/ui/ui_aprs.c
 msgid "NMEA on USB"
 msgstr "NMEA por USB"
 
@@ -840,6 +848,10 @@ msgstr "Desconocido"
 #: core/ui/ui_aprs.c
 msgid " unread"
 msgstr " sin leer"
+
+#: core/ui/ui_aprs.c
+msgid "Resume APRS TX"
+msgstr "Reanudar TX APRS"
 
 #: core/ui/ui_aprs.c core/ui/ui_menus.c core/ui/ui_screens.c
 msgid "On"
@@ -861,6 +873,62 @@ msgstr "Ruta: 1 min"
 msgid " new"
 msgstr " nuevos"
 
+#: core/ui/ui_aprs.c core/ui/ui_screens.c
+msgid "Up/Dn more  Back"
+msgstr "Arr/Ab más  Atrás"
+
+#: core/ui/ui_aprs.c
+msgid "Can't send now"
+msgstr "No se puede enviar"
+
+#: core/ui/ui_aprs.c
+msgid "Sent"
+msgstr "Enviado"
+
+#: core/ui/ui_aprs.c core/ui/ui_aprs_thread.c
+msgid "Canceled"
+msgstr "Cancelado"
+
+#: core/ui/ui_aprs.c core/ui/ui_aprs_thread.c
+msgid "Queued"
+msgstr "En cola"
+
+#: core/ui/ui_aprs.c
+msgid "TX off"
+msgstr "TX desactivada"
+
+#: core/ui/ui_aprs.c
+msgid "Beacons, messages, ACKs, relays"
+msgstr "Balizas, mensajes, ACK, relés"
+
+#: core/ui/ui_aprs.c core/ui/ui_aprs_objects.c core/ui/ui_aprs_radar.c core/ui/ui_menus.c core/ui/ui_screens.c
+msgid "Back"
+msgstr "Atrás"
+
+#: core/ui/ui_aprs.c
+msgid "OK resume  Back"
+msgstr "OK enviar  Atrás"
+
+#: core/ui/ui_aprs.c
+msgid "OK confirm  Back"
+msgstr "OK confirmar  Atrás"
+
+#: core/ui/ui_aprs.c
+msgid "OK source  # fixed"
+msgstr "OK fuente  # fija"
+
+#: core/ui/ui_aprs.c core/ui/ui_menus.c
+msgid "Send to"
+msgstr "Enviar a"
+
+#: core/ui/ui_aprs.c core/ui/ui_menus.c
+msgid "Position"
+msgstr "Posición"
+
+#: core/ui/ui_aprs.c
+msgid "Emergency use only."
+msgstr "Solo en emergencias."
+
 #: core/ui/ui_aprs.c
 msgid "Sending position"
 msgstr "Enviando posición"
@@ -868,10 +936,6 @@ msgstr "Enviando posición"
 #: core/ui/ui_aprs.c
 msgid "Set your callsign first"
 msgstr "Define tu indicativo"
-
-#: core/ui/ui_aprs.c
-msgid "Can't send now"
-msgstr "No se puede enviar"
 
 #: core/ui/ui_aprs.c
 msgid "SmartBeaconing sets timing"
@@ -890,20 +954,12 @@ msgid "TX on"
 msgstr "TX activada"
 
 #: core/ui/ui_aprs.c
-msgid "TX off"
-msgstr "TX desactivada"
-
-#: core/ui/ui_aprs.c
 msgid "FM + DMR"
 msgstr "FM + DMR"
 
 #: core/ui/ui_aprs.c core/ui/ui_aprs_beacon.c
 msgid "Symbol"
 msgstr "Símbolo"
-
-#: core/ui/ui_aprs.c core/ui/ui_aprs_objects.c core/ui/ui_aprs_radar.c core/ui/ui_menus.c core/ui/ui_screens.c
-msgid "Back"
-msgstr "Atrás"
 
 #: core/ui/ui_aprs.c
 msgid "APRS settings"
@@ -913,7 +969,7 @@ msgstr "Ajustes APRS"
 msgid "OK change  Back"
 msgstr "OK cambiar  Atrás"
 
-#: core/ui/ui_aprs.c core/ui/ui_aprs_beacon.c core/ui/ui_aprs_list.c core/ui/ui_aprs_objects.c core/ui/ui_aprs_wx.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_beacon.c core/ui/ui_aprs_list.c core/ui/ui_aprs_objects.c core/ui/ui_aprs_wx.c core/ui/ui_menus.c
 msgid "OK choose  Back"
 msgstr "OK elegir  Atrás"
 
@@ -1482,10 +1538,6 @@ msgstr "Ajustes > Ubicación"
 msgid "No positions yet"
 msgstr "Aún sin posiciones"
 
-#: core/ui/ui_aprs_thread.c
-msgid "Queued"
-msgstr "En cola"
-
 #: core/ui/ui_aprs_thread.c core/ui/ui_menus.c
 msgid "Sending"
 msgstr "Enviando"
@@ -2015,10 +2067,6 @@ msgid "Call alert"
 msgstr "Alerta"
 
 #: core/ui/ui_menus.c
-msgid "Position"
-msgstr "Posición"
-
-#: core/ui/ui_menus.c
 msgid "In contacts"
 msgstr "En contactos"
 
@@ -2121,10 +2169,6 @@ msgstr "En cola para "
 #: core/ui/ui_menus.c
 msgid "Sending to "
 msgstr "Enviando a "
-
-#: core/ui/ui_menus.c
-msgid "OK send  Back"
-msgstr "OK enviar  Atrás"
 
 #: core/ui/ui_menus.c
 msgid "(no name)"
@@ -2399,6 +2443,22 @@ msgid "Empty zone"
 msgstr "Zona vacía"
 
 #: core/ui/ui_menus.c
+msgid "Yes, discard"
+msgstr "Sí, descartar"
+
+#: core/ui/ui_menus.c
+msgid "No, keep editing"
+msgstr "No, seguir editando"
+
+#: core/ui/ui_menus.c
+msgid "Unsaved Changes"
+msgstr "Cambios sin guardar"
+
+#: core/ui/ui_menus.c
+msgid "OK send  Back"
+msgstr "OK enviar  Atrás editar"
+
+#: core/ui/ui_menus.c
 msgid "remaining"
 msgstr "restantes"
 
@@ -2635,24 +2695,12 @@ msgid "OK tunes to it  Back"
 msgstr "OK ir  Atrás"
 
 #: core/ui/ui_menus.c
-msgid "No, keep editing"
-msgstr "No, seguir editando"
-
-#: core/ui/ui_menus.c
-msgid "Yes, discard"
-msgstr "Sí, descartar"
-
-#: core/ui/ui_menus.c
 msgid "Discard this new contact?"
 msgstr "¿Descartar este contacto nuevo?"
 
 #: core/ui/ui_menus.c
 msgid "Discard the changes to this channel?"
 msgstr "¿Descartar los cambios de este canal?"
-
-#: core/ui/ui_menus.c
-msgid "Unsaved Changes"
-msgstr "Cambios sin guardar"
 
 #: core/ui/ui_menus.c
 msgid "{OK choose  Back keep editing|OK choose  Back}"
@@ -3351,10 +3399,6 @@ msgid "Send report"
 msgstr "Enviar informe"
 
 #: core/ui/ui_menus.c
-msgid "Send to"
-msgstr "Enviar a"
-
-#: core/ui/ui_menus.c
 msgid "After a crash"
 msgstr "Tras un fallo"
 
@@ -3573,10 +3617,6 @@ msgstr "VFO/Canal"
 #: core/ui/ui_menus.c
 msgid "Call back"
 msgstr "Rellamar"
-
-#: core/ui/ui_menus.c core/ui/ui_screens.c
-msgid "Emergency"
-msgstr "Emergencia"
 
 #: core/ui/ui_menus.c
 msgid "Channel"
@@ -4477,10 +4517,6 @@ msgstr "# Acciones"
 #: core/ui/ui_screens.c
 msgid "Back hide"
 msgstr "Atrás"
-
-#: core/ui/ui_screens.c
-msgid "Up/Dn more  Back"
-msgstr "Arr/Ab más  Atrás"
 
 #: core/ui/ui_screens.c
 msgid "EMERGENCY"

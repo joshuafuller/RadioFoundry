@@ -788,3 +788,24 @@ The setting changes content only; it does not trigger transmission.
 
 Recent traffic shows used/capacity and the powered-session count of oldest packets displaced by a full ring.
 Duplicate packets suppressed by the existing deduplication rule do not increment the counter.
+
+### Manual task coverage
+
+The composer, shared Location settings, fixed-coordinate entry and DMR gateway configuration existed before
+these review flows. The manual result, all-TX stop, fixed-entry review, editable phrases, emergency review and
+unsaved-editor exit complete the corresponding operating paths. Decorative mockup controls are not implemented.
+
+| Task | Behavior |
+|---|---|
+| S04 Send now | A retained paged result tracks the manual beacon, separately from other RF traffic. DMR submission says queued, not sent. Missing position and blocked RF do not report success |
+| S05 Stop | The hub has one Stop all APRS TX action. Confirm inhibits manual/automatic beacons, messages, ACKs, relays and host RF injection; the next radio poll aborts active APRS RF and owned DMR data. Received messages remain available |
+| S08/S09 Position | My position shows the current source, full coordinates and age. OK opens shared source settings; # opens fixed entry. Each edited coordinate is reviewed with the other coordinate before saving; saving does not arm TX |
+| S18/S19 Compose/phrases | Selecting a phrase inserts text for editing. OK opens a full paged review with recipient and count; another OK sends. # on a phrase edits its reusable session value (31 characters). Message drafts still allow 67 characters. Failed sends retain the review |
+| S26 DMR | APRS settings expose the existing channel, own DMR ID, destination, UDT/LRRP format, position readiness and queue count. The existing Send via and Automatic beacons reviews control reporting |
+| S27 Emergency | APRS settings offer a warning and separate confirmation for one FM position with the literal comment EMERGENCY. It does not arm periodic emergency reports, alter the saved comment, or claim a standardized remote alarm/dispatch. Back sends nothing. Stop cancels queued emergency work |
+| S31 Unsaved work | Leaving a modified text editor or fixed-entry review with held Back asks to keep editing or discard. The prompt defaults to keep. Back from message review returns to its retained body |
+
+Stop is a session inhibit, independent of stored automatic-beacon settings. Reopen the same action to resume;
+repeated OK on its result cannot resume. Canceled outgoing messages keep their text and require an explicit Retry.
+Resume permits future scheduled work but never requeues canceled frames. Traffic already handed to an external
+network host cannot be recalled. Unexpected power loss still loses session drafts, phrases and message history.

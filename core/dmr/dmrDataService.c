@@ -107,6 +107,16 @@ static bool txRunning = false;			// given to the host, waiting for dmrDataServic
 static uint32_t txPendingSince;
 static bool txIsReply;
 static uint8_t txKind;
+#if CONFIG_APRS_BEACON && CONFIG_APRS_DMR
+static uint32_t txSerial;
+uint32_t dmrDataServiceTxSerial(void) { return txSerial; }
+bool dmrDataServiceCancelTx(uint32_t serial)
+{
+	if (serial != txSerial) return false;
+	txPending = false;
+	return txRunning;
+}
+#endif
 static uint16_t txGuardMs = DMR_DATA_TX_GUARD_MS;
 static bool txChain = true;
 static bool txEnded;					// txEndedAt holds when our last list ended (the guard)
@@ -283,6 +293,9 @@ static bool queueTx(int count, uint8_t kind)
 	txPendingSince = now;
 	txIsReply = false;
 	txKind = kind;
+#if CONFIG_APRS_BEACON && CONFIG_APRS_DMR
+	txSerial++;
+#endif
 	txPending = true;
 	txGuardCounted = false;
 	return true;

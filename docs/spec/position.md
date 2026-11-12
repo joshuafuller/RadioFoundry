@@ -121,7 +121,7 @@ Fixed position (`fixed-pos`, `ui_position.c`). Rows: Latitude and Longitude ("No
 editor in decimal degrees to 4 places (about 11 m): the digits fill `DD.DDDD` or `DDD.DDDD` from the left (a
 longitude's first digit of 2-9 gets its leading zero by itself), a digit that would pass 90 or 180 degrees is refused
 with a toast, Up / Down or the knob switch N / S or E / W, BACK takes the last digit back (with none typed it closes
-the editor unchanged), OK saves with the places not typed as zeros. The editor starts with the stored value shown;
+the editor unchanged), OK reviews the full coordinate pair with the places not typed as zeros; another OK saves. The editor starts with the stored value shown;
 the first digit starts over.
 
 The altitude and the ambiguity are set over the debug link.

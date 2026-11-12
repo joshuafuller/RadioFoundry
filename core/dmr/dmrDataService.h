@@ -242,6 +242,11 @@ void dmrDataServiceRxBurst(const dmrBurst_t *burst, uint32_t nowMs);
 // The list given to txStart is over: err 0 = sent whole, else the dmr_tx_error_t
 void dmrDataServiceTxDone(uint8_t err);
 bool dmrDataServiceIsBusy(void);
+#if CONFIG_APRS_BEACON && CONFIG_APRS_DMR
+// Radio task: cancel this queued job only. True means the host must stop its running burst list.
+uint32_t dmrDataServiceTxSerial(void);
+bool dmrDataServiceCancelTx(uint32_t serial);
+#endif
 // Power off: true while the ARS deregistration is still going out, call again until it's false (gotcha 7.4)
 bool dmrDataServicePowerOff(void);
 void dmrDataServicePowerOffCanceled(void);

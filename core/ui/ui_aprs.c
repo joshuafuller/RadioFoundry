@@ -19,6 +19,11 @@ extern const ui_scr_def_t ui_aprs_weather_screen;
 WEAK bool ui_svc_aprs_view(aprs_view_t *v) { memset(v, 0, sizeof(*v)); return false; }
 WEAK void ui_svc_aprs_cfg(aprs_cfg_t *c) { memset(c, 0, sizeof(*c)); }
 WEAK void ui_svc_aprs_set_cfg(const aprs_cfg_t *c) { (void)c; }
+#if CONFIG_APRS_BEACON
+WEAK bool ui_svc_aprs_emergency(void) { return false; }
+WEAK void ui_svc_aprs_stop_tx(bool stop) { (void)stop; }
+WEAK bool ui_svc_aprs_tx_stopped(void) { return false; }
+#endif
 WEAK bool ui_svc_aprs_send_now(void) { return false; }
 WEAK bool ui_svc_aprs_send_message(const char *to, const char *text, uint8_t flags)
 {
@@ -49,6 +54,9 @@ enum { AP_SEND, AP_AUTO, AP_FREQ, AP_POWER, AP_PATH, AP_INTERVAL, AP_SMART, AP_V
 #if CONFIG_APRS_TUNE
 	AP_MY_FREQ,
 #endif
+#if CONFIG_APRS_BEACON
+	AP_STOP, AP_DMR, AP_EMERGENCY,
+#endif
 	AP_COUNT };
 
 // The rows this build shows, in order: the packet rows only with the AX.25 backend (CONFIG_APRS_AFSK), "Send via"
@@ -74,6 +82,9 @@ static const uint8_t rows[] = {
 	AP_RECENT,
 #endif
 	AP_POSITION, AP_SETTINGS,
+#if CONFIG_APRS_BEACON
+	AP_STOP,
+#endif
 };
 static const uint8_t settings_rows[] = {
 	AP_AUTO,
@@ -90,6 +101,12 @@ static const uint8_t settings_rows[] = {
 	AP_KISS,
 #if CONFIG_APRS_TUNE
 	AP_MY_FREQ,
+#endif
+#if CONFIG_APRS_BEACON
+	AP_EMERGENCY,
+#endif
+#if CONFIG_APRS_BEACON && CONFIG_APRS_DMR
+	AP_DMR,
 #endif
 };
 #define N_ROWS (sizeof(rows) / sizeof(rows[0]))
@@ -371,6 +388,9 @@ static void aprs_item(uint16_t i, ui_item_t *it)
 #if CONFIG_APRS_TUNE
 					     TRN("My frequency in my beacon"),
 #endif
+#if CONFIG_APRS_BEACON
+		TRN("Stop all APRS TX"), "DMR", TRN("Emergency"),
+#endif
 	};
 	aprs_view_t v;
 	aprs_cfg_t c;
@@ -434,6 +454,11 @@ static void aprs_item(uint16_t i, ui_item_t *it)
 	case AP_MESSAGES:
 		sb_u32(&b, v.unread, 1);
 		sb_str(&b, TR(" unread"));
+		break;
+#endif
+#if CONFIG_APRS_BEACON
+	case AP_STOP:
+		if (ui_svc_aprs_tx_stopped()) str_copy(it->label, sizeof it->label, TR("Resume APRS TX"));
 		break;
 #endif
 	case AP_SEND: break;
@@ -500,6 +525,123 @@ static void aprs_item(uint16_t i, ui_item_t *it)
 	}
 }
 
+#if CONFIG_APRS_BEACON
+enum { TASK_RESULT, TASK_STOP, TASK_POSITION, TASK_DMR, TASK_EMERGENCY };
+static uint16_t task_first, task_last;
+static bool task_accepted, task_stop_done;
+
+static void task_open(uint16_t task)
+{
+	task_first = 0;
+	task_stop_done = false;
+	ui_push(SCR_APRS_TASK, task);
+}
+
+static void task_draw(void)
+{
+	aprs_view_t v;
+	aprs_cfg_t c;
+	ui_svc_aprs_view(&v);
+	ui_svc_aprs_cfg(&c);
+	sbuf_t b;
+	sb_init(&b, ui_aprs_text, sizeof ui_aprs_text);
+	const char *title = TR("Send position now");
+	const char *hint = TR("Up/Dn more  Back");
+	switch (ui_frame()->arg) {
+	case TASK_RESULT:
+		sb_str(&b, !task_accepted ? (why_text(v.block) ? why_text(v.block) : TR("Can't send now")) :
+			v.manual_result == APRS_SEND_SENT ? TR("Sent") :
+			v.manual_result == APRS_SEND_STOPPED ? TR("Canceled") :
+			v.manual_result == APRS_SEND_BLOCKED || v.manual_result == APRS_SEND_FAILED ? TR("Can't send now") : TR("Queued"));
+		sb_chr(&b, '\n');
+		sb_str(&b, v.pos_valid ? tr(pos_names[v.pos_src < 4 ? v.pos_src : 0]) : TR("No position"));
+		sb_chr(&b, '\n');
+		sb_str(&b, c.via == APRS_VIA_DMR ? "DMR" : tr(path_names[c.path < APRS_PATH_COUNT ? c.path : 0]));
+#if CONFIG_APRS_HOME
+		if (v.manual_result == APRS_SEND_SENT) {
+			aprs_home_t h;
+			ui_svc_aprs_home(&h);
+			sb_chr(&b, '\n');
+			sb_str(&b, h.digi[0] ? h.digi : TR("No repeat heard"));
+		}
+#endif
+		break;
+	case TASK_STOP:
+		title = TR("Stop all APRS TX");
+		sb_str(&b, ui_svc_aprs_tx_stopped() ? TR("TX off") : TR("Stop all APRS TX"));
+		sb_chr(&b, '\n');
+		sb_str(&b, TR("Beacons, messages, ACKs, relays"));
+		hint = task_stop_done ? TR("Back") : ui_svc_aprs_tx_stopped() ? TR("OK resume  Back") : TR("OK confirm  Back");
+		break;
+	case TASK_POSITION:
+		title = TR("My position");
+		sb_str(&b, v.pos_valid ? tr(pos_names[v.pos_src < 4 ? v.pos_src : 0]) : TR("No position"));
+		if (v.pos_valid) {
+			sb_chr(&b, '\n'); sb_degrees(&b, v.lat);
+			sb_chr(&b, '\n'); sb_degrees(&b, v.lon);
+			sb_chr(&b, '\n');
+			if (v.pos_src == 3) sb_str(&b, TR("Entry age unknown"));
+			else { sb_u32(&b, v.pos_age_s, 1); sb_chr(&b, 's'); }
+		}
+		hint = TR("OK source  # fixed");
+		break;
+	case TASK_DMR:
+		title = "DMR";
+		sb_str(&b, TR("Send to")); sb_chr(&b, ' '); sb_u32(&b, c.dmr_dst, 1);
+		sb_chr(&b, '\n'); sb_str(&b, c.dmr_udt ? "UDT" : "LRRP");
+		sb_chr(&b, '\n'); sb_u32(&b, ui_view()->dmr.own_id, 1);
+		sb_chr(&b, '\n'); sb_str(&b, ui_view()->ch.name);
+		sb_chr(&b, '\n'); sb_str(&b, TR("Queued")); sb_chr(&b, ' '); sb_u32(&b, v.dmr_sent, 1);
+		sb_chr(&b, '\n'); sb_str(&b, v.pos_valid ? TR("Position") : TR("No position"));
+		break;
+	default:
+		title = TR("Emergency");
+		sb_str(&b, TR("Send position now"));
+		sb_chr(&b, '\n');
+		sb_str(&b, TR("Emergency use only."));
+		sb_chr(&b, '\n');
+		sb_str(&b, v.pos_valid ? tr(pos_names[v.pos_src < 4 ? v.pos_src : 0]) : TR("No position"));
+		hint = TR("OK confirm  Back");
+		break;
+	}
+	task_last = (uint16_t)ui_draw_text_page(ui_view(), &ui_st, title, ui_aprs_text, &task_first, true);
+	ui_draw_hint(hint, false);
+}
+
+static bool task_key(const input_event_t *ev)
+{
+	if (ev->gesture != GESTURE_PRESS && ev->gesture != GESTURE_REPEAT && ev->action != ACT_ENC_STEP) return false;
+	uint16_t task = ui_frame()->arg;
+	if (ev->action == ACT_SELECT && task == TASK_STOP) {
+		if (!task_stop_done && ev->gesture == GESTURE_PRESS) ui_svc_aprs_stop_tx(!ui_svc_aprs_tx_stopped());
+		task_stop_done = true;
+		ui_dirty();
+		return true;
+	}
+	if (task == TASK_EMERGENCY && ev->action == ACT_SELECT) {
+		task_accepted = ui_svc_aprs_emergency();
+		ui_frame()->arg = TASK_RESULT;
+		task_first = 0;
+		ui_dirty();
+		return true;
+	}
+	if (task == TASK_POSITION) {
+		if (ev->action == ACT_SELECT) { ui_push(SCR_GROUP, 4); return true; }
+		if (ev->action == ACT_CONTEXT) { ui_push(SCR_FIXED_POS, 0); return true; }
+	}
+	int dir = ev->action == ACT_NAV_DOWN ? 1 : ev->action == ACT_NAV_UP ? -1 : ev->action == ACT_ENC_STEP ? ev->value : 0;
+	if (!dir) return false;
+	int line = task_first + dir;
+	task_first = (uint16_t)(line < 0 ? 0 : line > task_last ? task_last : line);
+	ui_dirty();
+	return true;
+}
+
+const ui_scr_def_t ui_aprs_task_screen = {
+	.name = "aprs-task", .flags = SF_FIELD, .draw = task_draw, .key = task_key,
+};
+#endif
+
 static void aprs_select(uint16_t i, bool hold)
 {
 	(void)hold;
@@ -520,13 +662,29 @@ static void aprs_select(uint16_t i, bool hold)
 		return;
 #endif
 	case AP_SETTINGS: ui_push(SCR_APRS_SETTINGS, 0); return;
-	case AP_POSITION: ui_push(SCR_GROUP, 4); return;
+	case AP_POSITION:
+#if CONFIG_APRS_BEACON
+		task_open(TASK_POSITION);
+#else
+		ui_push(SCR_GROUP, 4);
+#endif
+		return;
+#if CONFIG_APRS_BEACON
+	case AP_STOP: task_open(TASK_STOP); return;
+	case AP_DMR: task_open(TASK_DMR); return;
+	case AP_EMERGENCY: task_open(TASK_EMERGENCY); return;
+#endif
 	case AP_SEND:
+#if CONFIG_APRS_BEACON
+		task_accepted = v.pos_valid && !ui_svc_aprs_tx_stopped() && ui_svc_aprs_send_now();
+		task_open(TASK_RESULT);
+#else
 		if (ui_svc_aprs_send_now()) {
 			ui_toast(TR("Sending position"));
 		} else {
 			ui_toast(v.block == APRS_NO_CALL ? TR("Set your callsign first") : TR("Can't send now"));
 		}
+#endif
 		return;
 	case AP_AUTO:
 		c.tx_on = !c.tx_on;
@@ -624,7 +782,11 @@ static const char *aprs_body(void)
 	sb_chr(&b, ' ');
 	sb_str(&b, v.pos_valid ? tr(pos_names[v.pos_src < 4 ? v.pos_src : 0]) : TR("No position"));
 	sb_chr(&b, '\n');
+	#if CONFIG_APRS_BEACON
+	sb_str(&b, ui_svc_aprs_tx_stopped() ? TR("TX off") : c.tx_on ? TR("TX on") : TR("TX off"));
+#else
 	sb_str(&b, c.tx_on ? TR("TX on") : TR("TX off"));
+#endif
 	sb_chr(&b, ' ');
 	sb_str(&b, c.via == APRS_VIA_DMR ? "DMR" : c.via == APRS_VIA_BOTH ? TR("FM + DMR") : "FM");
 	if (c.via != APRS_VIA_DMR) {
@@ -673,55 +835,6 @@ void ui_aprs_station_open(const char *call)
 	str_copy(station_call, sizeof station_call, call);
 	ui_push(SCR_APRS_STATION, 0);
 }
-#else
-static uint16_t heard_count(void) { return ui_svc_aprs_station_count(); }
-
-static void heard_select(uint16_t i, bool hold)
-{
-	(void)hold;
-#if CONFIG_APRS_RX
-	aprs_station_t s;
-	if (ui_svc_aprs_station((uint8_t)i, &s)) {
-		ui_aprs_station_open(s.call);
-	}
-#else
-	ui_push(SCR_APRS_STATION, i);
-#endif
-}
-
-static void heard_item(uint16_t i, ui_item_t *it)
-{
-	aprs_station_t s;
-	if (!ui_svc_aprs_station((uint8_t)i, &s)) {
-		return;
-	}
-	sbuf_t b;
-	uint32_t m, at = s.heard_ms;
-	uint16_t deg;
-	sb_init(&b, it->label, sizeof it->label);
-	sb_str(&b, s.call);
-	if (ui_svc_aprs_range(&s, &m, &deg)) {
-		// How far and which way ("12.3 km NE"): an alternate, so a narrow row drops it before the call (font.h)
-		sb_str(&b, TEXT_ALT_OPEN " ");
-		sb_range(&b, m, deg);
-		sb_str(&b, TEXT_ALT_NEXT TEXT_ALT_CLOSE);
-		at = s.pos_ms;	// the age of the position the range is from, not of the station's last packet
-	}
-	ui_sb_age(it->value, sizeof it->value, ui_st.now_ms - at);
-	if (!s.direct) {
-		it->flags |= UI_ITEM_TEMP;	// heard through a digipeater
-	}
-}
-
-const ui_scr_def_t ui_aprs_heard_screen = {
-	.name = "aprs-heard", .flags = SF_LIST | SF_FIELD, .prefix = TRN("Heard"), .hint = TRN("Back"),
-	.empty = TRN("Nothing heard yet"),
-	.count = heard_count, .item = heard_item, .select = heard_select,
-};
-
-#endif
-
-#if CONFIG_APRS_RX
 enum { ST_MESSAGE, ST_TUNE, ST_RANGE, ST_HEARD, ST_PATH, ST_POS_AGE, ST_SPEED, ST_COURSE, ST_SYMBOL,
 	ST_TEXT, ST_PACKETS, ST_LAT, ST_LON, ST_SOURCE, ST_POINT_AGE, ST_POINT_RANGE, ST_COUNT };
 
@@ -895,36 +1008,11 @@ static void station_select(uint16_t i, bool hold)
 	}
 #endif
 }
-#else
-static uint16_t station_count(void) { return 1; }
-static void station_item(uint16_t i, ui_item_t *it)
-{
-	(void)i;
-	str_copy(it->label, sizeof it->label, TR("Message"));
-}
-static const char *station_title(void)
-{
-	static char call[AX25_CALL_LEN + 4];
-	aprs_station_t s;
-	if (!ui_svc_aprs_station((uint8_t)ui_frame()->arg, &s))
-		return "";
-	str_copy(call, sizeof call, s.call);
-	return call;
-}
-static void station_select(uint16_t i, bool hold)
-{
-	(void)i; (void)hold;
-	aprs_station_t s;
-	if (ui_svc_aprs_station((uint8_t)ui_frame()->arg, &s))
-		ui_aprs_compose(s.call);
-}
-#endif
 const ui_scr_def_t ui_aprs_station_screen = {
 	.name = "aprs-station", .flags = SF_LIST | SF_FIELD, .prefix = TRN("Heard"), .hint = TRN("OK choose  Back"),
 	.count = station_count, .item = station_item, .select = station_select, .title = station_title,
 };
 
-#if CONFIG_APRS_RX
 WEAK uint8_t ui_svc_aprs_packet_count(void) { return 0; }
 WEAK bool ui_svc_aprs_packet(uint8_t i, aprs_packet_t *out) { (void)i; (void)out; return false; }
 WEAK bool ui_svc_aprs_listening(void) { return false; }
