@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: MIT */
 /* Copyright (c) 2026 The RadioFoundry Authors */
-/* Unverified DM-32UV layout: APP_BASE, codec windows and SRAM reservations are hypotheses. */
+/* Unverified layout, taken from the shared board sources: APP_BASE, codec windows and SRAM reservations are
+ * hypotheses until the stock firmware is read (docs/spec/hardware-dm36.md). */
 __codec_slot = 0x030E8000;
 __codec_slot_end = 0x03100000;
 /* The codec window (platform/hrc7000/codec_slot.h: the slot's code runs at its start; the size is the largest code
