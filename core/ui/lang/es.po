@@ -1329,48 +1329,36 @@ msgid "Repeated by "
 msgstr "Repetido por "
 
 #: core/ui/ui_aprs_home.c
-msgid " heard"
-msgstr " oídas"
-
-#: core/ui/ui_aprs_home.c
-msgid ", nearest "
-msgstr ", más cercana "
-
-#: core/ui/ui_aprs_home.c
 msgid "APRS sending"
 msgstr "APRS enviando"
 
 #: core/ui/ui_aprs_home.c
-msgid "APRS sent "
-msgstr "APRS enviado "
+msgid "No APRS heard yet"
+msgstr "Sin APRS recibido"
 
 #: core/ui/ui_aprs_home.c
-msgid ", next "
-msgstr ", siguiente "
-
-#: core/ui/ui_aprs_home.c core/ui/ui_aprs_tune.c
-msgid "APRS listening"
-msgstr "APRS escuchando"
+msgid "Listening "
+msgstr "Escucha "
 
 #: core/ui/ui_aprs_home.c
 msgid "Not listening: off"
 msgstr "No escucha: apagado"
 
 #: core/ui/ui_aprs_home.c
-msgid "Not listening: no receiver"
-msgstr "No escucha: sin receptor"
+msgid "{Not listening: no receiver|No APRS receiver}"
+msgstr "{No escucha: sin receptor|Sin receptor APRS}"
 
 #: core/ui/ui_aprs_home.c
-msgid "Not listening: voice channel"
-msgstr "No escucha: canal de voz"
+msgid "{Not listening: voice channel|APRS off: voice channel}"
+msgstr "{No escucha: canal de voz|APRS no: canal de voz}"
 
 #: core/ui/ui_aprs_home.c
 msgid "Not listening: radio busy"
 msgstr "No escucha: radio ocupada"
 
 #: core/ui/ui_aprs_home.c
-msgid "Not listening: receiver busy"
-msgstr "No escucha: receptor ocupado"
+msgid "{Not listening: receiver busy|APRS receiver busy}"
+msgstr "{No escucha: receptor ocupado|Receptor APRS ocupado}"
 
 #: core/ui/ui_aprs_list.c core/ui/ui_find.c core/ui/ui_menus.c
 msgid "Recent"
@@ -1573,6 +1561,10 @@ msgstr "Desplazamiento"
 #: core/ui/ui_aprs_tune.c
 msgid "Simplex"
 msgstr "Símplex"
+
+#: core/ui/ui_aprs_tune.c
+msgid "APRS listening"
+msgstr "APRS escuchando"
 
 #: core/ui/ui_aprs_tune.c
 msgid "APRS not listening"

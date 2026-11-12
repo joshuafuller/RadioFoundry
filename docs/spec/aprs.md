@@ -496,15 +496,17 @@ The position view exposes the position service's ambiguity even without a fix. F
 Smart timing describes the engine's 5/90 km/h thresholds, 1800/180 second rates, interpolation and turn rule;
 interval and decay are overridden. The amateur-band block and engine send eligibility remain unchanged.
 
-Settings > Display > APRS line enables APRS status on Home (default off, stored in `knob_flags` bit 1).
-It occupies up to two existing activity rows below the channel and voice controls, never moving them. Voice
-activity, monitor and banners take priority. APRS TX on/off replaces the Home hint while the APRS line is enabled.
-A mono APRS arrival preserves the voice target; addressed messages combine sender and preview on one row,
-truncated to fit. Other arrivals omit the preview. A short screen keeps only the first line;
-large-text mode and dual watch keep their existing layouts. The hub always provides the full status. Listening reflects the actual receive
+Home shows APRS status whenever receive or TX is enabled. Settings > Display > APRS line also keeps it visible
+when both are off (default off, stored in `knob_flags` bit 1). The first row shows Listening with its frequency in
+MHz, or the current not-listening reason. Send history never replaces this row. The second row shows the latest
+packet's callsign and age, or retained Repeated by evidence. Before any arrival it shows No APRS heard yet,
+or an active send/block reason. APRS TX on/off replaces the Home hint.
+On mono, these two rows replace the chips and activity region without moving the channel or voice target.
+Voice TX and banners take priority. A mono APRS arrival preserves the voice target; addressed messages combine
+sender and preview on one row, truncated to fit. Other arrivals omit the preview. Large-text mode and dual watch
+keep their existing layouts. The hub provides send timing and full status. Listening reflects the actual receive
 path: off, unavailable receiver, another channel, busy radio, or failed/busy receiver; position is not required.
-A past send does not override a not-listening reason. Station rows without range say No own pos when the station
-has a position, otherwise No position.
+Station rows without range say No own pos when the station has a position, otherwise No position.
 
 `aprs_home.c` retains the last successfully transmitted packet's source, destination and complete information
 field in main RAM. A received own-source frame never enters the station table. A matching frame within ten

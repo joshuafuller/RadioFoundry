@@ -1557,8 +1557,9 @@ static void draw_activity(const radio_view_t *v, const ui_state_t *s)
 	sb_init(&b, buf, sizeof buf);
 
 #if CONFIG_APRS_HOME
-	// Voice activity and banners take priority; never move the channel or target rows.
-	if (v->state == RS_IDLE && !v->monitor && s->aprs_lines[0][0] && s->banner.kind == UI_BANNER_NONE) {
+	// Reserve two APRS rows on mono without moving the voice target.
+	if ((v->state == RS_IDLE || v->state == RS_RX) && s->aprs_lines[0][0] && s->banner.kind == UI_BANNER_NONE) {
+		if (gfx_height() <= 64) y = L->chips_y;
 		for (unsigned i = 0; i < 2 && y + sm->h <= L->hint_y; i++, y += sm->h) {
 			gfx_text_fit(sm, s->aprs_lines[i], w, fit, sizeof fit);
 			gfx_text(sm, 0, y, fit, ui_col.dim);
@@ -1757,8 +1758,17 @@ void ui_draw_home(const radio_view_t *v, const ui_state_t *s)
 	} else {
 		draw_place(v, s);
 		draw_talk(v);
+#if CONFIG_APRS_HOME
+		bool aprs_compact = gfx_height() <= 64 && s->aprs_lines[0][0] &&
+			(v->state == RS_IDLE || v->state == RS_RX) && s->banner.kind == UI_BANNER_NONE;
+		if (!aprs_compact)
+#endif
 		draw_chips(v, s);
-		if (ui_layout.sep_y >= 0)
+		if (ui_layout.sep_y >= 0
+#if CONFIG_APRS_HOME
+		    && !aprs_compact
+#endif
+		)
 			gfx_hline(0, ui_layout.sep_y, gfx_width(), ui_col.line);
 		draw_activity(v, s);
 	}

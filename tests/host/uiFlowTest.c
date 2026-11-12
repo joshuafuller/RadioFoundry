@@ -573,13 +573,14 @@ static const flow_t flows[] = {
 	{ "A hub Messages", "", "ok 6 8 2", "screen=messages", 4, false },
 	{ "A hub Weather", "", "ok 6 8 4", "screen=aprs-weather", 4, false },
 	{ "A My beacon review", "", "ok 6 8 6", "screen=aprs-beacon shows=Q0SIM-7", 4, false },
-	{ "A Home line off", "", "", "hides=APRS_listening", 0, false },
+	{ "A Home automatic listening", "ok 4 up ok 1 4 4 3 9 0 ok wait:5000 aprs:rxon", "", "shows=Listening_144.390 shows=APRS_TX_off", 0, false },
 	{ "A Stations visit clears new", "ok 6 8 1", "back", "aprs_sent=0", 1, false },
-	{ "A Home not listening refresh", "aprs:home", "aprs:notlistening", "shows=Not_listening hides=APRS_listening shows=APRS_TX_off", 0, false },
+	{ "A Home not listening refresh", "aprs:home", "aprs:notlistening", "shows=Not_listening hides=Listening_144.390 shows=APRS_TX_off", 0, false },
 	{ "A Home TX enabled", "aprs:home aprs:txon", "", "shows=APRS_TX_on", 0, false },
 	{ "A Home transmitting", "aprs:home aprs:sending", "", "shows=APRS_sending", 0, false },
-	{ "A Home listening", "aprs:home", "", "shows=APRS_listening", 0, false },
+	{ "A Home listening", "aprs:home", "", "shows=Listening_144.390", 0, false },
 	{ "A Home no position", "aprs:home aprs:nopos", "", "shows=Not_sending", 0, false },
+	{ "A Home last arrival", "aprs:home aprs:packet wait:10000", "", "shows=Listening_144.390 shows=Q4WABC-15 shows=APRS_TX_off", 0, false },
 	{ "A Home repeat", "aprs:home aprs:repeat", "", "shows=Repeated_by", 0, false },
 #if CONFIG_APRS_BEACON
 	{ "A My beacon", "", "ok 6 8 6", "screen=aprs-beacon shows=Q0SIM-7 shows=On_foot aprs_auto=0", 4, false },
@@ -1936,16 +1937,17 @@ static int check_name_is_id(void)
 static void aprs_home_checks(void)
 {
 	static const struct { const char *setup, *first, *second; } cases[] = {
-		{ "aprs:home", "APRS listening", "2 heard, nearest 9.0 mi" },
-		{ "ok 7 2 up up up ok long:back aprs:home", "APRS listening", "2 heard, nearest 14.5 km" },
-		{ "aprs:home aprs:nopos", "Not sending: no position", "2 heard" },
-		{ "aprs:home aprs:repeat", "Repeated by Q4DIG-1", "APRS sent " },
-		{ "aprs:home aprs:repeat aprs:listen2", "Not listening: voice channel", "Repeated by Q4DIG-1" },
-		{ "aprs:home aprs:listen0", "Not listening: off", "2 heard" },
-		{ "aprs:home aprs:listen1", "Not listening: no receiver", "2 heard" },
-		{ "aprs:home aprs:listen2", "Not listening: voice channel", "2 heard" },
-		{ "aprs:home aprs:listen3", "Not listening: radio busy", "2 heard" },
-		{ "aprs:home aprs:listen4", "Not listening: receiver busy", "2 heard" },
+		{ "aprs:home", "Listening 144.390 MHz", "No APRS heard yet" },
+		{ "aprs:home aprs:custom", "Listening 144.390 MHz", "No APRS heard yet" },
+		{ "aprs:home aprs:nopos", "Listening 144.390 MHz", "Not sending: no position" },
+		{ "aprs:home aprs:repeat", "Listening 144.390 MHz", "Repeated by Q4DIG-1" },
+		{ "aprs:home aprs:repeat aprs:listen2", TEXT_ALT_OPEN "Not listening: voice channel", "Repeated by Q4DIG-1" },
+		{ "aprs:home aprs:listen0", "Not listening: off", "No APRS heard yet" },
+		{ "aprs:home aprs:listen1", TEXT_ALT_OPEN "Not listening: no receiver", "No APRS heard yet" },
+		{ "aprs:home aprs:listen2", TEXT_ALT_OPEN "Not listening: voice channel", "No APRS heard yet" },
+		{ "aprs:home aprs:listen3", "Not listening: radio busy", "No APRS heard yet" },
+		{ "aprs:home aprs:listen4", TEXT_ALT_OPEN "Not listening: receiver busy", "No APRS heard yet" },
+		{ "aprs:home aprs:packet wait:10000", "Listening 144.390 MHz", "Q4WABC-15 " },
 	};
 	char err[300], line[96];
 	for (unsigned i = 0; i < sizeof cases / sizeof cases[0]; i++) {

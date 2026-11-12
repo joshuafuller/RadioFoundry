@@ -92,6 +92,8 @@ static const struct { const char *name, *script; } gallery[] = {
 	{ "aprs_review_timing_end", "ok 6 8 0 6 ok ok ok down down down down down down down down down down down down down down down down down down down down down down down down" },
 	{ "aprs_review_save", "ok 6 8 0 6 ok ok ok ok" },
 	{ "aprs_arrival", "aprs:home aprs:packet" },
+	{ "aprs_home_listening", "ok 4 up ok 1 4 4 3 9 0 ok wait:5000 aprs:rxon" },
+	{ "aprs_home_last_arrival", "aprs:home aprs:packet wait:10000" },
 	{ "aprs_home_not_listening", "aprs:home aprs:notlistening" },
 	{ "aprs_home_repeated", "aprs:home aprs:repeat" },
 	{ "aprs_home_tx", "aprs:home aprs:txon" },

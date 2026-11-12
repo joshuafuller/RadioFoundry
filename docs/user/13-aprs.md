@@ -329,16 +329,17 @@ Received weather uses these same display units.
 
 ## Home status and the APRS hub
 
-On builds with the APRS Home feature, enable **Settings > Display > APRS line** (off by default).
-The bottom row shows **APRS TX on** or **APRS TX off**. A mono arrival keeps the voice target visible.
-Addressed messages show sender and preview together, shortened to fit; other arrivals omit the preview.
-Station ranges say **No own pos** when your position is unavailable.
-Below the channel controls, Home shows when APRS last sent and when the next timed beacon is due, or why it
-cannot send or listen. Receiving does not need your position. A second line, when there is room, shows
-**Repeated by** and the digipeater's callsign, or the station count and nearest known distance in the selected display units.
-While listening and unblocked, **Repeated by** comes first so it remains visible on short screens.
+On builds with the APRS Home feature, status appears when APRS receive or TX is enabled.
+**Settings > Display > APRS line** also keeps status visible when both are off.
+The bottom row shows **APRS TX on** or **APRS TX off**. Below the voice target, Home shows **Listening** with
+the APRS frequency in MHz, or why it is not listening. Receiving does not need your position.
+The next row keeps the latest APRS arrival's callsign and age after its banner expires, or **Repeated by** with
+the digipeater's callsign. Before an arrival, it shows **No APRS heard yet**, or an active send/block reason.
 A repeat means the radio heard its last packet repeated; it does not confirm delivery to the internet.
-Voice activity and notifications take priority. Large-text mode and dual watch keep their existing layouts.
+Mono uses the channel-options row for APRS status and keeps the voice target visible.
+Addressed-message banners show sender and preview together, shortened to fit; other arrivals omit the preview.
+Voice TX and notifications take priority. Large-text mode and dual watch keep their existing layouts.
+The APRS hub provides send timing, station counts and full status.
 
 Open **Tools > APRS** for the hub:
 

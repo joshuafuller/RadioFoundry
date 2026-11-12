@@ -459,7 +459,7 @@ static void aprs_sim_reset(void)
 	aprs_sim.cfg.sym_code = '[';
 	aprs_sim.cfg.path = APRS_PATH_WIDE1_WIDE2;
 	aprs_sim.cfg.level = 50;
-	aprs_sim.cfg.rx_on = true;
+	aprs_sim.cfg.rx_on = false;
 }
 void ui_svc_aprs_home(aprs_home_t *h)
 {
@@ -3154,6 +3154,7 @@ static bool run_token(char *t, char *err, size_t len)
 		if (!strcmp(arg, "wxunknown")) aprs_sim.wx_unknown = true;
 		if (!strcmp(arg, "wxzero")) aprs_sim.wx_zero = true;
 		if (!strcmp(arg, "txon")) aprs_sim.cfg.tx_on = true;
+		if (!strcmp(arg, "rxon")) aprs_sim.cfg.rx_on = true;
 		if (strncmp(arg, "listen", 6) == 0)
 			aprs_sim.listening = (uint8_t)atoi(arg + 6);
 		if (aprs_sim.no_pos)
