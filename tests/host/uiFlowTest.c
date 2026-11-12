@@ -1613,6 +1613,13 @@ static void packet_checks(void)
 			printf("FAIL packet detail [%s]: %s\n", sim_geoms[g].name, err);
 			fails++;
 		}
+		sim_reset(&sim_geoms[g], SIM_MAP_K);
+		if (!sim_run("aprs:packet-speed wait:8000 ok 6 8 up ok ok down down down down down "
+			"expect:shows=17_mph units:metric expect:shows=28_km/h units:us expect:shows=17_mph",
+			err, sizeof err)) {
+			printf("FAIL packet units [%s]: %s\n", sim_geoms[g].name, err);
+			fails++;
+		}
 		const ui_scr_t blocked[] = { SCR_CONFIRM, SCR_TEXT, SCR_MESSAGE_TEXT, SCR_APRS_TO, SCR_DISCARD };
 		for (size_t i = 0; i < sizeof blocked / sizeof blocked[0]; i++) {
 			sim_reset(&sim_geoms[g], SIM_MAP_K);
@@ -1922,6 +1929,46 @@ static void aprs_home_checks(void)
 	}
 }
 
+static void aprs_wrap_checks(void)
+{
+	static const struct { const char *setup; ui_scr_t screen; unsigned first; const char *text; } cases[] = {
+		{ "aprs:objects", SCR_APRS_OBJECT, 5, "146.520MHz Meet at north gate. Bring water. Check in here." },
+		{ "aprs:bulletin", SCR_APRS_BULLETIN, 2, "Road closed. Use north gate. Bring water. Check in here." },
+	};
+	char err[300];
+	for (int g = 0; g < sim_geom_count; g++) {
+		for (size_t c = 0; c < sizeof cases / sizeof cases[0]; c++) {
+			sim_reset(&sim_geoms[g], SIM_MAP_K);
+			(void)sim_run(cases[c].setup, err, sizeof err);
+			ui_scr[cases[c].screen == SCR_APRS_OBJECT ? SCR_APRS_OBJECTS : SCR_APRS_BULLETINS]->select(0, false);
+			const ui_scr_def_t *def = ui_scr[cases[c].screen];
+			const char *rest = cases[c].text;
+			bool ok = true;
+			for (unsigned row = cases[c].first; row < def->count(); row++) {
+				ui_item_t item = {0};
+				def->item(row, &item);
+				size_t n = strlen(item.label);
+				if (!n || strncmp(rest, item.label, n) || (rest[n] && rest[n] != ' ')) {
+					ok = false;
+					break;
+				}
+				rest += n;
+				while (*rest == ' ') rest++;
+			}
+			if (!ok || *rest) {
+				printf("FAIL APRS word wrap %zu [%s]\n", c, sim_geoms[g].name);
+				fails++;
+			}
+		}
+		char line[17];
+		const char *rest = ui_wrap_line(ui_layout.small, "TEST weather advisory", INT16_MAX, line, sizeof line);
+		if (strcmp(line, "TEST weather") || strcmp(rest, "advisory")) {
+			printf("FAIL APRS advisory word wrap [%s]\n", sim_geoms[g].name);
+			fails++;
+		}
+	}
+}
+
 static void station_list_checks(void)
 {
 	static const char *const scripts[] = {
@@ -1965,6 +2012,7 @@ int main(int argc, char **argv)
 		station_checks();
 		thread_checks();
 		station_list_checks();
+	aprs_wrap_checks();
 		printf("APRS UI: %s\n", fails ? "FAIL" : "PASS");
 		return fails ? 1 : 0;
 	}
@@ -2000,6 +2048,7 @@ int main(int argc, char **argv)
 	station_checks();
 	thread_checks();
 	station_list_checks();
+	aprs_wrap_checks();
 	radar_checks();
 #if CONFIG_APRS_RX && CONFIG_UI_COLOR
 	radar_marker_checks();

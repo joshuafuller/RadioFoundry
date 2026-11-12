@@ -529,6 +529,8 @@ matches the last packet's weather type or the retained weather symbol (`_`); Mob
 with known speed above zero; Objects matches the last packet's object or item type; Digipeaters matches an advertised
 digipeater symbol (`#`, including overlays), not a station merely heard via a digipeater. Objects still identifies
 publishers in this station table, not separate named entities. These filters use only the retained fields.
+The station and weather tables have separate capacity limits. A weather report can remain in Weather after its
+sender is evicted from Stations; the station filter does not restore evicted senders.
 They never remove table entries or change receive, acknowledgment or gating behavior. The title gives the filter
 and visible/total counts; a dim information row gives the sort and hidden count. Reset to All takes `#`, `1`.
 If the focused station is hidden or evicted, the list selects its first remaining station; an already open detail
@@ -577,13 +579,17 @@ banners are dropped during PTT/TX, text or frequency entry, confirmations and em
 those operations hides an existing traffic banner. Packets remain in the ring. If several packets arrive between
 UI polls, only the newest can raise a banner.
 
+Object comments and bulletin text use the shared UI word wrapper, as message threads do. Lines break at spaces;
+a word longer than a line splits only when necessary. Scrolling reaches all retained text.
+
 Objects and Bulletins follow KISS on USB. Recent packets follows Bulletins; the compact page then shows Stations heard.
 `Recent packets` opens `aprs-packets`: newest first, callsign, plain kind and receipt age.
 Digit picking follows the displayed rows; only the first ten rows have digits. The empty text is "Nothing heard
 yet". When `aprs_rx_listening()` is false the body explains the unavailable receive path, receive setting off, TX,
 voice channel, or unavailable audio. Selecting a packet copies its snapshot into main RAM and opens `aprs-packet`;
 ring eviction cannot change it. The detail lists kind, age, direct/digipeated state, retained name/addressee and
-position fields, then Raw text. Non-printable bytes and backslash appear as `\xHH`; rows never split an escape.
+position fields, with speed in the selected display units, then Raw text. Non-printable bytes and backslash
+appear as `\xHH`; rows never split an escape.
 A separate `[truncated]` row marks a shortened information field. Up/Down scroll; Back returns to the list.
 These screens, banners and their new translations disappear with `CONFIG_APRS_RX=n`. Catalog entries used only
 by this feature carry `#. requires: CONFIG_APRS_RX`; the build excludes them from translation tables when off.

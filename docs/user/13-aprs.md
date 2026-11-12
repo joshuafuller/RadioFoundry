@@ -86,6 +86,8 @@ Weather uses a weather packet or weather symbol. Mobiles means a retained positi
 Objects shows stations whose last packet was an object or item, under the publisher's callsign. Digipeaters uses
 the advertised digipeater symbol; hearing a station through a digipeater does not put it in that filter.
 If the selected station leaves the view, the list selects the first remaining station.
+Stations and Weather retain separate histories. A report can remain in Weather after newer senders evict its
+station from Stations; the Weather filter only searches stations still retained.
 
 ## Objects and bulletins
 
@@ -103,6 +105,7 @@ after any current banner clears. Repeated identical packets do not alert again w
 no Reply action and the radio does not acknowledge them.
 
 The bulletin list holds up to eight sender/address pairs (fewer on boards with less RAM) and drops entries a day after their text last changed.
+Object comments, bulletin text and message threads wrap at spaces; only words longer than a line split.
 Both lists clear at power-off. If an open entry leaves the list, its detail says **No longer in list**.
 
 ## Station details

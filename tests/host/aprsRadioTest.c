@@ -1690,6 +1690,30 @@ static void test_home_repeat(void)
 
 
 #if CONFIG_APRS_WX
+static void test_weather_station_retention(void)
+{
+	reset();
+	configure(0, false);
+	rx_line("K4WX-1>APRS:!/>{[78L6m_87!g010t072r000p001P002h65b10132");
+	aprs_station_t station;
+	aprs_wx_station_t weather;
+	CHECK(ui_svc_aprs_station_find("K4WX-1", &station));
+	CHECK(station.type == APRS_T_WEATHER && station.sym_code == '_' && station.has_pos);
+	rx_line("K4WX-1>APRS:>Still here");
+	CHECK(ui_svc_aprs_station_find("K4WX-1", &station));
+	CHECK(station.type == APRS_T_STATUS && station.sym_code == '_');
+	// The weather table retains a report even after other senders fill the station table.
+	for (unsigned i = 0; i < APRS_STATIONS; i++) {
+		char line[64];
+		snprintf(line, sizeof line, "Q9S%03u>APRS:>Station", i);
+		rx_line(line);
+	}
+	CHECK(aprs_station_count() == APRS_STATIONS);
+	CHECK(!ui_svc_aprs_station_find("K4WX-1", &station));
+	CHECK(aprs_wx_count() == 1 && aprs_wx_station(0, &weather));
+	CHECK(!strcmp(weather.call, "K4WX-1") && weather.has_pos);
+}
+
 static void test_weather_store(void)
 {
 	reset();
@@ -1960,6 +1984,7 @@ int main(void)
 	test_proportional();
 	#if CONFIG_APRS_WX
 	test_weather_store();
+	test_weather_station_retention();
 	#endif
 	test_frequency_tune();
 	test_defaults();

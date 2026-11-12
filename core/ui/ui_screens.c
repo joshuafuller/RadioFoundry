@@ -480,7 +480,6 @@ void ui_draw_title(const font_t *f, int x, int y, int max_w, const char *prefix,
 		gfx_text(f, tx, y, nfit, c);
 }
 
-static const char *wrap_line(const font_t *f, const char *t, int max_w, char *line, size_t cap);
 static int wrap_lines(const font_t *f, const char *t, int max_w, int max, char lines[][64], bool preview);
 
 // An overlay's top edge (banner, two-line toast) moved up to a gap between lines of what is under it, so it never
@@ -617,7 +616,7 @@ void ui_draw_hint(const char *text, bool toast)
 		if (line != first) {
 			memcpy(first, second, sizeof first);	// the rest below may point into it, and second is reused
 		}
-		const char *rest = wrap_line(f, first, w - 2, fit, sizeof fit);
+		const char *rest = ui_wrap_line(f, first, w - 2, fit, sizeof fit);
 		int y = L->hint_y, top = y;
 		second[0] = 0;
 		if (*rest) {
@@ -2298,7 +2297,7 @@ static int wrap_lines(const font_t *f, const char *t, int max_w, int max, char l
 {
 	int n = 0;
 	while (*t && n < max) {
-		const char *next = wrap_line(f, t, max_w, lines[n], sizeof lines[0]);
+		const char *next = ui_wrap_line(f, t, max_w, lines[n], sizeof lines[0]);
 		if (n == max - 1 && *next) {
 			if (preview)
 				fit_end(f, t, max_w, lines[n], sizeof lines[0]);
@@ -2395,7 +2394,7 @@ static int list_bottom(const ui_state_t *s)
 
 // One line of word-wrapped text: copies into line what fits in max_w pixels (breaking at the last space, or inside a
 // word longer than the line, never shortening), returns where the next line starts
-static const char *wrap_line(const font_t *f, const char *t, int max_w, char *line, size_t cap)
+const char *ui_wrap_line(const font_t *f, const char *t, int max_w, char *line, size_t cap)
 {
 	int n = 0, cut = 0;
 	while (t[n] && t[n] != '\n' && n < (int)cap - 1) {
@@ -2427,7 +2426,7 @@ static int wrap_text(const font_t *f, const char *t, int y, int y_end, bool draw
 {
 	char line[64];
 	while (*t && y + f->h <= y_end) {
-		const char *next = wrap_line(f, t, gfx_width(), line, sizeof line);
+		const char *next = ui_wrap_line(f, t, gfx_width(), line, sizeof line);
 		if (*next && y + 2 * f->h > y_end)
 			fit_end(f, t, gfx_width(), line, sizeof line);	// the last line that fits: never drop text silently
 		t = next;
@@ -2466,7 +2465,7 @@ int ui_draw_text_page(const radio_view_t *v, const ui_state_t *s, const char *ti
 		rows = 1;
 	int total = 0;
 	for (const char *t = text; *t; total++)
-		t = wrap_line(f, t, w, line, sizeof line);
+		t = ui_wrap_line(f, t, w, line, sizeof line);
 	int max_first = total > rows ? total - rows : 0;
 	if (*first > max_first)
 		*first = (uint16_t)max_first;
@@ -2475,7 +2474,7 @@ int ui_draw_text_page(const radio_view_t *v, const ui_state_t *s, const char *ti
 		// a label only where a line of the text starts, never on a wrapped value's next line
 		bool starts = t == text || t[-1] == '\n';
 		size_t lab = starts ? label_len(t) : 0;
-		t = wrap_line(f, t, w, line, sizeof line);
+		t = ui_wrap_line(f, t, w, line, sizeof line);
 		int r = i - *first;
 		if (r < 0)
 			continue;

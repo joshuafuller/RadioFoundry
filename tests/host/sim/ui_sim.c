@@ -3074,12 +3074,15 @@ static bool run_token(char *t, char *err, size_t len)
 		return true;
 	}
 	if (strcmp(t, "aprs") == 0 && arg != NULL) {	// aprs:off (not built), aprs:nocall, aprs:nopos, aprs:custom (a custom frequency set)
-		if (strcmp(arg, "packet") == 0 || strcmp(arg, "packet2") == 0 || strcmp(arg, "addressed") == 0) {
+		if (strcmp(arg, "packet") == 0 || strcmp(arg, "packet2") == 0 || strcmp(arg, "packet-speed") == 0 || strcmp(arg, "addressed") == 0) {
 			aprs_packet_t *p = &aprs_sim.packet;
 			p->serial++;
 			p->ms = now_ms;
 			strcpy(p->call, strcmp(arg, "packet2") == 0 ? "Q4WAB-9" : "Q4WABC-15");
-			p->type = 5; // APRS_T_STATUS
+			p->type = APRS_T_STATUS;
+			p->has_pos = strcmp(arg, "packet-speed") == 0;
+			p->speed_kn = p->has_pos ? 15 : APRS_SPEED_NONE;
+			p->course = APRS_COURSE_NONE;
 			p->direct = true;
 			p->to_us = strcmp(arg, "addressed") == 0;
 			memcpy(p->info, ">hi\x01", 4);

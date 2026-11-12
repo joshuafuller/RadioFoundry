@@ -69,15 +69,24 @@ const ui_scr_def_t ui_aprs_objects_screen = {
 
 // Short text rows keep all retained text reachable on the narrowest display.
 #define TEXT_ROW 16u
-static void text_row(ui_item_t *it, const char *text, uint16_t row)
+static uint16_t text_row(ui_item_t *it, const char *text, uint16_t row)
 {
-	size_t offset = row * TEXT_ROW;
-	if (offset < strlen(text)) str_copy(it->label, TEXT_ROW + 1u, text + offset);
+	char line[TEXT_ROW + 1u];
+	uint16_t count = 0;
+	while (*text) {
+		text = ui_wrap_line(ui_layout.small, text, INT16_MAX, line, sizeof line);
+		if (it && count == row) {
+			str_copy(it->label, sizeof it->label, line);
+			break;
+		}
+		count++;
+	}
+	return count;
 }
 static uint16_t object_count(void)
 {
 	aprs_object_t o;
-	return object_find(&o) ? 5u + (strlen(o.comment) + TEXT_ROW - 1u) / TEXT_ROW : 1;
+	return object_find(&o) ? 5u + text_row(NULL, o.comment, 0) : 1;
 }
 static void object_item(uint16_t i, ui_item_t *it)
 {
@@ -150,7 +159,7 @@ const ui_scr_def_t ui_aprs_bulletins_screen = {
 static uint16_t bulletin_count(void)
 {
 	aprs_bulletin_t b;
-	return bulletin_find(&b) ? 2u + (strlen(b.text) + TEXT_ROW - 1u) / TEXT_ROW : 1;
+	return bulletin_find(&b) ? 2u + text_row(NULL, b.text, 0) : 1;
 }
 static void bulletin_item(uint16_t i, ui_item_t *it)
 {

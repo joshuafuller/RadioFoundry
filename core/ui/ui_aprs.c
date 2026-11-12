@@ -865,8 +865,7 @@ static void packet_item(uint16_t i, ui_item_t *it)
 		}
 		if (p->has_pos && p->speed_kn != APRS_SPEED_NONE && i-- == 0) {
 			label = TR("Speed");
-			sb_u32(&b, ((uint32_t)p->speed_kn * 1852u + 500u) / 1000u, 1);
-			sb_str(&b, " km/h");
+			sb_speed(&b, (uint32_t)p->speed_kn * 1852u);
 			goto done;
 		}
 		if (i-- == 0) { label = TR("Raw"); goto done; }
