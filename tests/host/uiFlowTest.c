@@ -1494,7 +1494,7 @@ static void radar_checks(void)
 		bool color = CONFIG_UI_COLOR && gfx_bpp() != 1;
 		const char *script = color ?
 			"ok 6 8 ctx expect:screen=aprs-radar expect:shows=Q4WABC-15 "
-			"expect:shows=5_mi expect:shows=10_mi expect:shows=15_mi "
+			"expect:shows=9.0_mi expect:shows=NE_40 expect:shows=15_mi expect:shows=Fixed "
 			"down up aprs:reorder ok expect:screen=aprs-station expect:shows=Q4WABC-15 "
 			"back expect:screen=aprs-radar back expect:screen=aprs" :
 			"ok 6 8 expect:hides=#_radar ctx expect:screen=aprs";
@@ -1513,7 +1513,7 @@ static void radar_checks(void)
 		if (!sim_run("aprs:radar ok 6 8 ctx expect:shows=NORTH down expect:shows=EAST "
 			     "up expect:shows=NORTH up expect:shows=WEST down expect:shows=NORTH "
 			     "aprs:reorder expect:shows=NORTH ok expect:screen=aprs-station expect:shows=NORTH "
-			     "back aprs:evict down expect:shows=No_longer_in_list ok expect:screen=aprs-station "
+			     "back aprs:evict down expect:shows=No_longer expect:shows=in_list ok expect:screen=aprs-station "
 			     "expect:shows=NORTH", err, sizeof err)) {
 			printf("FAIL radar cycling [%s]: %s\n", sim_geoms[g].name, err);
 			fails++;
@@ -1522,7 +1522,8 @@ static void radar_checks(void)
 }
 
 #if CONFIG_APRS_RX && CONFIG_UI_COLOR
-// Cardinal positions occupy all four quadrants; old positions lose their filled class color.
+// Stations on the four compass points sit around our cross, one on each side; old positions lose their filled class
+// color. The many-station view names its range, in either unit, and says an old position is old.
 static void radar_marker_checks(void)
 {
 	char err[300];
@@ -1532,44 +1533,71 @@ static void radar_marker_checks(void)
 		fails++;
 		return;
 	}
-	int north = 0, south = 0, east = 0, west = 0;
-	// The white cross is our center. Locate its seven-pixel horizontal stroke below N.
-	int cx = gfx_width() / 2, cy = 0;
-	for (int y = 40; y < ui_layout.hint_y - 20; y++) {
-		bool cross = true;
-		for (int x = cx - 3; x <= cx + 3; x++) cross &= gfx_get_pixel(x, y) == ui_col.fg;
-		if (cross) { cy = y; break; }
-	}
-	for (int y = 30; y < ui_layout.hint_y - 20; y++) {
+	// The green markers' bounding box has our position, the white cross, at its center
+	int x0 = gfx_width(), x1 = -1, y0 = gfx_height(), y1 = -1;
+	for (int y = 20; y < ui_layout.hint_y; y++) {
 		for (int x = 0; x < gfx_width(); x++) {
 			if (gfx_get_pixel(x, y) != ui_col.rx) continue;
-			if (y < cy - 3) north++;
-			if (y > cy + 3) south++;
-			if (x < cx - 3) west++;
-			if (x > cx + 3) east++;
+			if (x < x0) x0 = x;
+			if (x > x1) x1 = x;
+			if (y < y0) y0 = y;
+			if (y > y1) y1 = y;
 		}
 	}
-	if (!cy || north != 9 || south != 9 || east != 9 || west != 9) {
-		printf("FAIL radar cardinal markers: %d %d %d %d center=%d\n", north, east, south, west, cy);
+	int cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+	bool cross = x1 > x0 && y1 > y0;
+	for (int d = -3; cross && d <= 3; d++)
+		cross = gfx_get_pixel(cx + d, cy) == ui_col.fg && gfx_get_pixel(cx, cy + d) == ui_col.fg;
+	int north = 0, south = 0, east = 0, west = 0;
+	for (int y = y0; cross && y <= y1; y++) {
+		for (int x = x0; x <= x1; x++) {
+			if (gfx_get_pixel(x, y) != ui_col.rx) continue;
+			if (y < cy - 8) north++;
+			if (y > cy + 8) south++;
+			if (x < cx - 8) west++;
+			if (x > cx + 8) east++;
+		}
+	}
+	if (!cross || north < 9 || south != north || east != north || west != north) {
+		printf("FAIL radar cardinal markers: %d %d %d %d cross=%d\n", north, east, south, west, cross);
 		fails++;
 	}
-	if (!sim_run("wait:1800100 expect:shows=30m", err, sizeof err)) {
+	if (!sim_run("wait:1800100 expect:shows=Old_30m", err, sizeof err)) {
 		printf("FAIL radar stale age: %s\n", err);
 		fails++;
 	}
 	int filled = 0, hollow = 0;
-	for (int y = 30; y < ui_layout.hint_y - 20; y++) {
-		for (int x = 2; x < gfx_width() - 2; x++) {
+	for (int y = y0 - 4; y <= y1 + 4; y++) {
+		for (int x = x0 - 4; x <= x1 + 4; x++) {
 			filled += gfx_get_pixel(x, y) == ui_col.rx;
 			if (gfx_get_pixel(x, y) == ui_col.bg &&
-			    gfx_get_pixel(x - 2, y) == ui_col.dim && gfx_get_pixel(x + 2, y) == ui_col.dim &&
-			    gfx_get_pixel(x, y - 2) == ui_col.dim && gfx_get_pixel(x, y + 2) == ui_col.dim)
+			    gfx_get_pixel(x - 3, y) == ui_col.dim && gfx_get_pixel(x + 3, y) == ui_col.dim &&
+			    gfx_get_pixel(x, y - 3) == ui_col.dim && gfx_get_pixel(x, y + 3) == ui_col.dim)
 				hollow++;
 		}
 	}
-	if (filled || hollow < 4) {
+	if (filled || hollow != 4) {
 		printf("FAIL radar stale markers: filled=%d hollow=%d\n", filled, hollow);
 		fails++;
+	}
+	for (int g = 0; g < sim_geom_count; g++) {
+		sim_reset(&sim_geoms[g], SIM_MAP_K);
+		if (gfx_bpp() == 1) continue;
+		// The first station moves; two up is an old weather station on the outer ring, due south
+		if (!sim_run("wait:12000000 aprs:radarmany ok 6 8 ctx expect:screen=aprs-radar expect:shows=Q1ABC-9 "
+			     "expect:shows=1.2_mi expect:shows=NE_62 expect:shows=2m_ago expect:shows=28_mph expect:shows=_mi "
+			     "up up expect:shows=Q6WX-2 expect:shows=15.0_mi expect:shows=S_180 expect:shows=Old_50m "
+			     "ok expect:screen=aprs-station expect:shows=Q6WX-2 back "
+			     "units:metric expect:shows=24.1_km expect:shows=_km expect:hides=_mi", err, sizeof err)) {
+			printf("FAIL radar many [%s]: %s\n", sim_geoms[g].name, err);
+			fails++;
+		}
+		sim_reset(&sim_geoms[g], SIM_MAP_K);
+		if (!sim_run("aprs:evict ok 6 8 ctx expect:screen=aprs-radar expect:shows=yet expect:shows=3_mi "
+			     "expect:hides=OK ok expect:screen=aprs-radar", err, sizeof err)) {
+			printf("FAIL radar empty [%s]: %s\n", sim_geoms[g].name, err);
+			fails++;
+		}
 	}
 }
 #endif
