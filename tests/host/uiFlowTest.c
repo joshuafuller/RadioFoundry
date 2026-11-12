@@ -1367,6 +1367,95 @@ static void station_checks(void)
 	}
 }
 
+// Radar is absent on mono; selection survives packet reorder and detail navigation.
+static void radar_checks(void)
+{
+	char err[300];
+	for (int g = 0; g < sim_geom_count; g++) {
+		sim_reset(&sim_geoms[g], SIM_MAP_K);
+		bool color = CONFIG_UI_COLOR && gfx_bpp() != 1;
+		const char *script = color ?
+			"ok 6 8 ctx expect:screen=aprs-radar expect:shows=Q4WABC-15 "
+			"expect:shows=14.5_km_NE expect:shows=40 expect:shows=5_km expect:shows=10_km expect:shows=15_km "
+			"down up aprs:reorder ok expect:screen=aprs-station expect:shows=Q4WABC-15 "
+			"back expect:screen=aprs-radar back expect:screen=aprs" :
+			"ok 6 8 expect:hides=#_radar ctx expect:screen=aprs";
+		if (!sim_run(script, err, sizeof err)) {
+			printf("FAIL radar [%s]: %s\n", sim_geoms[g].name, err);
+			fails++;
+		}
+		if (!color) continue;
+		sim_reset(&sim_geoms[g], SIM_MAP_K);
+		if (!sim_run("aprs:nopos ok 6 8 ctx expect:screen=aprs-radar "
+			     "expect:shows=Set_your_position expect:shows=Settings", err, sizeof err)) {
+			printf("FAIL radar no position [%s]: %s\n", sim_geoms[g].name, err);
+			fails++;
+		}
+		sim_reset(&sim_geoms[g], SIM_MAP_K);
+		if (!sim_run("aprs:radar ok 6 8 ctx expect:shows=NORTH down expect:shows=EAST "
+			     "up expect:shows=NORTH up expect:shows=WEST down expect:shows=NORTH "
+			     "aprs:reorder expect:shows=NORTH ok expect:screen=aprs-station expect:shows=NORTH "
+			     "back aprs:evict down expect:shows=No_longer_in_list ok expect:screen=aprs-station "
+			     "expect:shows=NORTH", err, sizeof err)) {
+			printf("FAIL radar cycling [%s]: %s\n", sim_geoms[g].name, err);
+			fails++;
+		}
+	}
+}
+
+#if CONFIG_APRS_RX && CONFIG_UI_COLOR
+// Cardinal positions occupy all four quadrants; old positions lose their filled class color.
+static void radar_marker_checks(void)
+{
+	char err[300];
+	sim_reset(sim_geom_find("160x128"), SIM_MAP_K);
+	if (!sim_run("aprs:radar ok 6 8 ctx", err, sizeof err)) {
+		printf("FAIL radar marker setup: %s\n", err);
+		fails++;
+		return;
+	}
+	int north = 0, south = 0, east = 0, west = 0;
+	// The white cross is our center. Locate its seven-pixel horizontal stroke below N.
+	int cx = gfx_width() / 2, cy = 0;
+	for (int y = 40; y < ui_layout.hint_y - 20; y++) {
+		bool cross = true;
+		for (int x = cx - 3; x <= cx + 3; x++) cross &= gfx_get_pixel(x, y) == ui_col.fg;
+		if (cross) { cy = y; break; }
+	}
+	for (int y = 30; y < ui_layout.hint_y - 20; y++) {
+		for (int x = 0; x < gfx_width(); x++) {
+			if (gfx_get_pixel(x, y) != ui_col.rx) continue;
+			if (y < cy - 3) north++;
+			if (y > cy + 3) south++;
+			if (x < cx - 3) west++;
+			if (x > cx + 3) east++;
+		}
+	}
+	if (!cy || north != 9 || south != 9 || east != 9 || west != 9) {
+		printf("FAIL radar cardinal markers: %d %d %d %d center=%d\n", north, east, south, west, cy);
+		fails++;
+	}
+	if (!sim_run("wait:1800100 expect:shows=30m", err, sizeof err)) {
+		printf("FAIL radar stale age: %s\n", err);
+		fails++;
+	}
+	int filled = 0, hollow = 0;
+	for (int y = 30; y < ui_layout.hint_y - 20; y++) {
+		for (int x = 2; x < gfx_width() - 2; x++) {
+			filled += gfx_get_pixel(x, y) == ui_col.rx;
+			if (gfx_get_pixel(x, y) == ui_col.bg &&
+			    gfx_get_pixel(x - 2, y) == ui_col.dim && gfx_get_pixel(x + 2, y) == ui_col.dim &&
+			    gfx_get_pixel(x, y - 2) == ui_col.dim && gfx_get_pixel(x, y + 2) == ui_col.dim)
+				hollow++;
+		}
+	}
+	if (filled || hollow < 4) {
+		printf("FAIL radar stale markers: filled=%d hollow=%d\n", filled, hollow);
+		fails++;
+	}
+}
+#endif
+
 // A radio without a battery (CAP_NO_BATTERY), at every display class: no percentage in the status strip, no battery
 // warning, and no Battery page, Battery saver or Low battery warning in the lists (Tools keep their numbers, Battery
 // is the last one; in Settings the other rows move up). With a
@@ -1601,6 +1690,10 @@ int main(void)
 	call_screen_checks();
 	heard_checks();
 	station_checks();
+	radar_checks();
+#if CONFIG_APRS_RX && CONFIG_UI_COLOR
+	radar_marker_checks();
+#endif
 	vfo_split_dmr_checks();
 	no_battery_checks();
 #if CONFIG_VOLUME_BAR

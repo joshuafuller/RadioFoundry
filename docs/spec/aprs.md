@@ -384,6 +384,17 @@ additional comment text is retained. Detail rows scroll with Up / Down and do no
 is evicted, the screen says "No longer in list" and Message still addresses the saved callsign. This detail code
 and the saved callsign are guarded by `CONFIG_APRS_RX`; the engine storage is unchanged.
 
+On color displays, # on the APRS page opens `aprs-radar` (`ui_aprs_radar.c`, guarded by
+`CONFIG_APRS_RX && CONFIG_UI_COLOR`). The center cross is our position, its source is named beside north, and three equal range rings
+use a 1/2/5 times power-of-ten kilometer interval, rounded up to include every positioned station. Markers use
+existing theme colors: RX for mobile symbols, privacy for weather, warning for repeaters/gateways, foreground for
+others. Positions older than 30 minutes have dim hollow markers. The selected marker has an outline; the bottom
+shows its callsign, position age, distance and bearing in degrees and compass points. Up / Down or the encoder
+cycles positioned stations, wrapping at each end. Selection stays by callsign through packet reorder and OK opens
+the same station detail. Eviction shows "No longer in list" without changing the subject. Without our position,
+the page says "Set your position to see the radar" and directs the user to Settings > Location. The page writes
+no settings and allocates only the selected callsign in main RAM. Mono displays retain the station list.
+
 The rest (symbol, comment, digital destination, ambiguity, iGate, digipeater, fixed altitude) is set over the
 debug link (`rfoundry_debug.py aprs set`) and later by qdmr through the native codeplug.
 
