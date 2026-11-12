@@ -135,6 +135,27 @@ typedef struct {
 	char text[24];		// comment / status (truncated)
 } aprs_station_t;
 
+#if CONFIG_APRS_RX
+#ifndef APRS_RECENT_PACKETS
+#define APRS_RECENT_PACKETS 8
+#endif
+#define APRS_PACKET_TEXT 40
+// A snapshot of one decoded packet, not the sender's accumulated station record.
+typedef struct {
+	uint32_t serial, ms;
+	char call[AX25_CALL_LEN + 4];
+	uint8_t type, len;
+	bool direct, truncated, to_us, has_pos;
+	int32_t lat, lon;
+	uint16_t course, speed_kn;
+	char name[10], addressee[10];
+	uint8_t info[APRS_PACKET_TEXT];
+} aprs_packet_t;
+
+uint8_t aprs_packet_count(void);
+bool aprs_packet(uint8_t i, aprs_packet_t *out); // newest first; any task
+#endif
+
 typedef struct {
 	char from[AX25_CALL_LEN + 4];
 	char text[68];

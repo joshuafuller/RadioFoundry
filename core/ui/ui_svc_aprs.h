@@ -21,6 +21,12 @@ bool ui_svc_aprs_msg_delete(uint8_t i);
 uint8_t ui_svc_aprs_station_count(void);
 bool ui_svc_aprs_station(uint8_t i, aprs_station_t *out);
 bool ui_svc_aprs_station_find(const char *call, aprs_station_t *out);
+#if CONFIG_APRS_RX
+uint8_t ui_svc_aprs_packet_count(void);
+bool ui_svc_aprs_packet(uint8_t i, aprs_packet_t *out);
+bool ui_svc_aprs_listening(void);
+bool ui_svc_aprs_can_receive(void);
+#endif
 // How far and which way a heard station is from our position (position_now, as the beacons and DMR GPS Info use
 // it): false when the station or we have no position
 bool ui_svc_aprs_range(const aprs_station_t *s, uint32_t *m, uint16_t *deg);

@@ -50,6 +50,10 @@ bool ui_svc_aprs_send_message(const char *to, const char *text, uint8_t flags)
 }
 
 #if CONFIG_APRS_RX
+uint8_t ui_svc_aprs_packet_count(void) { return aprs_packet_count(); }
+bool ui_svc_aprs_packet(uint8_t i, aprs_packet_t *out) { return aprs_packet(i, out); }
+bool ui_svc_aprs_listening(void) { return aprs_rx_listening(); }
+bool ui_svc_aprs_can_receive(void) { return aprs_can_receive(); }
 uint8_t ui_svc_aprs_msg_count(void) { return aprs_msg_count(); }
 bool ui_svc_aprs_msg(uint8_t i, aprs_msg_t *out, bool read)
 {

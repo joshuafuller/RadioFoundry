@@ -39,6 +39,9 @@
 #endif
 
 extern const ui_scr_def_t ui_find_screen;
+#if CONFIG_APRS_RX
+extern const ui_scr_def_t ui_aprs_packets_screen, ui_aprs_packet_screen;
+#endif
 extern const ui_scr_def_t ui_aprs_screen, ui_aprs_heard_screen, ui_aprs_station_screen;	// ui_aprs.c
 #if CONFIG_POSITION
 extern const ui_scr_def_t ui_fixed_pos_screen;	// ui_position.c
@@ -6349,6 +6352,10 @@ const ui_scr_def_t *const ui_scr[SCR_COUNT] = {
 	[SCR_PICKER] = &picker_screen, [SCR_INFO] = &info_screen, [SCR_CONFIRM] = &confirm_screen,
 	[SCR_DIAG] = &diag_screen, [SCR_EMERGENCY] = &emergency_screen, [SCR_SCAN] = &scan_screen,
 	[SCR_ROAM] = &roam_screen, [SCR_APRS] = &ui_aprs_screen, [SCR_APRS_HEARD] = &ui_aprs_heard_screen,
+#if CONFIG_APRS_RX
+	[SCR_APRS_PACKETS] = &ui_aprs_packets_screen,
+	[SCR_APRS_PACKET] = &ui_aprs_packet_screen,
+#endif
 	[SCR_APRS_STATION] = &ui_aprs_station_screen,
 	[SCR_ABOUT] = &about_screen,
 #if CONFIG_POSITION

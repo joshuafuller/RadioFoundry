@@ -426,6 +426,8 @@ static struct {
 	bool evicted;
 	bool no_speed;
 	bool reordered;		// a packet moves the second station to the front
+	aprs_packet_t packet;
+	bool listening;
 	bool no_pos;		// "aprs:nopos": no position of our own (no GPS fix, no fixed position)
 	aprs_cfg_t cfg;
 	uint32_t sent;
@@ -437,6 +439,8 @@ static void aprs_sim_reset(void)
 	aprs_sim.cfg.ssid = 7;
 	aprs_sim.cfg.path = APRS_PATH_WIDE1_WIDE2;
 	aprs_sim.cfg.level = 50;
+	aprs_sim.cfg.rx_on = true;
+	aprs_sim.listening = true;
 }
 bool ui_svc_aprs_view(aprs_view_t *v)
 {
@@ -468,6 +472,16 @@ bool ui_svc_aprs_send_now(void)
 	aprs_sim.sent++;
 	return true;
 }
+uint8_t ui_svc_aprs_packet_count(void) { return aprs_sim.packet.serial ? 1 : 0; }
+bool ui_svc_aprs_packet(uint8_t i, aprs_packet_t *out)
+{
+	if (i != 0 || !aprs_sim.packet.serial)
+		return false;
+	*out = aprs_sim.packet;
+	return true;
+}
+bool ui_svc_aprs_listening(void) { return aprs_sim.listening; }
+bool ui_svc_aprs_can_receive(void) { return true; }
 uint8_t ui_svc_aprs_station_count(void) { return aprs_sim.off || aprs_sim.evicted ? 0 : 2; }
 bool ui_svc_aprs_station(uint8_t i, aprs_station_t *out)
 {
@@ -2826,6 +2840,24 @@ static bool run_token(char *t, char *err, size_t len)
 		return true;
 	}
 	if (strcmp(t, "aprs") == 0 && arg != NULL) {	// aprs:off (not built), aprs:nocall, aprs:nopos, aprs:custom (a custom frequency set)
+		if (strcmp(arg, "packet") == 0 || strcmp(arg, "packet2") == 0 || strcmp(arg, "addressed") == 0) {
+			aprs_packet_t *p = &aprs_sim.packet;
+			p->serial++;
+			p->ms = now_ms;
+			strcpy(p->call, strcmp(arg, "packet2") == 0 ? "Q4WAB-9" : "Q4WABC-15");
+			p->type = 5; // APRS_T_STATUS
+			p->direct = true;
+			p->to_us = strcmp(arg, "addressed") == 0;
+			memcpy(p->info, ">hi\x01", 4);
+			p->len = 4;
+			p->truncated = true;
+			advance(200);
+			return true;
+		}
+		if (strcmp(arg, "notlistening") == 0) {
+			aprs_sim.listening = false;
+			return true;
+		}
 		aprs_sim.off = strcmp(arg, "off") == 0;
 		aprs_sim.no_call = strcmp(arg, "nocall") == 0;
 		aprs_sim.message = strcmp(arg, "message") == 0;

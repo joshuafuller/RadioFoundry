@@ -178,6 +178,15 @@ section 1).
 
 ### 5.3 Receive
 
+Accepted AX.25 packets also enter a fixed recent-packet ring in main RAM, separate from the CPU-only engine state.
+Our own packets are excluded. Presentation deduplication uses the existing 16-slot source/destination/information
+hash cache for 30 seconds, ignoring the digipeater path and trailing whitespace. It does not suppress message ACKs,
+iGate processing or the station table's updates. The ring holds `APRS_RECENT_PACKETS` entries (default 8; a board
+can override it in its build definitions). Each stores receipt time, source, parsed kind, direct/digipeated state,
+parsed position/course/speed, object/item name, message addressee, and the first 40 information bytes with length
+and a truncation flag. No pointer into a decode buffer is retained. It is cleared at initialization and never
+written to flash. All storage and accessors are behind `CONFIG_APRS_RX`.
+
 Received FM audio comes from one of two places (`aprs.c`, `rx_service`):
 
 1. The board's own AFSK receive path: `hal_afsk_t.rx_start`, `rx_read`, `rx_stop` at `rx_rate_hz`. The HR_C7000 boards
@@ -383,6 +392,23 @@ Unknown speed and course have no row. Text is limited to the engine's 24-byte fi
 additional comment text is retained. Detail rows scroll with Up / Down and do not perform actions. If the station
 is evicted, the screen says "No longer in list" and Message still addresses the saved callsign. This detail code
 and the saved callsign are guarded by `CONFIG_APRS_RX`; the engine storage is unchanged.
+
+A new recent packet raises an eight-second non-modal banner with sender, plain packet kind, and distance/direction
+when both station and local positions exist. `# Open` opens that sender through the same callsign-based station
+detail. New traffic replaces an earlier traffic banner, but never another kind of alert. Addressed messages retain the existing message path. Arrival
+banners are dropped during PTT/TX, text or frequency entry, confirmations and emergency screens; starting one of
+those operations hides an existing traffic banner. Packets remain in the ring. If several packets arrive between
+UI polls, only the newest can raise a banner.
+
+`Recent packets`, before Stations heard, opens `aprs-packets`: newest first, callsign, plain kind and receipt age.
+Digit picking follows the displayed rows; only the first ten rows have digits. The empty text is "Nothing heard
+yet". When `aprs_rx_listening()` is false the body explains the unavailable receive path, receive setting off, TX,
+voice channel, or unavailable audio. Selecting a packet copies its snapshot into main RAM and opens `aprs-packet`;
+ring eviction cannot change it. The detail lists kind, age, direct/digipeated state, retained name/addressee and
+position fields, then Raw text. Non-printable bytes and backslash appear as `\xHH`; rows never split an escape.
+A separate `[truncated]` row marks a shortened information field. Up/Down scroll; Back returns to the list.
+These screens, banners and their new translations disappear with `CONFIG_APRS_RX=n`. Catalog entries used only
+by this feature carry `#. requires: CONFIG_APRS_RX`; the build excludes them from translation tables when off.
 
 The rest (symbol, comment, digital destination, ambiguity, iGate, digipeater, fixed altitude) is set over the
 debug link (`rfoundry_debug.py aprs set`) and later by qdmr through the native codeplug.

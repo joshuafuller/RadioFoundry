@@ -39,6 +39,7 @@ frequency, your position and its source, and when the next beacon goes out. If t
 | SmartBeaconing | More often when you move fast, at once after a turn, rarely when you stand still |
 | Send via | AFSK (on FM), DMR, or both |
 | KISS on USB | The radio works as a KISS TNC for APRS programs on the computer |
+| Recent packets | The latest decoded packets, newest first; OK opens one |
 | Stations heard | Stations the radio heard (radios that can receive APRS), newest first. A station that sent its position shows how far away and which way it was from yours, when the radio has a position too; the age on that row is then the age of that position. Other rows show when the station was last heard. Objects and items a station sends don't count as its position, and a position more than a day old is dropped. Select one and choose Message to fill its callsign |
 
 A firmware built with only one way to send APRS shows only the rows for it. With APRS over DMR only there is no
@@ -96,6 +97,20 @@ turned it on) passes packets on.
 - On a radio that decodes only what opens the squelch ([Radio reference](23-radios.md)), a packet must be strong enough to open it. Keep the squelch at its usual level, not tight.
 - Battery saving pauses while the radio listens for APRS: a sleeping receiver misses packets.
 - Receiving is on by default. Turn it off with `tools/rfoundry_debug.py aprs set rx 0` (FM only).
+
+Each new packet briefly shows its sender and kind, such as position, status or weather. When your radio and the
+sender have positions, the banner also shows distance and direction. Press the hinted **# Open** key to open that
+station's detail. It disappears after eight seconds. Your own packets and repeats of the same packet within about
+30 seconds do not raise another banner. Messages addressed to you keep their normal message handling.
+
+Traffic banners stay out of the way while you transmit, type or confirm an action, and do not replace another
+alert. To see packets you missed, open **Tools > APRS > Recent packets**. Each row shows sender, kind and age.
+**OK** opens the packet's decoded fields, whether it was heard directly or through a digipeater, and its retained
+raw text. **Up/Down** scroll and **Back** returns. Non-printable bytes appear as `\xHH`; `[truncated]` means the
+information field exceeded the retained 40 bytes. The list holds the latest 8 packets by default (16 on builds
+configured for the larger ring), drops the oldest when full, and clears at power-off. An open packet stays the
+same when new packets arrive. An empty list says **Nothing heard yet**; when reception is inactive it also says
+why. The list records local decoding, not delivery to an internet service.
 
 On a DMR channel, a DMR APRS position another radio sends (some makes send it as an NMEA position) also goes into
 **Stations heard**, whoever it is addressed to: usually the APRS gateway, as on FM every station heard is listed. It

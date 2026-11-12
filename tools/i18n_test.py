@@ -60,6 +60,22 @@ class Generate(unittest.TestCase):
         for text in ("Borroso", "Volumen"):
             self.assertNotIn(text, self.h)
 
+    def test_disabled_feature_leaves_tables_unchanged(self):
+        path = os.path.join(self.dir.name, "xx.po")
+        with open(path, "a", encoding="utf-8") as f:
+            f.write('\n#. requires: CONFIG_APRS_RX\nmsgid "Packet"\nmsgstr "Paquete"\n')
+        source = [(m, ["core/ui/ui_aprs.c"]) for m, _, _ in i18n.read_po(path)[1]]
+        headers, entries, refs = i18n.synced(path, source)
+        i18n.write_po(path, headers, entries, refs)
+        self.assertEqual(i18n.requirements(path), {"Packet": "CONFIG_APRS_RX"})
+        out = os.path.join(self.dir.name, "tables.h")
+        i18n.generate(out, ["CONFIG_APRS_RX"])
+        with open(out, encoding="utf-8") as f:
+            self.assertEqual(f.read(), self.h)
+        i18n.generate(out)
+        with open(out, encoding="utf-8") as f:
+            self.assertIn('"Paquete"', f.read())
+
     def test_languages_share_the_hashes(self):
         # A second catalog: one hash array for both; a translation equal to the English is left out ("" in its text)
         with open(os.path.join(self.dir.name, "yy.po"), "w", encoding="utf-8") as f:
