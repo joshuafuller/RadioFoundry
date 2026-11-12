@@ -2776,6 +2776,7 @@ static void row_text(const font_t *f, int x, int y, int w, const char *label, co
 		else
 			gfx_text_fit(f, label, room, lab, sizeof lab);
 		gfx_text(f, x, y, lab, fg);
+		lw = gfx_text_width(f, lab);
 	}
 	if (vw) {
 		int right = x + (lw < room ? lw : room) + gap + vw < w ? 1 : 0;	// a pixel of margin if it is free

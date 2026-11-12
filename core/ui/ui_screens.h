@@ -217,7 +217,7 @@ void ui_draw_banner(const ui_state_t *s);
 #define UI_ITEM_PREVIEW	0x20u	// the label is the start of a longer text (a message): shortened at its end, not the middle
 
 typedef struct {
-	char label[36];
+	char label[64];		// keep text alternates intact until the row knows the value and number widths
 	char value[44];		// may hold text alternates (font.h); an empty last alternate leaves the value out
 	char num;		// key shown before the label ('1'..'9', '0'), 0 = none
 	uint8_t flags;

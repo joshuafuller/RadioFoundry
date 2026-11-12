@@ -69,6 +69,8 @@ Text is shortened with a middle ellipsis only as a last resort (P5 allows it for
 
 - A list row keeps its label whole and gives the value the room left: values carry text alternates (`font.h`) down to
   a short form or nothing (Hub's zone name, Find's kind, Zones' "Here, 16 channels" / "Here, 16 ch" / "Here", ages: "11s ago" / "11s").
+  Label buffers retain the alternate group until drawing; label alternates are fitted after reserving the number
+  prefix, value and gap. A shorter whole label is used before cutting text.
   A row marked `UI_ITEM_PREVIEW` (a message) is cut at its end, at a word.
 - Hints and toasts take the longest alternate that fits; a toast that still doesn't fit takes a second line above the
   hint row. Banners give the title and the text two lines each ("Call alert from" / "Jodi Ruiz"), and a message

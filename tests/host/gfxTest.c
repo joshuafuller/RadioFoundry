@@ -355,6 +355,62 @@ static void test_hc_strip_white(void)
 	CHECK(ui_col.strip_bg == RGB565(216, 216, 216));
 }
 
+static const char *row_label;
+static char row_number;
+static void alternate_item(uint16_t i, ui_item_t *it)
+{
+	(void)i;
+	str_copy(it->label, sizeof it->label, row_label);
+	str_copy(it->value, sizeof it->value, "Off");
+	it->num = row_number;
+}
+
+static void test_list_label_alternates(void)
+{
+	// The inset 240 px class uses the same row font at this height, within the test framebuffer.
+	hal_display_t d = disp;
+	d.width = 240; d.height = 160; d.bpp = 4;
+	d.inset_left = d.inset_right = 10;
+	d.inset_top = d.inset_bottom = 5;
+	d.flush_indexed = d_flush_indexed;
+	CHECK(gfx_init(&d));
+	ui_layout_init();
+	radio_view_t v;
+	base_view(&v);
+	ui_state_t s = {0};
+	ui_list_t l = { .name = "Settings", .count = 1, .item = alternate_item };
+	static const char *const labels[] = {
+		TEXT_ALT_OPEN "My frequency in my beacon" TEXT_ALT_NEXT "My frequency" TEXT_ALT_NEXT "My freq" TEXT_ALT_CLOSE,
+		TEXT_ALT_OPEN "Listen on voice channels" TEXT_ALT_NEXT "Listen on voice" TEXT_ALT_CLOSE,
+	};
+	static color_t expected[240 * 160];
+	for (unsigned i = 0; i < sizeof labels / sizeof labels[0]; i++) {
+		for (unsigned numbered = 0; numbered < 2; numbered++) {
+			row_number = numbered ? '0' : 0;
+			const font_t *f = ui_layout.small;
+			int room = gfx_width() - 2 * ui_layout.gutter - (numbered ? 2 * f->w : 0)
+				- gfx_text_width(f, "Off") - (f->w / 2 + 1);
+			char fit[48];
+			gfx_text_fit(f, labels[i], room, fit, sizeof fit);
+			CHECK(strchr(fit, GLYPH_ELLIPSIS[0]) == NULL);
+			row_label = fit;
+			ui_draw_list(&v, &s, &l);
+			for (int y = 0; y < gfx_height(); y++)
+				for (int x = 0; x < gfx_width(); x++)
+					expected[y * gfx_width() + x] = gfx_get_pixel(x, y);
+			row_label = labels[i];
+			ui_draw_list(&v, &s, &l);
+			bool same = true;
+			for (int y = 0; y < gfx_height(); y++)
+				for (int x = 0; x < gfx_width(); x++)
+					same &= expected[y * gfx_width() + x] == gfx_get_pixel(x, y);
+			CHECK(same);
+		}
+	}
+	gfx_init(&disp);
+	ui_layout_init();
+}
+
 static void test_big_text(void)
 {
 	hal_display_t d = disp;
@@ -698,6 +754,7 @@ int main(void)
 	test_pass_wait();
 	test_idle_pill_contrast();
 	test_big_text();
+	test_list_label_alternates();
 	test_hc_strip_white();
 
 	printf(fails ? "# FAILED gfxTest: %d\n" : "# PASSED gfxTest\n", fails);
