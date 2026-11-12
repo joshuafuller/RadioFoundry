@@ -12,6 +12,7 @@
 
 #if CONFIG_APRS_HOME
 void ui_svc_aprs_home(aprs_home_t *h);
+const char *ui_aprs_tx_label(void);
 void ui_aprs_status(char *out, size_t len, bool second);
 #endif
 

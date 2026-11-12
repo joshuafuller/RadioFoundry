@@ -82,7 +82,33 @@ static void list_select(uint16_t i, bool hold)
 	}
 }
 
-static uint16_t detail_count(void) { return 11; }
+static uint32_t measurement(const aprs_wx_t *w, unsigned row)
+{
+	switch (row) {
+	case 0: return w->temp_f == APRS_WX_TEMP_UNKNOWN ? UINT32_MAX : 0;
+	case 1: return w->wind_mph == APRS_WX_UNKNOWN ? UINT32_MAX : w->wind_mph;
+	case 2: return w->wind_dir == APRS_WX_UNKNOWN ? UINT32_MAX : w->wind_dir;
+	case 3: return w->gust_mph == APRS_WX_UNKNOWN ? UINT32_MAX : w->gust_mph;
+	case 4: return 0;
+	case 5: return w->rain_hour == APRS_WX_UNKNOWN ? UINT32_MAX : w->rain_hour;
+	case 6: return w->rain_day == APRS_WX_UNKNOWN ? UINT32_MAX : w->rain_day;
+	case 7: return w->rain_midnight == APRS_WX_UNKNOWN ? UINT32_MAX : w->rain_midnight;
+	case 8: return w->humidity == APRS_WX_UNKNOWN ? UINT32_MAX : w->humidity;
+	case 9: return w->pressure;
+	case 10: return w->luminosity == APRS_WX_UNKNOWN ? UINT32_MAX : w->luminosity;
+	default: return UINT32_MAX;
+	}
+}
+
+static uint16_t detail_count(void)
+{
+	aprs_wx_station_t s;
+	if (!find(selected, &s)) return 1;
+	uint16_t n = 0;
+	for (unsigned row = 0; row < 11; row++)
+		if (measurement(&s.wx, row) != UINT32_MAX) n++;
+	return n;
+}
 static const char *title(void) { return selected; }
 static void detail_item(uint16_t i, ui_item_t *it)
 {
@@ -92,30 +118,24 @@ static void detail_item(uint16_t i, ui_item_t *it)
 		TRN("Humidity"), TRN("Pressure"), TRN("Luminosity"),
 	};
 	if (i >= 11) return;
-	str_copy(it->label, sizeof it->label, tr(names[i]));
 	aprs_wx_station_t s;
 	if (!find(selected, &s)) {
 		str_copy(it->value, sizeof it->value, TR("Unknown"));
 		return;
 	}
 	const aprs_wx_t *w = &s.wx;
-	uint32_t v = APRS_WX_UNKNOWN;
-	switch (i) {
-	case 0: v = w->temp_f == APRS_WX_TEMP_UNKNOWN ? APRS_WX_UNKNOWN : 0; break;
-	case 1: v = w->wind_mph; break;
-	case 2: v = w->wind_dir; break;
-	case 3: v = w->gust_mph; break;
-	case 4: ui_sb_age(it->value, sizeof it->value, ui_st.now_ms - s.heard_ms); return;
-	case 5: v = w->rain_hour; break;
-	case 6: v = w->rain_day; break;
-	case 7: v = w->rain_midnight; break;
-	case 8: v = w->humidity; break;
-	case 9: v = w->pressure; break;
-	case 10: v = w->luminosity; break;
+	unsigned row;
+	uint32_t v = UINT32_MAX;
+	for (row = 0; row < 11; row++) {
+		v = measurement(w, row);
+		if (v != UINT32_MAX && i-- == 0) break;
 	}
+	if (row == 11) return;
+	i = row;
+	str_copy(it->label, sizeof it->label, tr(names[i]));
+	if (i == 4) { ui_sb_age(it->value, sizeof it->value, ui_st.now_ms - s.heard_ms); return; }
 	sbuf_t b;
 	sb_init(&b, it->value, sizeof it->value);
-	if ((i == 9 && v == UINT32_MAX) || (i != 9 && v == APRS_WX_UNKNOWN)) { sb_str(&b, TR("Unknown")); return; }
 	switch (i) {
 	case 0: sb_temperature(&b, (int16_t)((w->temp_f - 32) * 50 / 9)); break;
 	case 1: case 3: sb_speed(&b, (v * 1609344u + 500u) / 1000u); break;

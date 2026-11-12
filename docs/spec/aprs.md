@@ -212,7 +212,7 @@ Tools > APRS > Weather opens a list ordered newest first. Sort toggles nearest; 
 ones, with newest first for ties or when our position is unavailable. Row identities are captured on entry or a
 sort change so incoming packets cannot redirect a selection. Reopen or change Sort to refresh the list.
 Details follow the selected callsign and show temperature, sustained wind, wind direction, gust and report age,
-then the three rain periods, humidity, pressure and luminosity. Unknown values say Unknown. Report age is time
+then the three rain periods, humidity, pressure and luminosity. Unknown measurements have no row; measured zero remains visible. Report age is time
 since receipt on this radio, not an inferred observation timestamp. Values follow the shared Settings > Display > Units setting (US by default). All fields are scrollable on monochrome displays.
 
 ### 4.4 Objects, items and bulletins
@@ -472,6 +472,7 @@ in the radio's own APRS-IS client (`CONFIG_NET_APRSIS`, `tcp-services.md` 7), wh
 With `CONFIG_APRS_HOME` (defaults to `CONFIG_APRS_RX`), Tools > APRS is a task hub. Its header shows
 local send age and the next timed beacon, or the current blocked/listening state. The second line shows
 "Repeated by <callsign>" for a matching repeat, otherwise the heard count and nearest known distance in the selected display units.
+While listening and unblocked, repeat evidence precedes the local send age so it survives a one-line Home layout.
 No nearest distance is shown without positions on both sides. The numbered rows are Stations (count and new
 identities since the last visit), Messages (unread, opens the shared inbox), Weather (received reports when enabled),
 Send position now, My beacon (identity, frequency, position/source and symbol review), then the existing settings.
@@ -480,9 +481,12 @@ viewed is not a new station. The bounded viewed-call list is volatile.
 
 Settings > Display > APRS line enables the same status on Home (default off, stored in `knob_flags` bit 1).
 It occupies up to two existing activity rows below the channel and voice controls, never moving them. Voice
-activity, monitor and banners take priority. A short screen keeps only the first line; large-text mode and dual
-watch keep their existing layouts. The hub always provides the full status. Listening reflects the actual receive
+activity, monitor and banners take priority. APRS TX on/off replaces the Home hint while the APRS line is enabled.
+A mono APRS arrival omits its preview to preserve the voice target. A short screen keeps only the first line;
+large-text mode and dual watch keep their existing layouts. The hub always provides the full status. Listening reflects the actual receive
 path: off, unavailable receiver, another channel, busy radio, or failed/busy receiver; position is not required.
+A past send does not override a not-listening reason. Station rows without range say No own pos when the station
+has a position, otherwise No position.
 
 `aprs_home.c` retains the last successfully transmitted packet's source, destination and complete information
 field in main RAM. A received own-source frame never enters the station table. A matching frame within ten

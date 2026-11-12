@@ -116,6 +116,9 @@ static void heard_item(uint16_t i, ui_item_t *it)
 		sb_range(&b, m, deg);
 		sb_str(&b, TEXT_ALT_NEXT TEXT_ALT_CLOSE);
 		at = s.pos_ms;
+	} else {
+		sb_chr(&b, ' ');
+		sb_str(&b, s.has_pos ? TR("No own pos") : TR("No position"));
 	}
 	ui_sb_age(it->value, sizeof it->value, ui_st.now_ms - at);
 	if (!s.direct)

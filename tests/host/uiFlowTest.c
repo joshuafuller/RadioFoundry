@@ -575,9 +575,12 @@ static const flow_t flows[] = {
 	{ "A My beacon review", "", "ok 6 8 5", "screen=aprs-beacon shows=Q0SIM-7", 4, false },
 	{ "A Home line off", "", "", "hides=APRS_listening", 0, false },
 	{ "A Stations visit clears new", "ok 6 8 1", "back", "shows=0_new", 1, false },
+	{ "A Home not listening refresh", "aprs:home", "aprs:notlistening", "shows=Not_listening hides=APRS_listening shows=APRS_TX_off", 0, false },
+	{ "A Home TX enabled", "aprs:home aprs:txon", "", "shows=APRS_TX_on", 0, false },
+	{ "A Home transmitting", "aprs:home aprs:sending", "", "shows=APRS_sending", 0, false },
 	{ "A Home listening", "aprs:home", "", "shows=APRS_listening", 0, false },
 	{ "A Home no position", "aprs:home aprs:nopos", "", "shows=Not_sending", 0, false },
-	{ "A Home repeat", "aprs:home aprs:repeat", "", "shows=APRS_sent", 0, false },
+	{ "A Home repeat", "aprs:home aprs:repeat", "", "shows=Repeated_by", 0, false },
 #if CONFIG_APRS_BEACON
 	{ "A My beacon", "", "ok 6 8 5", "screen=aprs-beacon shows=Q0SIM-7 shows=On_foot aprs_auto=0", 4, false },
 	{ "A symbol picker", "ok 6 8 5", "1", "screen=aprs-symbol count=40", 1, false },
@@ -664,7 +667,7 @@ static const flow_t flows[] = {
 	{ "A bulletin never replies", "aprs:bulletin ok 6 8 up up ok ok", "ok", "screen=aprs-bulletin sent=0", 1, false },
 	{ "A bulletin banner", "", "aprs:bulletin-alert wait:200", "banner=Bulletin screen=home", 0, false },
 	{ "A KISS on USB", "ok 6 8", "up up up up up ok", "aprs_kiss=1", 6, false },
-	{ "A arrival banner", "", "aprs:packet", "banner=Q4WABC-15 shows=status", 0, false },
+	{ "A arrival banner", "", "aprs:packet", "banner=Q4WABC-15 shows=Q4WABC-15", 0, false },
 	{ "A arrival opens stable callsign", "aprs:packet aprs:reorder", "ctx",
 	  "screen=aprs-station shows=Q4WABC-15", 1, false },
 	{ "A arrival replaces earlier traffic", "aprs:packet aprs:packet2", "ctx",
@@ -1433,12 +1436,17 @@ static void weather_checks(void)
 		"expect:screen=aprs-weather-detail expect:shows=-7 down expect:shows=8_mph "
 		"down expect:shows=N down expect:shows=15_mph down expect:shows=1m "
 		"down expect:shows=0.02_in down expect:shows=0.10_in down expect:shows=0.00_in "
-		"down expect:shows=64% down expect:shows=29.92_inHg down expect:shows=Unknown",
+		"down expect:shows=64% down expect:shows=29.92_inHg expect:count=10",
 		"aprs:reorder ok 6 8 3 ok expect:shows=Nearest down ok expect:shows=Q4WABC-15",
 		"aprs:nopos ok 6 8 3 ok down ok expect:screen=aprs-weather-detail",
+		"aprs:nopos ok 6 8 1 expect:shows=No_own_pos",
 		"ok 6 8 3 down aprs:reorder ok expect:shows=Q4WABC-15 "
 		"aprs:evict down expect:shows=Unknown",
 		"aprs:evict ok 6 8 3 expect:screen=aprs-weather expect:shows=No_weather_reports",
+		"aprs:wxunknown ok 6 8 3 down ok expect:count=1 expect:shows=Report_age expect:hides=Pressure",
+		"aprs:wxzero ok 6 8 3 down ok expect:count=11 expect:shows=0 "
+		"down expect:shows=0_mph down down down down expect:shows=0.00_in "
+		"down down down expect:shows=0% down expect:shows=0.00_inHg down expect:shows=0_W/m2",
 		"ok 7 2 up up up ok long:back ok 6 8 3 down ok expect:shows=-22 "
 		"down expect:shows=13_km/h down down expect:shows=24_km/h down down expect:shows=0.5_mm "
 		"down down down down expect:shows=1013_hPa",
@@ -1904,7 +1912,8 @@ static void aprs_home_checks(void)
 		{ "aprs:home", "APRS listening", "2 heard, nearest 9.0 mi" },
 		{ "ok 7 2 up up up ok long:back aprs:home", "APRS listening", "2 heard, nearest 14.5 km" },
 		{ "aprs:home aprs:nopos", "Not sending: no position", "2 heard" },
-		{ "aprs:home aprs:repeat", "APRS sent ", "Repeated by Q4DIG-1" },
+		{ "aprs:home aprs:repeat", "Repeated by Q4DIG-1", "APRS sent " },
+		{ "aprs:home aprs:repeat aprs:listen2", "Not listening: voice channel", "Repeated by Q4DIG-1" },
 		{ "aprs:home aprs:listen0", "Not listening: off", "2 heard" },
 		{ "aprs:home aprs:listen1", "Not listening: no receiver", "2 heard" },
 		{ "aprs:home aprs:listen2", "Not listening: voice channel", "2 heard" },
@@ -1927,6 +1936,25 @@ static void aprs_home_checks(void)
 			}
 		}
 	}
+	// Compare the actual voice-target pixels: a draw-log match cannot detect an overlay.
+	sim_reset(sim_geom_find("128x64"), SIM_MAP_K);
+	(void)sim_run("aprs:home", err, sizeof err);
+	color_t target[128 * 12];
+	int n = 0;
+	for (int y = ui_layout.talk_y; y < ui_layout.chips_y; y++)
+		for (int x = 0; x < 128; x++) target[n++] = gfx_get_pixel(x, y);
+	(void)sim_run("aprs:packet", err, sizeof err);
+	n = 0;
+	for (int y = ui_layout.talk_y; y < ui_layout.chips_y; y++) {
+		for (int x = 0; x < 128; x++) {
+			if (target[n++] != gfx_get_pixel(x, y)) {
+				printf("FAIL APRS arrival covers voice target\n");
+				fails++;
+				return;
+			}
+		}
+	}
+
 }
 
 static void aprs_wrap_checks(void)
