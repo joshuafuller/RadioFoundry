@@ -71,6 +71,7 @@
 #include "hotspot/hotspot.h"
 #include "stubentry/stub_entry.h"
 #include "ui/ui_svc_aprs.h"
+#include "aprs/aprs_fmt.h"
 
 #define TICK_MS		50
 #define PRESS_MS	150
@@ -425,6 +426,8 @@ static struct {
 	uint32_t message_ms;
 	bool evicted;
 	bool no_speed;
+	bool other_pos;
+	uint8_t category;
 	bool reordered;		// a packet moves the second station to the front
 	bool no_pos;		// "aprs:nopos": no position of our own (no GPS fix, no fixed position)
 	aprs_cfg_t cfg;
@@ -478,14 +481,24 @@ bool ui_svc_aprs_station(uint8_t i, aprs_station_t *out)
 	i ^= aprs_sim.reordered ? 1u : 0u;
 	strcpy(out->call, calls[i]);
 	out->heard_ms = now_ms > 60000u * (i + 1u) ? now_ms - 60000u * (i + 1u) : 0;
+	if (aprs_sim.reordered && i == 1)
+		out->heard_ms = now_ms;
 	out->direct = i == 0;
-	out->has_pos = i == 0;
+	out->has_pos = i == 0 || aprs_sim.other_pos;
 	out->lat = 338000000;	// 14.5 km NE of our fixed position (ui_svc_aprs_view)
 	out->lon = -840000000;
 	out->speed_kn = aprs_sim.no_speed || i != 0 ? 0xFFFFu : 10;
 	out->course = aprs_sim.no_speed || i != 0 ? 0xFFFFu : 40;
 	out->sym_table = i == 0 ? '/' : 0;
 	out->sym_code = i == 0 ? '>' : 0;
+	if (i == 1) {
+		out->sym_table = '/';
+		if (aprs_sim.category == 1) out->sym_code = '_';
+		if (aprs_sim.category == 2) out->sym_code = '#';
+		if (aprs_sim.category == 3) out->type = APRS_T_OBJECT;
+		if (aprs_sim.category == 4) out->type = APRS_T_ITEM;
+		if (aprs_sim.category == 5) out->type = APRS_T_WEATHER;
+	}
 	out->count = 3;
 	strcpy(out->text, i == 0 ? "On the road" : "At home");
 	out->pos_ms = 0;	// the position heard at start, the packets since (heard_ms) without one
@@ -504,7 +517,7 @@ bool ui_svc_aprs_range(const aprs_station_t *s, uint32_t *m, uint16_t *deg)
 {
 	if (aprs_sim.off || aprs_sim.no_call || aprs_sim.no_pos || !s->has_pos)
 		return false;
-	*m = 14461;
+	*m = strcmp(s->call, "QJ4XYZ") == 0 ? 100 : 14461;
 	*deg = 40;
 	return true;
 }
@@ -2835,6 +2848,12 @@ static bool run_token(char *t, char *err, size_t len)
 		aprs_sim.reordered = strcmp(arg, "reorder") == 0;
 		aprs_sim.evicted = strcmp(arg, "evict") == 0;
 		aprs_sim.no_speed = strcmp(arg, "nospeed") == 0;
+		aprs_sim.other_pos = strcmp(arg, "near") == 0;
+		if (strcmp(arg, "weather") == 0) aprs_sim.category = 1;
+		if (strcmp(arg, "digi") == 0) aprs_sim.category = 2;
+		if (strcmp(arg, "object") == 0) aprs_sim.category = 3;
+		if (strcmp(arg, "item") == 0) aprs_sim.category = 4;
+		if (strcmp(arg, "weather-type") == 0) aprs_sim.category = 5;
 		if (strcmp(arg, "heard") == 0) {
 			ui_push(SCR_APRS_HEARD, 0);
 			advance(200);
