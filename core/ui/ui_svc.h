@@ -339,6 +339,7 @@ typedef enum {
 	// position comes from (position_pref_t), the fixed position in 1e-7 degree (both 0 = not set), our position
 	// sent in DMR voice calls 0 / 1 (ETSI GPS Info, CONFIG_DMR_GPS)
 	UI_SET_POS_SOURCE, UI_SET_POS_FIXED_LAT, UI_SET_POS_FIXED_LON, UI_SET_POS_DMR_CALLS,
+	UI_SET_UNITS,		// radio-wide display units: 0 US, 1 Metric
 	UI_SET_COUNT
 } ui_setting_t;
 

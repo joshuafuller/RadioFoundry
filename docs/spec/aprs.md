@@ -377,7 +377,7 @@ Selecting a heard station opens `aprs-station`, a scrollable detail list. The UI
 not its row index, and resolves the current station through `ui_svc_aprs_station_find` on each draw. New packets
 can reorder the heard list without changing the open station or Message recipient. Message is the first row and
 opens the composer with that callsign. The remaining rows show distance and compass direction when both positions
-exist, heard age, Direct or Via digipeater, position age when different from heard age, speed in km/h and course
+exist, heard age, Direct or Via digipeater, position age when different from heard age, speed in the selected units and course
 when the retained position has them, symbol table and code, the retained comment/status text, and packet count.
 Unknown speed and course have no row. Text is limited to the engine's 24-byte field; no digipeater identity or
 additional comment text is retained. Detail rows scroll with Up / Down and do not perform actions. If the station
@@ -473,3 +473,22 @@ Future, not done:
 - 9600 baud APRS (G3RUH FSK, scrambled NRZI direct FM): needs a flat (discriminator / modulator direct) audio path
   and an FSK modem; a tone generator path can't do it. Not planned for now.
 - Settings > Location tied to APRS; GPS Info in the hotspot's own transmissions.
+
+## Display units
+
+Settings > Display > Units selects **US** (default) or **Metric** for the whole radio. It is saved with the
+other settings and applies immediately to APRS, GPS and caller distances. Internal values and transmitted
+packets do not change. Builds without `CONFIG_UNITS` retain metric displays and omit the setting.
+
+| Quantity | US | Metric |
+|---|---|---|
+| Distance | ft below one mile, then mi | m below one kilometer, then km |
+| Speed | mph | km/h |
+| Altitude | ft | m |
+| Temperature | °F | °C |
+| Rain | in, two decimals | mm, one decimal |
+| Pressure | inHg, two decimals | hPa |
+
+Distance uses one decimal below 100 mi/km and whole units above, switching to whole units when rounding
+would reach 100. Other values round to the nearest displayed unit; exact halves round away from zero.
+Weather formatters are shared helpers; this base does not yet display received weather fields.

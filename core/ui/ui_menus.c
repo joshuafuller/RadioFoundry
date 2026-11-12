@@ -993,8 +993,8 @@ static void recent_item(uint16_t i, ui_item_t *it)
 		}
 		sb_chr(&vb, ' ');
 		if (r->gps_range) {	// the caller's position: how far
-			sb_u32(&vb, (r->gps_dist_m + 500u) / 1000u, 1);
-			sb_str(&vb, "km ");
+			sb_distance(&vb, r->gps_dist_m);
+			sb_chr(&vb, ' ');
 		}
 	}
 	sb_age(&vb, ui_st.now_ms - r->ms);
@@ -3860,8 +3860,7 @@ static const char *info_body(void)
 			if (p.alt_ok) {
 				sb_chr(&b, '\n');
 				sb_str(&b, TR("Altitude "));
-				sb_i32(&b, p.alt_m);
-				sb_str(&b, " m");
+				sb_altitude(&b, p.alt_m);
 			}
 		}
 		break;
@@ -5386,6 +5385,10 @@ static const set_item_t s_sound[] = {
 	TOGGLE(TRN("Vibrate"), "vibration motor silent", UI_SET_VIBRATE),
 #endif
 };
+#if CONFIG_UNITS
+static const int16_t v_units[] = { 0, 1 };
+static const char *const n_units[] = { TRN("US"), TRN("Metric") };
+#endif
 static const set_item_t s_display[] = {
 	NUMBER(TRN("Brightness"), "backlight", UI_SET_BRIGHTNESS, 10, 100, 10, "%"),
 	LIST(TRN("Backlight Dim/Off"), "timeout", UI_SET_BACKLIGHT_S, v_backlight, n_backlight),
@@ -5396,6 +5399,9 @@ static const set_item_t s_display[] = {
 #endif
 	TOGGLE(TRN("Large text"), "accessibility", UI_SET_LARGE_TEXT),
 	TOGGLE(TRN("Hint row"), "help", UI_SET_HINTS),
+#if CONFIG_UNITS
+	LIST(TRN("Units"), "distance speed temperature", UI_SET_UNITS, v_units, n_units),
+#endif
 	// Last, so the rows above keep their places; its search words are "language" in other languages, for a user who
 	// can't read the English
 	ACTION(TRN("Language"), "idioma langue sprache lingua taal jezyk", SA_LANGUAGE),

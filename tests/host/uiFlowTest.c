@@ -130,6 +130,10 @@ static const flow_t flows[] = {
 	{ "S freq trim: past 10.0 ppm is refused", "trim ok 7 up ok up ok 1 0", "1", "toast=Up_to_10.0", 1, false },
 	{ "S freq trim: OK leaves", "trim ok 7 up ok up ok", "ok", "screen=group shows=Freq_trim", 1, false },
 	{ "S no freq trim without the hook", "", "ok 7 up ok", "hides=Freq_trim", 4, false },
+#if CONFIG_UNITS
+	{ "S units default and select Metric", "", "ok 7 2 up up ok", "shows=Metric", 6, false },
+	{ "S units return to US", "ok 7 2 up up ok", "ok", "shows=US", 1, false },
+#endif
 	// Settings > Display > Language, the last row (i18n.h; set78 = UI_SET_LANGUAGE, 'e' << 8 | 's' = 25971 Spanish,
 	// 'e' << 8 | 'n' = 25966 English picked; 0 never picked)
 	{ "S language list", "", "ok 7 2 up ok", "screen=language shows=English", 5, false },
@@ -1314,7 +1318,7 @@ static void heard_checks(void)
 		for (size_t i = 0; i < sizeof cases / sizeof cases[0]; i++) {
 			sim_reset(&sim_geoms[g], SIM_MAP_K);
 			snprintf(buf, sizeof buf, "%sok 6 8 up ok expect:screen=aprs-heard expect:shows=Q4WABC-15 "
-				 "expect:shows=QJ4XYZ expect:%s=14.5_km_NE", cases[i].setup,
+				 "expect:shows=QJ4XYZ expect:%s=9.0_mi_NE", cases[i].setup,
 				 cases[i].range ? "shows" : "hides");
 			if (!sim_run(buf, err, sizeof err)) {
 				printf("FAIL stations heard %s [%s]: %s\n", cases[i].name, sim_geoms[g].name, err);
@@ -1325,7 +1329,7 @@ static void heard_checks(void)
 	// Packets without a position since the last one: the row's age is the position's (10 min), not the last
 	// packet's (1 min), so it says how old the range is
 	sim_reset(&sim_geoms[0], SIM_MAP_K);
-	if (!sim_run("wait:600000 ok 6 8 up ok expect:shows=14.5_km_NE expect:shows=10m expect:hides=1m", err,
+	if (!sim_run("wait:600000 ok 6 8 up ok expect:shows=9.0_mi_NE expect:shows=10m expect:hides=1m", err,
 		     sizeof err)) {
 		printf("FAIL stations heard position age [%s]: %s\n", sim_geoms[0].name, err);
 		fails++;
@@ -1333,7 +1337,7 @@ static void heard_checks(void)
 	// BVA on the row's width: a display too narrow for the call, the range and the age gives up the range, never
 	// the call (96 px: under 20 cells, the call and the range alone are 20)
 	sim_reset(sim_geom_find("96x64m"), SIM_MAP_K);
-	if (!sim_run("ok 6 8 up ok expect:screen=aprs-heard expect:shows=Q4WABC-15 expect:hides=km", err, sizeof err)) {
+	if (!sim_run("ok 6 8 up ok expect:screen=aprs-heard expect:shows=Q4WABC-15 expect:hides=mi", err, sizeof err)) {
 		printf("FAIL stations heard narrow [96x64m]: %s\n", err);
 		fails++;
 	}
@@ -1343,9 +1347,11 @@ static void heard_checks(void)
 static void station_checks(void)
 {
 	static const struct { const char *name, *script; } cases[] = {
+		{ "metric units", "ok 7 2 up up ok long:back ok 6 8 up ok ok down expect:shows=14.5_km_NE "
+		  "down down down expect:shows=19_km/h" },
 		{ "position", "wait:600000 ok 6 8 up ok ok expect:screen=aprs-station expect:count=10 "
-		  "down expect:shows=14.5_km_NE down expect:shows=1m down expect:shows=Direct "
-		  "down expect:shows=10m down expect:shows=19_km/h down expect:shows=40 "
+		  "down expect:shows=9.0_mi_NE down expect:shows=1m down expect:shows=Direct "
+		  "down expect:shows=10m down expect:shows=12_mph down expect:shows=40 "
 		  "down expect:shows=/> down expect:shows=On_the_road down expect:shows=Packets "
 		  "ok expect:screen=aprs-station" },
 		{ "no local position", "aprs:nopos ok 6 8 up ok ok expect:count=8 down expect:shows=Heard" },

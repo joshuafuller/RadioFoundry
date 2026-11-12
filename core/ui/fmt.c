@@ -4,6 +4,10 @@
 #include "fmt.h"
 #include "font.h"
 #include "i18n.h"
+#include "config.h"
+#if CONFIG_UNITS
+#include "ui_svc.h"
+#endif
 
 void sb_init(sbuf_t *b, char *buf, size_t len)
 {
@@ -195,20 +199,92 @@ void sb_compass(sbuf_t *b, uint16_t bearing)
 	sb_str(b, points[((bearing % 360u) * 2u + 45u) / 90u % 8u]);
 }
 
+static bool metric(void)
+{
+#if CONFIG_UNITS
+	return ui_svc_setting_get(UI_SET_UNITS) == 1;
+#else
+	return true;
+#endif
+}
+
+static void decimal(sbuf_t *b, uint32_t v, uint32_t scale, int digits)
+{
+	sb_u32(b, v / scale, 1);
+	sb_chr(b, '.');
+	sb_u32(b, v % scale, digits);
+}
+
+void sb_distance(sbuf_t *b, uint32_t meters)
+{
+	bool si = metric();
+	// Compare rounded tenths so a boundary never reads 100.0 km/mi.
+	uint32_t tenths = si ? ((uint64_t)meters + 50u) / 100u :
+		((uint64_t)meters * 10000u + 804672u) / 1609344u;
+	if (si ? meters < 1000u : meters < 1610u) {
+		sb_u32(b, si ? meters : ((uint64_t)meters * 1250u + 190u) / 381u, 1);
+		sb_str(b, si ? " m" : " ft");
+		return;
+	}
+	if (tenths < 1000u)
+		decimal(b, tenths, 10u, 1);
+	else
+		sb_u32(b, si ? ((uint64_t)meters + 500u) / 1000u :
+			((uint64_t)meters * 1000u + 804672u) / 1609344u, 1);
+	sb_str(b, si ? " km" : " mi");
+}
+
 void sb_range(sbuf_t *b, uint32_t meters, uint16_t bearing)
 {
-	if (meters < 1000u) {
-		sb_u32(b, meters, 1);
-		sb_str(b, " m ");
-	} else if (meters < 100000u) {
-		uint32_t h = (meters + 50u) / 100u;	// 0.1 km
-		sb_u32(b, h / 10u, 1);
-		sb_chr(b, '.');
-		sb_u32(b, h % 10u, 1);
-		sb_str(b, " km ");
-	} else {
-		sb_u32(b, (meters + 500u) / 1000u, 1);
-		sb_str(b, " km ");
-	}
+	sb_distance(b, meters);
+	sb_chr(b, ' ');
 	sb_compass(b, bearing);
+}
+
+void sb_speed(sbuf_t *b, uint32_t meters_per_hour)
+{
+	bool si = metric();
+	sb_u32(b, si ? ((uint64_t)meters_per_hour + 500u) / 1000u :
+		((uint64_t)meters_per_hour * 1000u + 804672u) / 1609344u, 1);
+	sb_str(b, si ? " km/h" : " mph");
+}
+
+static void signed_round(sbuf_t *b, int64_t numerator, uint32_t denominator)
+{
+	uint32_t v = ((uint64_t)(numerator < 0 ? -numerator : numerator) + denominator / 2u) / denominator;
+	if (numerator < 0 && v)
+		sb_chr(b, '-');
+	sb_u32(b, v, 1);
+}
+
+void sb_altitude(sbuf_t *b, int32_t meters)
+{
+	bool si = metric();
+	signed_round(b, si ? meters : (int64_t)meters * 1250, si ? 1u : 381u);
+	sb_str(b, si ? " m" : " ft");
+}
+
+void sb_temperature(sbuf_t *b, int16_t celsius10)
+{
+	bool si = metric();
+	signed_round(b, si ? celsius10 : (int32_t)celsius10 * 9 + 1600, si ? 10u : 50u);
+	sb_str(b, si ? GLYPH_DEGREE "C" : GLYPH_DEGREE "F");
+}
+
+void sb_rain(sbuf_t *b, uint32_t hundredths_inch)
+{
+	bool si = metric();
+	decimal(b, si ? ((uint64_t)hundredths_inch * 254u + 50u) / 100u : hundredths_inch,
+		si ? 10u : 100u, si ? 1 : 2);
+	sb_str(b, si ? " mm" : " in");
+}
+
+void sb_pressure(sbuf_t *b, uint16_t hpa10)
+{
+	bool si = metric();
+	if (si)
+		sb_u32(b, (hpa10 + 5u) / 10u, 1);
+	else
+		decimal(b, ((uint32_t)hpa10 * 10000u + 16932u) / 33864u, 100u, 2);
+	sb_str(b, si ? " hPa" : " inHg");
 }

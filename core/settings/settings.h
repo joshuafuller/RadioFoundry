@@ -231,7 +231,7 @@ typedef struct {
 	// none (was reserved9[0..1]: an older record reads none). The VFO's outbound color code is its own (no byte B)
 	uint8_t vfo_sfr;		// the first VFO
 	uint8_t vfo2_sfr;		// the second
-	uint8_t reserved9;
+	uint8_t units;			// 0 US (default), 1 Metric; was reserved9
 } settings_t;
 
 // Pages: settings_t is stored as records of SETTINGS_PAGE_BYTES each (settings-store.md 2.1). Only the pages its size

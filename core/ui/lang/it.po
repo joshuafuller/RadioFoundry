@@ -2781,6 +2781,14 @@ msgid "Vibrate"
 msgstr "Vibrazione"
 
 #: core/ui/ui_menus.c
+msgid "US"
+msgstr "USA"
+
+#: core/ui/ui_menus.c
+msgid "Metric"
+msgstr "Metrico"
+
+#: core/ui/ui_menus.c
 msgid "Brightness"
 msgstr "Luminosità"
 
@@ -2807,6 +2815,10 @@ msgstr "Testo grande"
 #: core/ui/ui_menus.c
 msgid "Hint row"
 msgstr "Riga suggerim."
+
+#: core/ui/ui_menus.c
+msgid "Units"
+msgstr "Unità"
 
 #: core/ui/ui_menus.c
 msgid "Language"

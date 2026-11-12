@@ -407,8 +407,7 @@ static void station_item(uint16_t i, ui_item_t *it)
 		break;
 	case ST_SPEED:
 		label = TR("Speed");
-		sb_u32(&b, ((uint32_t)s.speed_kn * 1852u + 500u) / 1000u, 1);
-		sb_str(&b, " km/h");
+		sb_speed(&b, (uint32_t)s.speed_kn * 1852u);
 		break;
 	case ST_COURSE:
 		label = TR("Course");
