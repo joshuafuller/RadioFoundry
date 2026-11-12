@@ -41,6 +41,8 @@ frequency, your position and its source, and when the next beacon goes out. If t
 | Send via | AFSK (on FM), DMR, or both |
 | My beacon | Preview and edit symbol, comment, automatic beacons, pace and reach (when built) |
 | KISS on USB | The radio works as a KISS TNC for APRS programs on the computer |
+| Objects | Named objects and items; OK opens position, owner, comment and advertised frequency |
+| Bulletins | Announcements and group bulletins; OK opens the complete text |
 | Recent packets | The latest decoded packets, newest first; OK opens one |
 | Stations heard | Stations the radio heard (radios that can receive APRS), sorted as described below. A station that sent its position shows how far away and which way it was from yours, when the radio has a position too; the age on that row is then the age of that position. Other rows show when the station was last heard. Objects and items a station sends don't count as its position, and a position more than a day old is dropped. Select one and choose Message to fill its callsign |
 
@@ -84,6 +86,24 @@ Weather uses a weather packet or weather symbol. Mobiles means a retained positi
 Objects shows stations whose last packet was an object or item, under the publisher's callsign. Digipeaters uses
 the advertised digipeater symbol; hearing a station through a digipeater does not put it in that filter.
 If the selected station leaves the view, the list selects the first remaining station.
+
+## Objects and bulletins
+
+In **Tools > APRS**, open **Objects** for places and items published by other stations. Select a name to see its
+publisher (**From**), age, distance and direction, comment, and a frequency advertised as `ddd.dddMHz`.
+Distance needs a position of your own. The frequency is information only; opening it does not tune or transmit.
+An object's location never moves its publisher in **Stations heard**.
+
+A withdrawn object reads **Removed** for ten minutes, then leaves the list. A new live report brings it back.
+Live objects expire after a day. The list holds the eight most recently updated names.
+
+Open **Bulletins** for announcements, group bulletins and NWS bulletins, newest first. Select a row to read its
+sender, age and full retained text; scroll with **Up / Down**. A new or changed bulletin shows a banner once,
+after any current banner clears. Repeated identical packets do not alert again while in the list. Bulletins have
+no Reply action and the radio does not acknowledge them.
+
+The bulletin list holds eight sender/address pairs and drops entries a day after their text last changed.
+Both lists clear at power-off. If an open entry leaves the list, its detail says **No longer in list**.
 
 ## Station details
 

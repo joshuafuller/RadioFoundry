@@ -56,6 +56,9 @@ typedef enum {
 	SCR_APRS_THREAD,
 #endif
 	SCR_APRS_SYMBOL, SCR_APRS_PACE, SCR_APRS_REACH, SCR_APRS_COMMENT,
+#if CONFIG_APRS_RX
+	SCR_APRS_OBJECTS, SCR_APRS_OBJECT, SCR_APRS_BULLETINS, SCR_APRS_BULLETIN,
+#endif
 	SCR_COUNT
 } ui_scr_t;
 
@@ -132,7 +135,7 @@ void ui_focus_changed(void);
 // Open the actions for a target (SCR_ACTIONS)
 void ui_open_actions(const ui_target_t *t);
 void ui_aprs_compose(const char *call);
-extern char ui_aprs_text[320]; // shared draw scratch: only the current APRS screen uses it
+extern char ui_aprs_text[400]; // shared body scratch: only the current screen uses it
 const char *ui_aprs_beacon_status(void);
 void ui_aprs_list_reset(void);
 #if CONFIG_APRS_RX

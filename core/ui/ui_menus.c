@@ -40,6 +40,7 @@
 
 extern const ui_scr_def_t ui_find_screen;
 #if CONFIG_APRS_RX
+extern const ui_scr_def_t ui_aprs_objects_screen, ui_aprs_object_screen, ui_aprs_bulletins_screen, ui_aprs_bulletin_screen;
 extern const ui_scr_def_t ui_aprs_thread_screen;
 extern const ui_scr_def_t ui_aprs_packets_screen, ui_aprs_packet_screen;
 extern const ui_scr_def_t ui_aprs_filter_screen;
@@ -339,14 +340,17 @@ static void act_select(uint16_t i, bool hold)
 }
 
 // The station or talkgroup by name ("Joe Smith", "Main Ops"), else by number; the rows give the numbers
+// Titles and bodies have separate scratch because a list draws both.
+static char title_text[40];
+
 static const char *act_title(void)
 {
-	static char t[40];
+	char *t = title_text;
 	if (ui_target.group && ui_target.name[0] != '\0') {
 		strcpy(t, ui_target.name);
 		return t;
 	}
-	ui_sb_target(t, sizeof t, &ui_target);
+	ui_sb_target(t, 40, &ui_target);
 	return t;
 }
 
@@ -470,11 +474,11 @@ static void compose_select(uint16_t i, bool hold)
 
 static const char *compose_title(void)
 {
-	static char t[32];
+	char *t = title_text;
 	if (compose_aprs())
-		str_copy(t, sizeof t, aprs_to[0] ? aprs_to : TR("Callsign"));
+		str_copy(t, 32, aprs_to[0] ? aprs_to : TR("Callsign"));
 	else
-		ui_sb_target(t, sizeof t, &ui_target);
+		ui_sb_target(t, 32, &ui_target);
 	return t;
 }
 
@@ -938,9 +942,9 @@ static void msg_context(uint16_t i)
 
 static const char *msg_title(void)
 {
-	static char t[24];
+	char *t = title_text;
 	sbuf_t b;
-	sb_init(&b, t, sizeof t);
+	sb_init(&b, t, 24);
 	uint16_t row = 0, index;
 	bool aprs;
 	while (msg_row(row, &aprs, &index) &&
@@ -1738,9 +1742,9 @@ static void offer_select(uint16_t i, bool hold)
 // "Zone Club, 24 channels, from Joe 9991234" and how many can't be received here
 static const char *offer_body(void)
 {
-	static char body[96];
+	char *body = ui_aprs_text;
 	sbuf_t b;
-	sb_init(&b, body, sizeof body);
+	sb_init(&b, body, 96);
 	if (!offer_get())
 		return NULL;
 	sb_str(&b, offer.channel ? TR("Channel ") : TR("Zone "));
@@ -3919,9 +3923,9 @@ static void sb_volts(sbuf_t *b, uint16_t mv)
 
 static const char *info_body(void)
 {
-	static char t[200];
+	char *t = ui_aprs_text;
 	sbuf_t b;
-	sb_init(&b, t, sizeof t);
+	sb_init(&b, t, 200);
 	switch (ui_frame()->arg) {
 	case INFO_POSITION: {
 		ui_position_t p;
@@ -4187,9 +4191,9 @@ static void dmr_id_item(uint16_t i, ui_item_t *it)
 
 static const char *dmr_id_body(void)
 {
-	static char t[48];
+	char *t = ui_aprs_text;
 	sbuf_t b;
-	sb_init(&b, t, sizeof t);
+	sb_init(&b, t, 48);
 	sb_str(&b, TR("Saved in the codeplug"));
 	sb_chr(&b, '\n');
 	sb_str(&b, TR("Radio: "));
@@ -4540,9 +4544,9 @@ static uint16_t about_max;	// the largest first line (from the last draw)
 
 static const char *about_text(void)
 {
-	static char t[400];
+	char *t = ui_aprs_text;
 	sbuf_t b;
-	sb_init(&b, t, sizeof t);
+	sb_init(&b, t, 400);
 	// every line "Label: value" (ui_draw_text_page shows labels dim), each on its own line: "RadioFoundry v26.11" was
 	// wider than the display and the release wrapped without its label. A release: its name, then the commit it was
 	// built from; any other build: the commit alone
@@ -4676,9 +4680,9 @@ static const char *roam_why_not(const radio_view_t *v)
 
 static const char *roam_body(void)
 {
-	static char t[120];
+	char *t = ui_aprs_text;
 	sbuf_t b;
-	sb_init(&b, t, sizeof t);
+	sb_init(&b, t, 120);
 #if CONFIG_DMR_ROAMING
 	const radio_view_t *v = ui_view();
 	const char *why = roam_why_not(v);
@@ -4891,9 +4895,9 @@ static const char *const crash_modes[] = { TRN("Off"), TRN("Ask"), TRN("Auto") }
 
 static const char *crash_body(void)
 {
-	static char t[160];
+	char *t = ui_aprs_text;
 	sbuf_t b;
-	sb_init(&b, t, sizeof t);
+	sb_init(&b, t, 160);
 	ui_crash_t c;
 	if (!ui_svc_crash_get(&c)) {
 		sb_str(&b, TR("No crash recorded."));
@@ -6463,6 +6467,10 @@ const ui_scr_def_t *const ui_scr[SCR_COUNT] = {
 	[SCR_APRS_BEACON] = &ui_aprs_beacon_screen, [SCR_APRS_SYMBOL] = &ui_aprs_symbol_screen,
 	[SCR_APRS_PACE] = &ui_aprs_pace_screen, [SCR_APRS_REACH] = &ui_aprs_reach_screen,
 	[SCR_APRS_COMMENT] = &aprs_comment_screen,
+#endif
+#if CONFIG_APRS_RX
+	[SCR_APRS_OBJECTS] = &ui_aprs_objects_screen, [SCR_APRS_OBJECT] = &ui_aprs_object_screen,
+	[SCR_APRS_BULLETINS] = &ui_aprs_bulletins_screen, [SCR_APRS_BULLETIN] = &ui_aprs_bulletin_screen,
 #endif
 	[SCR_ABOUT] = &about_screen,
 #if CONFIG_POSITION

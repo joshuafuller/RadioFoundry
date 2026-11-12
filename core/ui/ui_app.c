@@ -48,7 +48,7 @@ void ui_crit_exit(void);
 ui_state_t ui_st;
 ui_target_t ui_target;
 static const radio_view_t *view;
-static radio_view_t view_none;		// until the first tick
+static const radio_view_t view_none;		// until the first tick
 static ui_frame_t stack[UI_STACK_MAX];
 static uint8_t sp;			// stack[sp] is on screen; stack[0] is Home
 static uint32_t toast_until, entry_last, last_refresh, now;
@@ -2414,6 +2414,14 @@ bool ui_app_tick(const radio_view_t *v, uint32_t now_ms)
 		ui_st.toast = NULL;
 		dirty = true;
 	}
+#if CONFIG_APRS_RX
+	if (ui_st.banner.kind == UI_BANNER_NONE) {
+		aprs_bulletin_t bulletin;
+		if (ui_svc_aprs_bulletin_alert(&bulletin)) {
+			banner(UI_BANNER_INFO, false, 0, TR("Bulletin"), bulletin.text);
+		}
+	}
+#endif
 	knob_moved(v);
 #if CONFIG_VOLUME_BAR
 	if (ui_st.volbar >= 0 && (int32_t)(now - volbar_until) >= 0) {

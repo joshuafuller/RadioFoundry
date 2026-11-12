@@ -214,6 +214,34 @@ Details follow the selected callsign and show temperature, sustained wind, wind 
 then the three rain periods, humidity, pressure and luminosity. Unknown values say Unknown. Report age is time
 since receipt on this radio, not an inferred observation timestamp. Values follow the shared Settings > Display > Units setting (US by default). All fields are scrollable on monochrome displays.
 
+### 4.4 Objects, items and bulletins
+
+Receive builds keep eight objects/items and eight bulletins in ordinary main-RAM `.bss`, outside the engine's
+CPU-only state. `CONFIG_APRS_RX=n` removes both stores and their screens. Each list is newest first and replaces
+its oldest entry when full; all entries are volatile.
+
+- An object/item is keyed by its name. A new report replaces its owner, position, symbol, comment (up to 67 ASCII
+  characters), live/removed state and receipt time. A publisher's own position and comment are unchanged.
+  A kill remains visible as **Removed** for ten minutes after receipt; a live entry expires after 24 hours.
+  A later live report revives it. This follows the named-entity replacement rule in the
+  [APRS errata](https://www.aprs.org/errata.html).
+- The object detail retains the selected name and owner while incoming reports reorder the list. Eviction or
+  ownership change shows **No longer in list**. Distance and bearing use the existing position service and range
+  formatter. A `ddd.dddMHz` token in the retained comment supplies the frequency row; it never tunes the radio.
+- Bulletin addresses are `BLN` plus a digit, announcement addresses `BLN` plus an uppercase letter, optionally
+  followed by a group name. `NWS-*` messages share this list. Sender plus full addressee identifies a bulletin slot.
+  Changed text replaces that slot and queues one banner. An identical repeat neither refreshes its receipt time
+  nor alerts again while retained. Entries expire 24 hours after the last text change.
+- A new bulletin waits for the existing banner to clear, then uses an informational banner. The **Bulletins**
+  screen shows group, sender and age; OK opens its retained text. It offers no reply or acknowledgment action.
+  Bulletin addresses bypass personal-message processing even if they match the configured callsign.
+- One third-party envelope is decoded for these records; its inner sender owns the object or bulletin. Neither
+  the gateway nor the publisher acquires the object's coordinates.
+
+The formats follow [APRS101](https://www.aprs.org/doc/APRS101.PDF), chapters 11 and 14. The existing parser supplies
+positions and message text. Long comments and bulletin text are split into scrollable rows using the current list
+widget, including on monochrome displays. No storage writes or automatic response are introduced.
+
 ## 5. The radio side
 
 ### 5.1 hal_afsk
@@ -534,7 +562,8 @@ banners are dropped during PTT/TX, text or frequency entry, confirmations and em
 those operations hides an existing traffic banner. Packets remain in the ring. If several packets arrive between
 UI polls, only the newest can raise a banner.
 
-`Recent packets`, before Stations heard, opens `aprs-packets`: newest first, callsign, plain kind and receipt age.
+Objects and Bulletins follow KISS on USB. Recent packets follows Bulletins; the compact page then shows Stations heard.
+`Recent packets` opens `aprs-packets`: newest first, callsign, plain kind and receipt age.
 Digit picking follows the displayed rows; only the first ten rows have digits. The empty text is "Nothing heard
 yet". When `aprs_rx_listening()` is false the body explains the unavailable receive path, receive setting off, TX,
 voice channel, or unavailable audio. Selecting a packet copies its snapshot into main RAM and opens `aprs-packet`;

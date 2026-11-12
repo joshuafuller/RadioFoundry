@@ -10,6 +10,7 @@
 #include "aprs/aprs_int.h"
 #include "aprs/aprs_home.h"
 #include "aprs/aprs_thread.h"
+#include "aprs/aprs_objects.h"
 #include "aprs/hdlc.h"
 #include "aprs/kiss.h"
 #include "board.h"
@@ -520,6 +521,7 @@ void aprs_ax25_view(aprs_view_t *v)
 void aprs_ax25_init(uint32_t now_ms)
 {
 #if CONFIG_APRS_RX
+	aprs_objects_init();
 	memset(&traffic, 0, sizeof traffic);
 	aprs_thread_init();
 #endif
@@ -548,6 +550,7 @@ void aprs_ax25_tick(uint32_t now_ms)
 		aprs_s.host_refill_ms = now_ms;
 	}
 #if CONFIG_APRS_RX
+	aprs_objects_tick(now_ms);
 	bool expired = false;
 	for (uint8_t i = 0; i < aprs_s.nst; i++) {
 		if (aprs_s.st[i].has_pos && now_ms - aprs_s.st[i].pos_ms >= STATION_POS_MS) {
@@ -708,7 +711,7 @@ static void station_update(const ax25_frame_t *f, const aprs_parsed_t *p)
 		aprs_wx_receive(s, &p->wx);
 	}
 #endif
-	if (p->text != NULL && p->type != APRS_T_MESSAGE) {
+	if (p->text != NULL && p->type != APRS_T_MESSAGE && p->type != APRS_T_OBJECT && p->type != APRS_T_ITEM) {
 		size_t k = p->text_len < sizeof(s->text) - 1u ? p->text_len : sizeof(s->text) - 1u;
 		memcpy(s->text, p->text, k);
 		s->text[k] = '\0';
@@ -877,7 +880,8 @@ void aprs_rx_frame(const uint8_t *frame, size_t n, uint32_t now_ms)
 	aprs_parse(&f.dst, f.info, f.info_len, &p);
 	station_update(&f, &p);
 	packet_in(&f, &p);
-	if (p.type == APRS_T_MESSAGE && aprs_s.me_ok) {
+	aprs_objects_receive(&f, &p, now_ms);
+	if (p.type == APRS_T_MESSAGE && !aprs_is_bulletin(&p) && aprs_s.me_ok) {
 		message_in(&f, &p);
 	}
 	if (aprs_s.cfg.igate && aprs_s.cfg.kiss && aprs_s.me_ok && CONFIG_APRS_IGATE &&

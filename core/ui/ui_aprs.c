@@ -44,7 +44,7 @@ WEAK bool ui_svc_aprs_range(const aprs_station_t *s, uint32_t *m, uint16_t *deg)
 
 enum { AP_SEND, AP_AUTO, AP_FREQ, AP_POWER, AP_PATH, AP_INTERVAL, AP_SMART, AP_VIA, AP_KISS, AP_HEARD, AP_DECAY,
 #if CONFIG_APRS_RX
-	AP_RECENT,
+	AP_RECENT, AP_OBJECTS, AP_BULLETINS,
 #endif
 #if CONFIG_APRS_HOME
 	AP_MESSAGES,
@@ -77,7 +77,7 @@ static const uint8_t rows[] = {
 #endif
 	AP_KISS,
 #if CONFIG_APRS_AFSK && CONFIG_APRS_RX
-	AP_RECENT,
+	AP_OBJECTS, AP_BULLETINS, AP_RECENT,
 #endif
 #if !CONFIG_APRS_HOME && CONFIG_APRS_AFSK
 	AP_HEARD,
@@ -122,7 +122,7 @@ static const char *why_text(uint8_t block)
 	}
 }
 
-char ui_aprs_text[320];
+char ui_aprs_text[400];
 
 const char *ui_aprs_beacon_status(void)
 {
@@ -234,7 +234,7 @@ static void aprs_item(uint16_t i, ui_item_t *it)
 #endif
 		TRN("Decay"),
 #if CONFIG_APRS_RX
-		TRN("Recent packets"),
+		TRN("Recent packets"), TRN("Objects"), TRN("Bulletins"),
 #endif
 #if CONFIG_APRS_HOME
 		TRN("Messages"),
@@ -408,6 +408,8 @@ static void aprs_select(uint16_t i, bool hold)
 	case AP_VIA: c.via = (uint8_t)((c.via + 1u) % APRS_VIA_COUNT); break;
 	case AP_KISS: c.kiss = !c.kiss; break;
 #if CONFIG_APRS_RX
+	case AP_OBJECTS: ui_push(SCR_APRS_OBJECTS, 0); return;
+	case AP_BULLETINS: ui_push(SCR_APRS_BULLETINS, 0); return;
 	case AP_RECENT: ui_push(SCR_APRS_PACKETS, 0); return;
 #endif
 #if CONFIG_APRS_WX

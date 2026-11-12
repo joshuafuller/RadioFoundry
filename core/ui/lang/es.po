@@ -512,6 +512,10 @@ msgstr "%: cargar pronto"
 msgid "That zone was deleted"
 msgstr "Esa zona fue borrada"
 
+#: core/ui/ui_app.c core/ui/ui_aprs_objects.c
+msgid "Bulletin"
+msgstr "Boletín"
+
 #: core/ui/ui_app.c
 msgid "Moved to "
 msgstr "Movido a "
@@ -624,7 +628,7 @@ msgstr " en "
 msgid " (sending)"
 msgstr " (enviando)"
 
-#: core/ui/ui_aprs.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_objects.c
 msgid "No position"
 msgstr "Sin posición"
 
@@ -644,7 +648,7 @@ msgstr "Enviar posición ya"
 msgid "Automatic beacons"
 msgstr "Balizas automáticas"
 
-#: core/ui/ui_aprs.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_objects.c
 msgid "Frequency"
 msgstr "Frecuencia"
 
@@ -688,6 +692,14 @@ msgstr "Decaimiento"
 #. requires: CONFIG_APRS_RX
 msgid "Recent packets"
 msgstr "Paquetes recientes"
+
+#: core/ui/ui_aprs.c core/ui/ui_aprs_list.c core/ui/ui_aprs_objects.c
+msgid "Objects"
+msgstr "Objetos"
+
+#: core/ui/ui_aprs.c core/ui/ui_aprs_objects.c
+msgid "Bulletins"
+msgstr "Boletines"
 
 #: core/ui/ui_aprs.c core/ui/ui_find.c core/ui/ui_menus.c
 msgid "Messages"
@@ -765,7 +777,7 @@ msgstr "Esta radio no recibe APRS"
 msgid "Symbol"
 msgstr "Símbolo"
 
-#: core/ui/ui_aprs.c core/ui/ui_aprs_radar.c core/ui/ui_menus.c core/ui/ui_screens.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_objects.c core/ui/ui_aprs_radar.c core/ui/ui_menus.c core/ui/ui_screens.c
 msgid "Back"
 msgstr "Atrás"
 
@@ -773,7 +785,7 @@ msgstr "Atrás"
 msgid "0-9 pick  Back"
 msgstr "0-9 elegir  Atrás"
 
-#: core/ui/ui_aprs.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_objects.c
 msgid "Heard"
 msgstr "Oídas"
 
@@ -785,7 +797,7 @@ msgstr "Aún nada oído"
 msgid "Message"
 msgstr "Mensaje"
 
-#: core/ui/ui_aprs.c core/ui/ui_aprs_radar.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_objects.c core/ui/ui_aprs_radar.c
 msgid "No longer in list"
 msgstr "Ya no está en lista"
 
@@ -817,7 +829,7 @@ msgstr "Rumbo"
 msgid "Packets"
 msgstr "Paquetes"
 
-#: core/ui/ui_aprs.c core/ui/ui_aprs_beacon.c core/ui/ui_aprs_list.c core/ui/ui_aprs_wx.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_beacon.c core/ui/ui_aprs_list.c core/ui/ui_aprs_objects.c core/ui/ui_aprs_wx.c
 msgid "OK choose  Back"
 msgstr "OK elegir  Atrás"
 
@@ -1107,7 +1119,7 @@ msgstr "Amplio, dos saltos"
 msgid "Smart"
 msgstr "Inteligente"
 
-#: core/ui/ui_aprs_beacon.c core/ui/ui_menus.c
+#: core/ui/ui_aprs_beacon.c core/ui/ui_aprs_objects.c core/ui/ui_menus.c
 msgid "Comment"
 msgstr "Comentario"
 
@@ -1228,10 +1240,6 @@ msgid "Mobiles"
 msgstr "Móviles"
 
 #: core/ui/ui_aprs_list.c
-msgid "Objects"
-msgstr "Objetos"
-
-#: core/ui/ui_aprs_list.c
 msgid "Digipeaters"
 msgstr "Digirrepetidores"
 
@@ -1266,6 +1274,42 @@ msgstr "* ordenar  # filtrar  OK abrir  Atrás"
 #: core/ui/ui_aprs_list.c
 msgid "Filter"
 msgstr "Filtro"
+
+#: core/ui/ui_aprs_objects.c
+msgid "Removed"
+msgstr "Retirado"
+
+#: core/ui/ui_aprs_objects.c
+msgid "No objects heard"
+msgstr "Sin objetos recibidos"
+
+#: core/ui/ui_aprs_objects.c core/ui/ui_aprs_thread.c core/ui/ui_menus.c
+msgid "From "
+msgstr "De "
+
+#: core/ui/ui_aprs_objects.c
+msgid "Live"
+msgstr "Activo"
+
+#: core/ui/ui_aprs_objects.c
+msgid "Distance"
+msgstr "Distancia"
+
+#: core/ui/ui_aprs_objects.c core/ui/ui_aprs_wx.c
+msgid "Unknown"
+msgstr "Desconocido"
+
+#: core/ui/ui_aprs_objects.c
+msgid "Object"
+msgstr "Objeto"
+
+#: core/ui/ui_aprs_objects.c
+msgid "Announcement"
+msgstr "Anuncio"
+
+#: core/ui/ui_aprs_objects.c
+msgid "No bulletins heard"
+msgstr "Sin boletines recibidos"
 
 #: core/ui/ui_aprs_radar.c
 msgid "Radar"
@@ -1318,10 +1362,6 @@ msgstr "Rechazado"
 #: core/ui/ui_aprs_thread.c
 msgid "Sent, no ack requested"
 msgstr "Enviado sin pedir confirmación"
-
-#: core/ui/ui_aprs_thread.c core/ui/ui_menus.c
-msgid "From "
-msgstr "De "
 
 #: core/ui/ui_aprs_thread.c core/ui/ui_menus.c
 msgid "To "
@@ -1386,10 +1426,6 @@ msgstr "Presión"
 #: core/ui/ui_aprs_wx.c
 msgid "Luminosity"
 msgstr "Luminosidad"
-
-#: core/ui/ui_aprs_wx.c
-msgid "Unknown"
-msgstr "Desconocido"
 
 #: core/ui/ui_aprs_wx.c
 msgid "Up/Down scroll  Back"

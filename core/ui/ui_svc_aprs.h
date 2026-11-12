@@ -19,6 +19,7 @@ void ui_aprs_status(char *out, size_t len, bool second);
 uint8_t ui_svc_aprs_wx_count(void);
 bool ui_svc_aprs_wx_station(uint8_t i, aprs_wx_station_t *out);
 #endif
+#include "aprs/aprs_objects.h"
 
 // False when APRS isn't in this build
 bool ui_svc_aprs_view(aprs_view_t *v);
@@ -48,6 +49,10 @@ bool ui_svc_aprs_range(const aprs_station_t *s, uint32_t *m, uint16_t *deg);
 
 #if CONFIG_APRS_RX
 uint8_t ui_svc_aprs_thread(const char *call, aprs_thread_msg_t out[APRS_THREAD_MAX], bool read);
+uint8_t ui_svc_aprs_object_count(void);
+bool ui_svc_aprs_object(uint8_t i, aprs_object_t *out);
+uint8_t ui_svc_aprs_bulletin_count(void);
+bool ui_svc_aprs_bulletin(uint8_t i, aprs_bulletin_t *out);
+bool ui_svc_aprs_bulletin_alert(aprs_bulletin_t *out);
 #endif
-
 #endif

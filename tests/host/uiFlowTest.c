@@ -612,12 +612,12 @@ static const flow_t flows[] = {
 	{ "A path: WIDE2-2 then none", "ok 6 8 9 9", "9 9", "aprs_path=0 shows=None", 2, false },
 	{ "A path wraps to WIDE1-1", "ok 6 8 9 9 9 9", "9", "aprs_path=1", 1, false },
 	{ "A interval", "", "ok 6 8 0", "aprs_interval=60", 4, false },
-	{ "A SmartBeaconing", "", "ok 6 8 up up up up up ok", "aprs_smart=1", 9, false },
-	{ "A decay on", "ok 6 8", "up up up ok", "aprs_decay=1", 4, false },
-	{ "A Smart disables interval", "ok 6 8 up up up up up ok", "0", "aprs_interval=0 toast=SmartBeaconing_sets_timing", 1, false },
-	{ "A Smart disables decay", "ok 6 8 up up up ok up up ok", "down down ok", "aprs_decay=1 toast=SmartBeaconing_sets_timing", 3, false },
+	{ "A SmartBeaconing", "", "ok 6 8 up up up up up up up ok", "aprs_smart=1", 11, false },
+	{ "A decay on", "ok 6 8", "up up up up up ok", "aprs_decay=1", 6, false },
+	{ "A Smart disables interval", "ok 6 8 up up up up up up up ok", "0", "aprs_interval=0 toast=SmartBeaconing_sets_timing", 1, false },
+	{ "A Smart disables decay", "ok 6 8 up up up up up ok up up ok", "down down ok", "aprs_decay=1 toast=SmartBeaconing_sets_timing", 3, false },
 	{ "A proportional interval", "ok 6 8 9 9 9", "0", "aprs_interval=0 toast=Path_uses_one-minute_slots", 1, false },
-	{ "A send via DMR", "", "ok 6 8 up up up up ok", "aprs_via=1", 8, false },
+	{ "A send via DMR", "", "ok 6 8 up up up up up up ok", "aprs_via=1", 10, false },
 	// Settings > Location: what every position report sends (the position service; ui_position.c). The page opens on
 	// Answer GPS requests (no GPS here: the rows above are dimmed); the position rows follow it
 	{ "L position source", "ok 7 5 down", "ok", "pos_source=1 shows=GPS", 1, false },
@@ -642,7 +642,23 @@ static const flow_t flows[] = {
 	{ "G GPS signal page", "ok 6 2", "3", "shows=9_of_14_in_the_fix", 1, false },
 	{ "G GPS grid page", "ok 6 2", "4", "shows=FN42li", 1, false },
 	{ "G GPS pages wrap", "ok 6 2", "up down", "shows=Status", 2, false },
-	{ "A KISS on USB", "ok 6 8", "up up ok", "aprs_kiss=1", 4, false },
+	{ "A objects empty", "", "ok 6 8 up up up ok", "screen=aprs-objects count=0", 7, false },
+	{ "A object list", "aprs:objects", "ok 6 8 up up up ok", "screen=aprs-objects shows=AID_TENT", 7, false },
+	{ "A object detail", "aprs:objects ok 6 8 up up up ok", "ok", "screen=aprs-object shows=Q1ABC-9", 1, false },
+	{ "A object frequency", "aprs:objects ok 6 8 up up up ok ok", "down down down",
+	  "screen=aprs-object shows=146.520", 3, false },
+	{ "A object complete comment", "aprs:objects ok 6 8 up up up ok ok", "up wait:1000", "shows=here.", 1, false },
+	{ "A object remains selected after reorder", "aprs:objects ok 6 8 up up up ok ok", "aprs:reorder",
+	  "screen=aprs-object shows=AID_TENT shows=Q1ABC-9", 0, false },
+	{ "A object removal", "aprs:objects ok 6 8 up up up ok ok", "aprs:removed down", "shows=Removed", 1, false },
+	{ "A object eviction", "aprs:objects ok 6 8 up up up ok ok", "aprs:evict wait:1000", "shows=No_longer", 0, false },
+	{ "A bulletins empty", "", "ok 6 8 up up ok", "screen=aprs-bulletins count=0", 6, false },
+	{ "A bulletins list", "aprs:bulletin", "ok 6 8 up up ok", "screen=aprs-bulletins shows=ARES", 6, false },
+	{ "A bulletin detail", "aprs:bulletin ok 6 8 up up ok", "ok", "screen=aprs-bulletin shows=Q1ABC-9", 1, false },
+	{ "A bulletin complete text", "aprs:bulletin ok 6 8 up up ok ok", "up wait:1000", "shows=here.", 1, false },
+	{ "A bulletin never replies", "aprs:bulletin ok 6 8 up up ok ok", "ok", "screen=aprs-bulletin sent=0", 1, false },
+	{ "A bulletin banner", "", "aprs:bulletin-alert wait:200", "banner=Bulletin screen=home", 0, false },
+	{ "A KISS on USB", "ok 6 8", "up up up up ok", "aprs_kiss=1", 6, false },
 	{ "A arrival banner", "", "aprs:packet", "banner=Q4WABC-15 shows=status", 0, false },
 	{ "A arrival opens stable callsign", "aprs:packet aprs:reorder", "ctx",
 	  "screen=aprs-station shows=Q4WABC-15", 1, false },
@@ -1914,7 +1930,7 @@ int main(int argc, char **argv)
 	if (argc == 2 && strcmp(argv[1], "--aprs") == 0) {
 		heard_checks();
 		station_checks();
-	thread_checks();
+		thread_checks();
 		station_list_checks();
 		printf("APRS UI: %s\n", fails ? "FAIL" : "PASS");
 		return fails ? 1 : 0;

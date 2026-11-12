@@ -434,6 +434,7 @@ static struct {
 	bool no_speed;
 	bool other_pos;
 	uint8_t category;
+	bool objects, removed, bulletin, bulletin_alert;
 	bool reordered;		// a packet moves the second station to the front
 	aprs_packet_t packet;
 	uint8_t listening;
@@ -594,6 +595,41 @@ bool ui_svc_aprs_range(const aprs_station_t *s, uint32_t *m, uint16_t *deg)
 	*deg = 40;
 	return true;
 }
+#if CONFIG_APRS_RX
+uint8_t ui_svc_aprs_object_count(void) { return aprs_sim.objects && !aprs_sim.evicted ? 2 : 0; }
+bool ui_svc_aprs_object(uint8_t i, aprs_object_t *o)
+{
+	if (i >= ui_svc_aprs_object_count()) return false;
+	memset(o, 0, sizeof(*o));
+	bool first = (i == 0) != aprs_sim.reordered;
+	str_copy(o->name, sizeof o->name, first ? "AID TENT" : "WATER");
+	str_copy(o->owner, sizeof o->owner, first ? "Q1ABC-9" : "Q2ABC");
+	str_copy(o->comment, sizeof o->comment, "146.520MHz Meet at north gate. Bring water. Check in here.");
+	o->frequency_hz = 146520000u;
+	o->pos.lat = 338000000;
+	o->pos.lon = -840000000;
+	o->pos.sym_table = '/';
+	o->pos.sym_code = 'r';
+	o->killed = aprs_sim.removed;
+	return true;
+}
+uint8_t ui_svc_aprs_bulletin_count(void) { return aprs_sim.bulletin && !aprs_sim.evicted ? 1 : 0; }
+bool ui_svc_aprs_bulletin(uint8_t i, aprs_bulletin_t *b)
+{
+	if (i >= ui_svc_aprs_bulletin_count()) return false;
+	memset(b, 0, sizeof(*b));
+	str_copy(b->group, sizeof b->group, "BLN1ARES");
+	str_copy(b->from, sizeof b->from, "Q1ABC-9");
+	str_copy(b->text, sizeof b->text, "Road closed. Use north gate. Bring water. Check in here.");
+	return true;
+}
+bool ui_svc_aprs_bulletin_alert(aprs_bulletin_t *b)
+{
+	if (!aprs_sim.bulletin_alert || !ui_svc_aprs_bulletin(0, b)) return false;
+	aprs_sim.bulletin_alert = false;
+	return true;
+}
+#endif
 uint8_t ui_svc_aprs_msg_count(void) { return aprs_sim.message ? 1 : 0; }
 bool ui_svc_aprs_msg(uint8_t i, aprs_msg_t *out, bool read)
 {
@@ -2980,6 +3016,10 @@ static bool run_token(char *t, char *err, size_t len)
 			aprs_sim.listening = APRS_LISTEN_OFF;
 			return true;
 		}
+		if (!strcmp(arg, "objects")) aprs_sim.objects = true;
+		if (!strcmp(arg, "removed")) aprs_sim.removed = true;
+		if (!strcmp(arg, "bulletin")) aprs_sim.bulletin = true;
+		if (!strcmp(arg, "bulletin-alert")) aprs_sim.bulletin = aprs_sim.bulletin_alert = true;
 		aprs_sim.off = strcmp(arg, "off") == 0;
 		aprs_sim.no_call = strcmp(arg, "nocall") == 0;
 		aprs_sim.message = strcmp(arg, "message") == 0;
