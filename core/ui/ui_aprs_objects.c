@@ -32,7 +32,8 @@ static bool bulletin_find(aprs_bulletin_t *b)
 	}
 	return false;
 }
-static bool object_range(const aprs_object_t *o, uint32_t *m, uint16_t *deg)
+// The temporary station is only for ranging, not for formatting the object row.
+static __attribute__((noinline)) bool object_range(const aprs_object_t *o, uint32_t *m, uint16_t *deg)
 {
 	aprs_station_t s = { .has_pos = true, .lat = o->pos.lat, .lon = o->pos.lon };
 	return ui_svc_aprs_range(&s, m, deg);

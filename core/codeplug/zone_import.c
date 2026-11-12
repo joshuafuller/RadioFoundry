@@ -3,7 +3,7 @@
 // Zone sharing's codeplug side (zone_import.h, docs/spec/zone-share.md 4 and 5)
 #include "config.h"
 #if CONFIG_ZONE_SHARE	// the whole file
-#include <stdio.h>
+#include "debuglink/dl_fmt.h"
 #include <string.h>
 #include "codeplug/zone_import.h"
 #include "codeplug/zone_edit.h"
@@ -155,7 +155,7 @@ static zone_import_status_t map_contacts(zone_import_result_t *res)
 		if (c.name[0] != '\0') {
 			strncpy(nc.name, c.name, CODEPLUG_NAME_LEN);
 		} else {
-			snprintf(nc.name, sizeof(nc.name), "%s %lu", (c.type == ZS_CONTACT_PRIVATE) ? "ID" : "TG",
+			dl_fmt(nc.name, sizeof(nc.name), "%s %lu", (c.type == ZS_CONTACT_PRIVATE) ? "ID" : "TG",
 				 (unsigned long)c.id);
 		}
 		nc.id = c.id;
@@ -208,7 +208,7 @@ static void channel_here(const zsChannel_t *z, int position, channel_t *ch)
 	if (z->name[0] != '\0') {
 		strncpy(ch->name, z->name, CODEPLUG_NAME_LEN);
 	} else {
-		snprintf(ch->name, sizeof(ch->name), "Channel %d", position + 1);
+		dl_fmt(ch->name, sizeof(ch->name), "Channel %d", position + 1);
 	}
 	ch->rx_hz = z->rxHz;
 	ch->tx_hz = (uint32_t)((int64_t)z->rxHz + z->txOffsetHz);
@@ -284,7 +284,7 @@ static void unique_name(const char *want, int skip, char out[CODEPLUG_NAME_LEN +
 	strcpy(out, base);
 	for (int n = 2; n < 100 && find_zone(out, skip) >= 0; n++) {
 		char suffix[4];
-		int sl = snprintf(suffix, sizeof(suffix), " %d", n);
+		int sl = dl_fmt(suffix, sizeof(suffix), " %d", n);
 		int bl = (int)strlen(base);
 
 		if (bl + sl > CODEPLUG_NAME_LEN) {

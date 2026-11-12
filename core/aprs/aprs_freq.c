@@ -5,7 +5,7 @@
 #if CONFIG_APRS_TUNE
 #include <string.h>
 #include "radio/tones.h"
-#include <stdio.h>
+#include "debuglink/dl_fmt.h"
 
 static bool digits(const char *s, size_t n, unsigned base, uint16_t *v)
 {
@@ -118,14 +118,14 @@ void aprs_freq_channel(uint32_t hz, subtone_t tone, bool fm)
 	unsigned v = tone.type == TONE_CTCSS ? tone.value / 10u :
 		(tone.value >> 6) * 100u + ((tone.value >> 3) & 7u) * 10u + (tone.value & 7u);
 	if (tone.type == TONE_NONE)
-		snprintf(voice, sizeof voice, "%03u.%03uMHz", (unsigned)(hz / 1000000u), (unsigned)(hz / 1000u % 1000u));
+		dl_fmt(voice, sizeof voice, "%03u.%03uMHz", (unsigned)(hz / 1000000u), (unsigned)(hz / 1000u % 1000u));
 	else
-		snprintf(voice, sizeof voice, "%03u.%03uMHz %c%03u", (unsigned)(hz / 1000000u),
+		dl_fmt(voice, sizeof voice, "%03u.%03uMHz %c%03u", (unsigned)(hz / 1000000u),
 			 (unsigned)(hz / 1000u % 1000u), tone.type == TONE_CTCSS ? 'T' : 'D', v % 1000u);
 }
 
 void aprs_freq_comment(const char *comment, char *out, size_t max)
 {
-	snprintf(out, max, "%s%s%s", voice, voice[0] && comment[0] ? " " : "", comment);
+	dl_fmt(out, max, "%s%s%s", voice, voice[0] && comment[0] ? " " : "", comment);
 }
 #endif

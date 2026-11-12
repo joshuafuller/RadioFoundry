@@ -116,7 +116,8 @@ static bool key_set(uint8_t id, int32_t value);
 static bool dmr_id_post(uint32_t id);	// a job: the codeplug write is the housekeeping task's
 #endif
 
-int32_t ui_svc_setting_get(uint8_t id)
+// Storage snapshots must not stay on the stack while a codeplug-backed setting reads flash.
+static __attribute__((noinline)) int32_t setting_value(uint8_t id)
 {
 	radio_settings_t rs;
 	settings_t st;
@@ -167,9 +168,6 @@ int32_t ui_svc_setting_get(uint8_t id)
 	case UI_SET_HOTSPOT_AUTO:
 		settings_read(&st);
 		return st.hotspot_allowed != 0;
-	case UI_SET_REPLY_S:
-		radio_get_settings(&rs);
-		return ui_svc_reply_shown(&rs);
 #if CONFIG_SFR
 	case UI_SET_SFR_RX:
 		radio_get_settings(&rs);
@@ -277,10 +275,6 @@ int32_t ui_svc_setting_get(uint8_t id)
 		settings_read(&st);
 		return settings_zs_accept(&st);
 #endif
-#if CONFIG_DMR
-	case UI_SET_DMR_ID:
-		return (int32_t)codeplug_dmr_id();
-#endif
 	case UI_SET_NOISE_REDUCTION:
 		settings_read(&st);
 		return (st.accent & SETTINGS_AUDIO_NO_NOISE_REDUCTION) == 0;
@@ -357,6 +351,24 @@ int32_t ui_svc_setting_get(uint8_t id)
 	default:
 		return ui_svc_ram_get(id);
 	}
+}
+
+static __attribute__((noinline)) int32_t reply_setting(void)
+{
+	radio_settings_t rs;
+	radio_get_settings(&rs);
+	return ui_svc_reply_shown(&rs);
+}
+
+int32_t ui_svc_setting_get(uint8_t id)
+{
+	if (id == UI_SET_REPLY_S)
+		return reply_setting();
+#if CONFIG_DMR
+	if (id == UI_SET_DMR_ID)
+		return (int32_t)codeplug_dmr_id();
+#endif
+	return setting_value(id);
 }
 
 bool ui_svc_setting_set(uint8_t id, int32_t value)

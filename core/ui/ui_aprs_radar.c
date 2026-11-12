@@ -112,28 +112,19 @@ static bool radar_key(const input_event_t *ev)
 	return true;
 }
 
-static void radar_draw(void)
+// Keep the plot's locals off the empty-state list renderer's call chain, including under LTO.
+static __attribute__((noinline)) void radar_plot(uint8_t pos_src)
 {
-	aprs_view_t v;
 	gfx_clear(ui_col.bg);
 	int y = ui_draw_top(ui_view(), &ui_st, TR("Radar"), NULL) + 2;
 	const font_t *f = ui_layout.tiny;
 	int w = gfx_width(), pitch = f->h + 1;
-	if (!ui_svc_aprs_view(&v) || !v.pos_valid) {
-		// Use the list's word wrapping so translations keep the complete instruction.
-		uint16_t top = 0;
-		ui_list_t l = { .prefix = TR("Radar"), .top = &top,
-			.body = TR("Set your position to see the radar"),
-			.empty = TR("Settings > Location"), .hint = TR("Back") };
-		ui_draw_list(ui_view(), &ui_st, &l);
-		ui_draw_banner(&ui_st);
-		return;
-	}
-	aprs_station_t s, focus;
+	aprs_station_t s;
 	uint32_t m, far = 0, fm = 0;
 	uint16_t deg, fd = 0;
-	bool found = selected[0] && ui_svc_aprs_station_find(selected, &focus) &&
-		ui_svc_aprs_range(&focus, &fm, &fd);
+	bool found = selected[0] && ui_svc_aprs_station_find(selected, &s) &&
+		ui_svc_aprs_range(&s, &fm, &fd);
+	uint32_t pos_ms = found ? s.pos_ms : 0;
 	for (uint8_t i = 0; i < ui_svc_aprs_station_count(); i++) {
 		if (plotted(i, &s, &m, &deg) && m > far)
 			far = m;
@@ -153,7 +144,7 @@ static void radar_draw(void)
 	if (r < 3) r = 3;
 	int cx = w / 2, cy = y + pitch + r + 2;
 	static const char *const sources[] = { TRN("Auto"), "GPS", TRN("Computer"), TRN("Fixed") };
-	gfx_text(f, 0, y, tr(sources[v.pos_src < 4 ? v.pos_src : 0]), ui_col.dim);
+	gfx_text(f, 0, y, tr(sources[pos_src < 4 ? pos_src : 0]), ui_col.dim);
 	gfx_text(f, cx - f->w / 2, y, "N", ui_col.fg);
 	for (int i = 1; i <= 3; i++) {
 		int rr = r * i / 3;
@@ -186,9 +177,9 @@ static void radar_draw(void)
 		char text[80];
 		sbuf_t b;
 		sb_init(&b, text, sizeof text);
-		sb_str(&b, focus.call);
+		sb_str(&b, selected);
 		sb_str(&b, "  ");
-		sb_age(&b, ui_st.now_ms - focus.pos_ms);
+		sb_age(&b, ui_st.now_ms - pos_ms);
 		gfx_text(f, 0, bottom, text, ui_col.fg);
 		sb_init(&b, text, sizeof text);
 		sb_range(&b, fm, fd);
@@ -201,6 +192,30 @@ static void radar_draw(void)
 	}
 	ui_draw_bottom(&ui_st, TR("OK open  Back"));
 	ui_draw_banner(&ui_st);
+}
+
+static __attribute__((noinline)) bool radar_position(uint8_t *source)
+{
+	aprs_view_t v;
+	if (!ui_svc_aprs_view(&v) || !v.pos_valid) return false;
+	*source = v.pos_src;
+	return true;
+}
+
+static void radar_draw(void)
+{
+	uint8_t source;
+	if (!radar_position(&source)) {
+		// Use the list's word wrapping so translations keep the complete instruction.
+		uint16_t top = 0;
+		ui_list_t l = { .prefix = TR("Radar"), .top = &top,
+			.body = TR("Set your position to see the radar"),
+			.empty = TR("Settings > Location"), .hint = TR("Back") };
+		ui_draw_list(ui_view(), &ui_st, &l);
+		ui_draw_banner(&ui_st);
+		return;
+	}
+	radar_plot(source);
 }
 
 const ui_scr_def_t ui_aprs_radar_screen = {

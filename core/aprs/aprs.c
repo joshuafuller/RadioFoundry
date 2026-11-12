@@ -157,7 +157,8 @@ static void apply_cfg(void)
 	b->min_s = AUTO_MIN_S;
 }
 
-static void reload_cfg(void)
+// Release the settings snapshot before reading identity and codeplug data.
+static __attribute__((noinline)) void load_cfg(void)
 {
 	settings_t st;
 	aprs_cfg_t c;
@@ -167,6 +168,11 @@ static void reload_cfg(void)
 	aprs_s.cfg = c;
 	apply_cfg();
 	UNLOCK();
+}
+
+static void reload_cfg(void)
+{
+	load_cfg();
 	aprs_ax25_identity();
 }
 

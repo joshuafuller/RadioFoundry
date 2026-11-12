@@ -15,4 +15,5 @@ BOARD_DIRS := boards/dm32 drivers/rf/rfbus drivers/rf/fd6818 drivers/rf/subaudio
 # Keep the combined APRS UI, weather and Home state below the codec RAM window.
 MCU_DEFS   += -DAPRS_RECENT_PACKETS=4 -DGFX_INDEXED=1 -DGFX_FB_BYTES=38400u -DGFX_MAX_ROWS=320u
 
-MCU_DEFS += -DAPRS_WX_STATIONS=4
+# Bound volatile history instead of borrowing space from task stacks and queues.
+MCU_DEFS += -DAPRS_STATIONS=8 -DAPRS_WX_STATIONS=4 -DAPRS_OBJECTS=4 -DAPRS_BULLETINS=4 -DAPRS_OUTBOX=3

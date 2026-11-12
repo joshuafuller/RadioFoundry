@@ -1821,9 +1821,12 @@ static void test_objects_bulletins(void)
 		snprintf(line, sizeof line, "Q1ABC>APRS:)OBJ%u!4803.50N/07001.75W>Test", i);
 		rx_line(line);
 	}
-	CHECK(aprs_object_count() == APRS_OBJECTS && aprs_object(0, &o) && !strcmp(o.name, "OBJ9"));
+	CHECK(aprs_object_count() == APRS_OBJECTS && aprs_object(0, &o));
+	char newest[APRS_NAME_MAX + 1];
+	snprintf(newest, sizeof newest, "OBJ%u", APRS_OBJECTS + 1u);
+	CHECK(!strcmp(o.name, newest));
 	rx_line("Q1ABC>APRS:;BAD      *092345zbroken");
-	CHECK(aprs_object_count() == APRS_OBJECTS && aprs_object(0, &o) && !strcmp(o.name, "OBJ9"));
+	CHECK(aprs_object_count() == APRS_OBJECTS && aprs_object(0, &o) && !strcmp(o.name, newest));
 	// General, announcement, group and NWS addresses never enter the personal inbox or queue an ack.
 	const char *lines[] = {
 		"Q1ABC>APRS::BLN1     :Road closed{12",

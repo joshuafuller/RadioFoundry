@@ -118,7 +118,7 @@ TESTS   += aprsTest aprsFreqTest
 NMEALIB := $(CORE)/position/nmea.c $(CORE)/position/nmea_sky.c
 POSLIB  := $(CORE)/position/position.c $(NMEALIB)
 APRSLIB := $(CORE)/aprs/ax25.c $(CORE)/aprs/hdlc.c $(CORE)/aprs/afsk.c $(CORE)/aprs/kiss.c $(CORE)/aprs/aprs_fmt.c \
-           $(CORE)/aprs/aprs_beacon.c $(CORE)/aprs/aprs_pathing.c $(CORE)/aprs/aprs_igate.c $(CORE)/aprs/aprs_wx.c $(CORE)/aprs/aprs_freq.c
+           $(CORE)/aprs/aprs_beacon.c $(CORE)/aprs/aprs_pathing.c $(CORE)/aprs/aprs_igate.c $(CORE)/aprs/aprs_wx.c $(CORE)/aprs/aprs_freq.c $(CORE)/debuglink/dl_fmt.c
 
 TESTS += aprsPathingTest
 aprsPathingTest: aprsPathingTest.c $(APRSLIB) $(wildcard $(CORE)/aprs/*.h)
@@ -203,7 +203,7 @@ RCAPRS  := $(CORE)/aprs/aprs_wx_store.c $(RCORE) $(CORE)/aprs/aprs.c $(CORE)/apr
            $(CORE)/usbaudio/audio_mux.c $(CORE)/usbaudio/pcm_slip.c
 radioCoreTestAprs: $(RCAPRS) $(wildcard $(CORE)/radio/*.h) $(wildcard $(CORE)/dmr/call/*.h) $(CORE)/dmr/dmrDataService.h \
                    $(CORE)/ui/ui_svc.h $(wildcard $(CORE)/aprs/*.h)
-	$(CC) $(CFLAGS) $(CORE_HAL) -I. -DDMR_RX_TRACE=0 -DCONFIG_DMR_IP_GATEWAY=0 -DCONFIG_SFR=1 -o $@ $(RCAPRS) -lm
+	$(CC) $(CFLAGS) $(CORE_HAL) -I. -DDMR_RX_TRACE=0 -DCONFIG_DMR_IP_GATEWAY=0 -DCONFIG_SFR=1 -o $@ $(sort $(RCAPRS)) -lm
 
 # The same with APRS over DMR only (CONFIG_APRS_AFSK=0): the engine and the DMR backend, nothing of AX.25 compiled
 TESTS   += radioCoreTestAprsDmr
@@ -493,7 +493,7 @@ i18nTestDefault: i18nTest.c $(I18N) $(LANG_H) $(wildcard $(CORE)/ui/*.h $(CORE)/
 # the long-press rules; uiSim renders screens to PNG (make ui-gallery: docs/ux/screens/, contact sheets in
 # docs/ux/screens/sheets/). Built without the __attribute__ override above so the weak service stubs
 # (ui_svc_stub.c) give way to the simulator's.
-UIAPP   := $(UI) $(CORE)/ui/ui_app.c $(CORE)/ui/ui_menus.c $(CORE)/ui/ui_find.c $(CORE)/ui/ui_aprs.c $(CORE)/ui/ui_aprs_tune.c $(CORE)/aprs/aprs_freq.c $(CORE)/ui/ui_aprs_objects.c $(CORE)/ui/ui_aprs_beacon.c $(CORE)/ui/ui_aprs_thread.c $(CORE)/ui/ui_aprs_wx.c $(CORE)/ui/ui_aprs_home.c $(CORE)/ui/ui_aprs_list.c $(CORE)/ui/ui_aprs_radar.c $(CORE)/ui/ui_position.c $(CORE)/ui/ui_gps.c $(CORE)/ui/ui_dual.c $(CORE)/radio/tones.c \
+UIAPP   := $(UI) $(CORE)/ui/ui_app.c $(CORE)/ui/ui_menus.c $(CORE)/ui/ui_find.c $(CORE)/ui/ui_aprs.c $(CORE)/ui/ui_aprs_tune.c $(CORE)/aprs/aprs_freq.c $(CORE)/debuglink/dl_fmt.c $(CORE)/ui/ui_aprs_objects.c $(CORE)/ui/ui_aprs_beacon.c $(CORE)/ui/ui_aprs_thread.c $(CORE)/ui/ui_aprs_wx.c $(CORE)/ui/ui_aprs_home.c $(CORE)/ui/ui_aprs_list.c $(CORE)/ui/ui_aprs_radar.c $(CORE)/ui/ui_position.c $(CORE)/ui/ui_gps.c $(CORE)/ui/ui_dual.c $(CORE)/radio/tones.c \
            $(CORE)/codeplug/codeplug_talk.c $(CORE)/codeplug/zone_edit.c $(CORE)/codeplug/zone_shift.c $(CORE)/radio/radio_am.c \
            $(CORE)/radio/radio_bcast.c sim/ui_sim.c sim/ui_png.c
 # The About page's data header, as the firmware build makes it (tools/gen_about.py; the STM32F4 list stands in)
@@ -1188,7 +1188,7 @@ run-zedit: zoneEditTest
 
 # Zone sharing's codeplug side: import (band limits, receive only, contacts by ID, update, undo; new zones through the
 # zone write layer) and export
-ZIMPORT := $(CORE)/codeplug/zone_import.c $(CORE)/codeplug/codeplug_talk.c $(CORE)/dmr/zoneShare.c $(ZEDIT)
+ZIMPORT := $(CORE)/codeplug/zone_import.c $(CORE)/codeplug/codeplug_talk.c $(CORE)/dmr/zoneShare.c $(CORE)/debuglink/dl_fmt.c $(ZEDIT)
 TESTS   += zoneImportTest
 
 zoneImportTest: zoneImportTest.c $(ZIMPORT) $(CORE)/codeplug/zone_import.h $(CORE)/dmr/zoneShare.h
@@ -1425,5 +1425,5 @@ run-webctlassets: httpAssetsTestWebctl
 .PHONY: run-webctlassets
 
 # Frequency grammar, exact-length fuzz inputs, and the beacon prefix.
-aprsFreqTest: aprsFreqTest.c $(CORE)/aprs/aprs_freq.c $(CORE)/radio/tones.c
+aprsFreqTest: aprsFreqTest.c $(CORE)/aprs/aprs_freq.c $(CORE)/radio/tones.c $(CORE)/debuglink/dl_fmt.c
 	$(CC) $(CFLAGS) -I$(ROOT)/hal -o $@ $^ -lm

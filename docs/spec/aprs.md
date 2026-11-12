@@ -136,7 +136,8 @@ with the DMR backend alone.
 
 ### Message threads (receive builds)
 
-`aprs_thread.c` keeps six outgoing records in main RAM, including at most three queued or active messages.
+`aprs_thread.c` keeps `APRS_OUTBOX` outgoing records in main RAM (default six), including at most three queued or active messages.
+Boards may reduce retained history to three records without reducing the send queue.
 When full, only the oldest completed record can be evicted. The existing four-entry incoming inbox is unchanged.
 Both stores are volatile. `CONFIG_APRS_RX=n` removes the thread storage, queue extension and screen.
 
@@ -216,7 +217,7 @@ since receipt on this radio, not an inferred observation timestamp. Values follo
 
 ### 4.4 Objects, items and bulletins
 
-Receive builds keep eight objects/items and eight bulletins in ordinary main-RAM `.bss`, outside the engine's
+Receive builds keep `APRS_OBJECTS` objects/items and `APRS_BULLETINS` bulletins (default eight each) in ordinary main-RAM `.bss`, outside the engine's
 CPU-only state. `CONFIG_APRS_RX=n` removes both stores and their screens. Each list is newest first and replaces
 its oldest entry when full; all entries are volatile.
 
@@ -624,6 +625,16 @@ SmartBeaconing on, level 50, TX delay 300 ms, via Radio, destination 310999; mes
 receive path.
 
 ## 12. Size
+
+Boards may bound volatile history with `APRS_STATIONS` (default 12), `APRS_RECENT_PACKETS` (8),
+`APRS_WX_STATIONS` (4), `APRS_OBJECTS` (8), `APRS_BULLETINS` (8), and `APRS_OUTBOX` (6, minimum 3).
+These limits change retention, not the available screens or the three-message outgoing queue. The four-message
+incoming inbox is unchanged. Board overrides live in `board.mk`; per-radio limits are on the hardware pages.
+No extra history is placed in CCM or `RFOUNDRY_CPU_RAM`.
+
+The radar draws its empty state separately from the plot so station snapshots and plotting locals do not stay
+on the stack while the list renderer runs. It keeps only the selected station's timestamp while scanning other
+stations. Firmware CI checks the resulting task call chains; host UI tests cover both radar paths.
 
 The flash and RAM cost of `CONFIG_APRS` and `CONFIG_APRS_RX` per radio is in [feature-matrix.md](../feature-matrix.md).
 `CONFIG_DMR_GPS` costs about 2.2 KB flash. A build with `CONFIG_APRS_AFSK=n` (positions over DMR only) leaves out

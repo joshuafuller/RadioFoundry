@@ -5,8 +5,12 @@
 #include "config.h"
 #include "aprs_fmt.h"
 
+#ifndef APRS_OBJECTS
 #define APRS_OBJECTS 8
+#endif
+#ifndef APRS_BULLETINS
 #define APRS_BULLETINS 8
+#endif
 #define APRS_REMOVED_MS 600000u
 #define APRS_RETAIN_MS 86400000u
 

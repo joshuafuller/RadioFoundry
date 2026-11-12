@@ -7,9 +7,8 @@
 // The RTOS heap holds every task stack and queue. Main RAM is this radio's limit (config.mk), and the platform's 40 KB
 // leaves about 13 KB of it unused: the ten tasks' stacks are 22.8 KB (make stack-check), their control blocks about
 // 1.1 KB, the FM receive ring 2 KB and the queues and locks about 1.3 KB, 27.3 KB in all, and a zone share send takes
-// 1 KB for a moment (core/ui/ui_svc_zone.c). 30.5 KB keeps about 2.2 KB spare at peak use, above the 2 KB
-// tests/hil/test_task_stacks.py asks for. The combined APRS screens and message queue use the 2 KB reclaimed
-// from the former 32.5 KB heap. Task stacks and queue capacities are unchanged; verify tasks.heap_min_free on hardware.
-#define configTOTAL_HEAP_SIZE	(30 * 1024 + 512)
+// 1 KB for a moment (core/ui/ui_svc_zone.c). 32.5 KB leaves about 4.2 KB spare at peak use, above the 2 KB
+// tests/hil/test_task_stacks.py asks for. Keep this reserve; verify tasks.heap_min_free on hardware.
+#define configTOTAL_HEAP_SIZE	(32 * 1024 + 512)
 
 #endif

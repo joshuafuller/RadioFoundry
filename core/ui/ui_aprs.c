@@ -467,13 +467,13 @@ static const char *aprs_body(void)
 {
 #if CONFIG_APRS_HOME
 	char *body = ui_aprs_text;
-	char line[96];
 	ui_aprs_status(body, sizeof ui_aprs_text, false);
-	ui_aprs_status(line, sizeof line, true);
 	sbuf_t b;
 	sb_init(&b, body + strlen(body), sizeof ui_aprs_text - strlen(body));
 	sb_chr(&b, '\n');
-	sb_str(&b, line);
+	size_t used = strlen(body);
+	ui_aprs_status(body + used, sizeof ui_aprs_text - used, true);
+	sb_init(&b, body + strlen(body), sizeof ui_aprs_text - strlen(body));
 #if CONFIG_APRS_RX && CONFIG_UI_COLOR
 	if (gfx_bpp() != 1) {
 		sb_chr(&b, '\n');

@@ -11,6 +11,8 @@ OBJCOPY := $(CROSS)objcopy
 SIZE := $(CROSS)size
 
 # Little endian, no FPU, no DSP, no high registers (r16-r31): the context switch saves r0-r13 and r15 only
+# Firmware formats only integers and strings; full newlib snprintf pulls in double math.
+MCU_DEFS += -Dsnprintf=sniprintf
 CPUFLAGS := -mcpu=ck803s -mlittle-endian -mno-high-registers -msoft-float
 # Bytes a task's stack holds beyond its call chain (make stack-check): an interrupt or a yield saves 17 words there
 # (freertos/portasm.S), then a handler runs on the interrupt stack with interrupts off, so frames never nest

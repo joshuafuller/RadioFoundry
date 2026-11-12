@@ -32,7 +32,9 @@
 #define APRS_TXDELAY_DEFAULT	30		// 300 ms of flags
 #define APRS_INTERVAL_DEFAULT	600		// s, when automatic beacons are turned on without SmartBeaconing
 #define APRS_STATUS_MAX		40
+#ifndef APRS_STATIONS
 #define APRS_STATIONS		12
+#endif
 #define APRS_MESSAGES		4
 #define APRS_MSG_TRIES		3
 
@@ -193,7 +195,9 @@ typedef struct {
 } aprs_msg_t;
 
 #if CONFIG_APRS_RX
+#ifndef APRS_OUTBOX
 #define APRS_OUTBOX 6
+#endif
 #define APRS_OUT_QUEUE 3
 #define APRS_THREAD_MAX (APRS_MESSAGES + APRS_OUTBOX)
 typedef enum {

@@ -95,14 +95,14 @@ Distance needs a position of your own. The frequency is information only; openin
 An object's location never moves its publisher in **Stations heard**.
 
 A withdrawn object reads **Removed** for ten minutes, then leaves the list. A new live report brings it back.
-Live objects expire after a day. The list holds the eight most recently updated names.
+Live objects expire after a day. The list holds up to eight recently updated names; boards with less RAM retain fewer.
 
 Open **Bulletins** for announcements, group bulletins and NWS bulletins, newest first. Select a row to read its
 sender, age and full retained text; scroll with **Up / Down**. A new or changed bulletin shows a banner once,
 after any current banner clears. Repeated identical packets do not alert again while in the list. Bulletins have
 no Reply action and the radio does not acknowledge them.
 
-The bulletin list holds eight sender/address pairs and drops entries a day after their text last changed.
+The bulletin list holds up to eight sender/address pairs (fewer on boards with less RAM) and drops entries a day after their text last changed.
 Both lists clear at power-off. If an open entry leaves the list, its detail says **No longer in list**.
 
 ## Station details
@@ -136,7 +136,7 @@ Opening the conversation marks its incoming messages read. New traffic does not 
 | Sent, no ack requested | The radio transmitted a message with acknowledgment turned off |
 
 Three outgoing messages can wait or retry at once. When full, a new send is refused and the composer stays open;
-the accepted messages are preserved. Six outgoing records are retained, replacing only completed records as needed.
+the accepted messages are preserved. Up to six outgoing records are retained (at least three on boards with less RAM), replacing only completed records as needed.
 The incoming inbox retains four messages. These records and queued work are lost at power-off. Builds without APRS
 receive have one outgoing slot and refuse a second send while it is occupied.
 

@@ -192,8 +192,8 @@ MUX_SRC-$(CONFIG_NET_USRP) += core/usbaudio/audio_mux.c core/usbaudio/pcm_slip.c
 MUX_SRC-$(CONFIG_APRS_RX) += core/usbaudio/audio_mux.c core/usbaudio/pcm_slip.c
 APP_SRC += $(sort $(MUX_SRC-y))
 # Their text formatting (key=value views, JSON, protocol lines) is the debug link's dl_fmt.c, built here without it.
-# The crash log's summary line uses it too
-ifneq ($(NET_SRC-y)$(filter y,$(CONFIG_CRASH_LOG)),)
+# The crash log, APRS frequency prefix and zone import names use it too
+ifneq ($(NET_SRC-y)$(filter y,$(CONFIG_CRASH_LOG) $(CONFIG_APRS_TUNE) $(CONFIG_ZONE_SHARE)),)
 ifneq ($(CONFIG_DEBUGLINK),y)
 APP_SRC += core/debuglink/dl_fmt.c
 endif

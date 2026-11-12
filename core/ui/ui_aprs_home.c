@@ -22,16 +22,53 @@ static const char *blocked(uint8_t block)
 	}
 }
 
-void ui_aprs_status(char *out, size_t len, bool second)
+// Keep full engine snapshots off the formatting call chain; this path also serves the host UI.
+typedef struct {
+	bool available, rf_active, pos_valid, tx_on;
+	uint8_t block, via, stations;
+	uint16_t next_s;
+} status_t;
+
+static __attribute__((noinline)) void status_read(status_t *s)
 {
 	aprs_view_t v;
 	aprs_cfg_t c;
+	s->available = ui_svc_aprs_view(&v);
+	if (!s->available) return;
+	s->rf_active = v.rf_active;
+	s->pos_valid = v.pos_valid;
+	s->block = v.block;
+	s->stations = v.stations;
+	s->next_s = v.next_s;
+	ui_svc_aprs_cfg(&c);
+	s->tx_on = c.tx_on;
+	s->via = c.via;
+}
+
+#if CONFIG_APRS_RX
+static __attribute__((noinline)) uint32_t nearest_station(void)
+{
+	uint32_t nearest = UINT32_MAX;
+	for (uint8_t i = 0; i < ui_svc_aprs_station_count(); i++) {
+		aprs_station_t s;
+		uint32_t m;
+		uint16_t deg;
+		if (ui_svc_aprs_station(i, &s) && ui_svc_aprs_range(&s, &m, &deg) && m < nearest)
+			nearest = m;
+	}
+	return nearest;
+}
+#endif
+
+void ui_aprs_status(char *out, size_t len, bool second)
+{
+	status_t v;
 	aprs_home_t h;
 	sbuf_t b;
 	sb_init(&b, out, len);
-	if (!ui_svc_aprs_view(&v))
+	status_read(&v);
+	if (!v.available)
 		return;
-	ui_svc_aprs_cfg(&c);
 	ui_svc_aprs_home(&h);
 	if (second) {
 		if (h.digi[0]) {
@@ -40,14 +77,7 @@ void ui_aprs_status(char *out, size_t len, bool second)
 			return;
 		}
 #if CONFIG_APRS_RX
-		uint32_t nearest = UINT32_MAX;
-		for (uint8_t i = 0; i < ui_svc_aprs_station_count(); i++) {
-			aprs_station_t s;
-			uint32_t m;
-			uint16_t deg;
-			if (ui_svc_aprs_station(i, &s) && ui_svc_aprs_range(&s, &m, &deg) && m < nearest)
-				nearest = m;
-		}
+		uint32_t nearest = nearest_station();
 		sb_u32(&b, v.stations, 1);
 		sb_str(&b, TR(" heard"));
 		if (nearest != UINT32_MAX) {
@@ -59,7 +89,7 @@ void ui_aprs_status(char *out, size_t len, bool second)
 	}
 	if (v.rf_active) {
 		sb_str(&b, TR("APRS sending"));
-	} else if (c.tx_on && (!v.pos_valid || (c.via == APRS_VIA_RF && v.block != APRS_OK))) {
+	} else if (v.tx_on && (!v.pos_valid || (v.via == APRS_VIA_RF && v.block != APRS_OK))) {
 		sb_str(&b, blocked(!v.pos_valid ? APRS_NO_POSITION : v.block));
 	} else if (h.sent) {
 		sb_str(&b, TR("APRS sent "));
