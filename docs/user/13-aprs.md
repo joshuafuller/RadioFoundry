@@ -79,8 +79,10 @@ callsign. Nearest puts stations without a known range last and uses receipt time
 Your chosen sort and filter last until power off.
 
 Press **#** (or hold **OK**) for **All / Weather / Mobiles / Objects / Digipeaters**. Select with OK or a numbered
-key. **#**, **1** returns to All. The title shows the view and count, such as **Weather only, 3 of 14**; a dim row
-shows the sort and how many stations are hidden. Filtering does not delete stations or stop reception.
+key. **#**, **1** returns to All. The title keeps the hidden count visible while browsing a filtered view. The body shows used/capacity
+and your position source. **Dropped** counts oldest records displaced when newer identities fill the table.
+The selected station shows its range and comment preview; ages share a fixed column. **Old** marks ages over
+30 minutes. **Nothing heard yet** means the table is empty; **No matches** means the filter hid every entry. Filtering does not delete stations or stop reception.
 
 Weather uses a weather packet or weather symbol. Mobiles means a retained position with a known speed above zero.
 Objects shows stations whose last packet was an object or item, under the publisher's callsign. Digipeaters uses
@@ -117,7 +119,11 @@ Scroll with **Up / Down** to see distance and direction (when both positions are
 **Direct** or **Via digipeater**, and the position's age if it differs from the last packet's age. Speed in km/h and
 course appear only when known for the retained position. The remaining rows show the symbol's table and code,
 the retained comment or status, and the packet count. The radio retains at most 23 text characters plus the end
-marker; longer comments are incomplete. No digipeater name is retained.
+marker; longer comments are incomplete. Every retained word is reachable by scrolling. Latitude, longitude
+and your position source follow the packet count. No digipeater name is retained.
+
+Recent packets also shows used/capacity and how many oldest packets were dropped to retain newer traffic.
+These counters clear at power-off.
 
 If the station leaves the heard list, the page says **No longer in list**. You can still choose Message to address
 that callsign.

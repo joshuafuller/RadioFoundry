@@ -51,7 +51,7 @@ static uint8_t rf_block(void);
 static struct {
 	aprs_packet_t packets[APRS_RECENT_PACKETS];
 	aprs_dedup_t dedup;
-	uint32_t serial;
+	uint32_t serial, stations_dropped, packets_dropped;
 	uint8_t next, count;
 } traffic;
 #endif
@@ -522,6 +522,8 @@ void aprs_ax25_view(aprs_view_t *v)
 	v->unread = 0;
 #if CONFIG_APRS_RX
 	v->stations = aprs_s.nst;
+	v->stations_dropped = traffic.stations_dropped;
+	v->packets_dropped = traffic.packets_dropped;
 	v->messages = aprs_s.nmsg;
 	for (uint8_t i = 0; i < aprs_s.nmsg; i++) {
 		v->unread = (uint8_t)(v->unread + (aprs_s.msgs[i].read ? 0u : 1u));
@@ -691,6 +693,8 @@ static aprs_station_t *station_touch(const char *call)
 	if (s == NULL) {
 		if (aprs_s.nst < APRS_STATIONS) {
 			aprs_s.nst++;
+		} else if (traffic.stations_dropped != UINT32_MAX) {
+			traffic.stations_dropped++;
 		}
 		memmove(&stations[1], &stations[0], (size_t)(aprs_s.nst - 1u) * sizeof(aprs_station_t));
 		s = &stations[0];
@@ -868,6 +872,8 @@ static void packet_in(const ax25_frame_t *f, const aprs_parsed_t *p)
 	traffic.next = (uint8_t)((traffic.next + 1u) % APRS_RECENT_PACKETS);
 	if (traffic.count < APRS_RECENT_PACKETS)
 		traffic.count++;
+	else if (traffic.packets_dropped != UINT32_MAX)
+		traffic.packets_dropped++;
 }
 
 uint8_t aprs_packet_count(void)

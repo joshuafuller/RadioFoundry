@@ -127,6 +127,10 @@ typedef struct {
 	uint32_t host_in, host_out, host_dropped;	// KISS frames from / to the host, host frames refused
 	uint32_t igated, is_to_rf, digi_sent;
 	uint8_t stations, messages, unread;
+
+#if CONFIG_APRS_RX
+	uint32_t stations_dropped, packets_dropped; // oldest records displaced by full receive tables
+#endif
 	bool rf_active;		// the radio is on the APRS frequency for us now
 	bool msg_pending;	// our message waiting for its ack / its next try
 	uint8_t msg_tries;

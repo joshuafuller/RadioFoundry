@@ -1654,6 +1654,9 @@ static void test_recent_packets(void)
 		rx_line(line);
 	}
 	CHECK(aprs_packet_count() == APRS_RECENT_PACKETS);
+	aprs_view_t v;
+	aprs_get_view(&v);
+	CHECK(v.packets_dropped == 5 && v.stations_dropped == 0);
 	CHECK(aprs_packet(0, &p) && p.truncated && p.len == APRS_PACKET_TEXT);
 	serial = p.serial;
 	for (uint8_t i = 0; i < APRS_RECENT_PACKETS; i++) {
@@ -1662,6 +1665,8 @@ static void test_recent_packets(void)
 	CHECK(!aprs_packet(APRS_RECENT_PACKETS, &p));
 	reset();
 	CHECK(aprs_packet_count() == 0);
+	aprs_get_view(&v);
+	CHECK(v.packets_dropped == 0 && v.stations_dropped == 0);
 }
 #endif
 
@@ -1744,6 +1749,12 @@ static void test_weather_station_retention(void)
 		rx_line(line);
 	}
 	CHECK(aprs_station_count() == APRS_STATIONS);
+	aprs_view_t v;
+	aprs_get_view(&v);
+	CHECK(v.stations_dropped == 1);
+	rx_line("Q9S000>APRS:>Updated");
+	aprs_get_view(&v);
+	CHECK(v.stations_dropped == 1);
 	CHECK(!ui_svc_aprs_station_find("K4WX-1", &station));
 	CHECK(aprs_wx_count() == 1 && aprs_wx_station(0, &weather));
 	CHECK(!strcmp(weather.call, "K4WX-1") && weather.has_pos);
