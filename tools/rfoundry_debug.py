@@ -78,7 +78,7 @@ STORAGE = 0x0F
 SPLIT = 0x15                        # split duplex (CONFIG_HOTSPOT_SPLIT builds only; docs/spec/debuglink.md 3.15)
 SPLIT_OP_VARIANT, SPLIT_OP_VIEW = 1, 2
 APRS = 0x11
-APRS_OP_SEND_NOW, APRS_OP_STATUS, APRS_OP_MESSAGE, APRS_OP_TEST_CALL, APRS_OP_SET, APRS_OP_NMEA = range(1, 7)
+APRS_OP_SEND_NOW, APRS_OP_STATUS, APRS_OP_MESSAGE, APRS_OP_TEST_CALL, APRS_OP_SET, APRS_OP_NMEA, APRS_OP_RX_FRAME = range(1, 8)
 CRASH = 0x1B                        # the crash log (CONFIG_CRASH_LOG; docs/spec/debuglink.md 3.19)
 CRASH_OP_CLEAR, CRASH_OP_TEST = range(2)
 HWOPT = 0x21                        # the board's hardware options (docs/spec/debuglink.md 3.25)
@@ -1112,6 +1112,10 @@ class DebugLink:
     # APRS (docs/spec/debuglink.md 3.16, docs/spec/aprs.md 13). State: the aprs and aprs_set view sections
     def aprs_request(self, op, args=b""):
         return self.request(APRS, bytes([op]) + bytes(args))[1]
+
+    def aprs_rx_frame(self, frame):
+        """An AX.25 UI frame (bytes, no FCS) handled by the radio as if received on RF; nothing transmits"""
+        self.aprs_request(APRS_OP_RX_FRAME, bytes(frame)[:REQ_MAX - 2])
 
     def aprs_send_now(self):
         """A position beacon now (refused: no callsign, frequency or position)."""

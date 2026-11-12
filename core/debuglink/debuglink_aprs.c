@@ -221,6 +221,16 @@ size_t debuglink_cmd_aprs(const uint8_t *req, uint16_t len, uint8_t *out, size_t
 		text_arg(text, a, n);
 		aprs_set_test_call(text);
 		break;
+#if CONFIG_APRS_RX
+	case DL_APRS_OP_RX_FRAME:
+		// The receive path as for a decoded RF frame: station list, messages to us, UI (bench and demo feeds)
+		if (n < 16) {
+			st = DL_ST_BAD_ARG;
+			break;
+		}
+		aprs_rx_frame(a, n, hal_millis());
+		break;
+#endif
 	case DL_APRS_OP_SET:
 		st = n == 5 ? set_field(a[0], get32(a + 1)) : DL_ST_BAD_ARG;
 		break;

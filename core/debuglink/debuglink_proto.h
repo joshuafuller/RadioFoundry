@@ -127,6 +127,7 @@ enum {
 	DL_APRS_OP_TEST_CALL,		// callsign (0-9 characters, empty = back to the settings): RAM only
 	DL_APRS_OP_SET,			// field u8 (DL_APRS_F_*), value u32 (signed as two's complement): saved
 	DL_APRS_OP_NMEA,		// an NMEA sentence, as from the host ("$GPRMC,...*hh")
+	DL_APRS_OP_RX_FRAME,		// an AX.25 UI frame (no FCS), handled as if received on RF (RX builds; nothing transmits)
 };
 
 // DL_APRS_OP_SET fields
