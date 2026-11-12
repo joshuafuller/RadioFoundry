@@ -2350,6 +2350,14 @@ bool ui_app_tick(const radio_view_t *v, uint32_t now_ms)
 		ui_st.toast = NULL;
 		dirty = true;
 	}
+#if CONFIG_APRS_RX
+	if (ui_st.banner.kind == UI_BANNER_NONE) {
+		aprs_bulletin_t bulletin;
+		if (ui_svc_aprs_bulletin_alert(&bulletin)) {
+			banner(UI_BANNER_INFO, false, 0, TR("Bulletin"), bulletin.text);
+		}
+	}
+#endif
 	knob_moved(v);
 #if CONFIG_VOLUME_BAR
 	if (ui_st.volbar >= 0 && (int32_t)(now - volbar_until) >= 0) {

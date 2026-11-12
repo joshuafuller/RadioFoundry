@@ -39,6 +39,9 @@ typedef enum {
 	SCR_APRS_TO,			// destination callsign editor for APRS transmission
 	SCR_APRS_STATION,		// a heard station's actions
 	SCR_MESSAGE_TEXT,		// message body editor
+#if CONFIG_APRS_RX
+	SCR_APRS_OBJECTS, SCR_APRS_OBJECT, SCR_APRS_BULLETINS, SCR_APRS_BULLETIN,
+#endif
 	SCR_COUNT
 } ui_scr_t;
 

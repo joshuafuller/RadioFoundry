@@ -48,6 +48,24 @@ the radio its position).
 The symbol, comment and the DMR destination are set with the debug tool for now
 (`tools/rfoundry_debug.py aprs set ...`), later with qdmr.
 
+## Objects and bulletins
+
+In **Tools > APRS**, open **Objects** for places and items published by other stations. Select a name to see its
+publisher (**From**), age, distance and direction, comment, and a frequency advertised as `ddd.dddMHz`.
+Distance needs a position of your own. The frequency is information only; opening it does not tune or transmit.
+An object's location never moves its publisher in **Stations heard**.
+
+A withdrawn object reads **Removed** for ten minutes, then leaves the list. A new live report brings it back.
+Live objects expire after a day. The list holds the eight most recently updated names.
+
+Open **Bulletins** for announcements, group bulletins and NWS bulletins, newest first. Select a row to read its
+sender, age and full retained text; scroll with **Up / Down**. A new or changed bulletin shows a banner once,
+after any current banner clears. Repeated identical packets do not alert again while in the list. Bulletins have
+no Reply action and the radio does not acknowledge them.
+
+The bulletin list holds eight sender/address pairs and drops entries a day after their text last changed.
+Both lists clear at power-off. If an open entry leaves the list, its detail says **No longer in list**.
+
 ## Station details
 
 Open **Stations heard**, select a callsign, and press **OK**. **Message** is first; press OK again to open a message

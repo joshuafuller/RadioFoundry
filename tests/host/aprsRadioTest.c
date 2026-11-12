@@ -6,6 +6,7 @@
 // channel, PTT cutting a transmission short, return to the channel, KISS frames from the host, NMEA from the host,
 // messages with retries and acks, the station list, the digipeater and the iGate rules.
 #include <stdio.h>
+#include "fuzz.h"
 #include <string.h>
 #include "board.h"
 #include "radio/radio_sm.h"
@@ -1478,6 +1479,112 @@ static void test_rx_board_only(void)
 }
 #endif
 
+#if CONFIG_APRS_RX
+static void test_objects_bulletins(void)
+{
+	reset();
+	aprs_set_test_call("Q1TST");
+	configure(0, false);
+	aprs_object_t o;
+	aprs_bulletin_t b;
+	CHECK(!aprs_object(0, &o) && !aprs_bulletin(0, &b));
+	rx_line("Q1ABC>APRS:!4913.50N/07201.75W>Publisher");
+	rx_line("Q1ABC>APRS:;AID      *092345z4803.50N/07001.75W>146.520MHz Meet here");
+	CHECK(aprs_object_count() == 1 && ui_svc_aprs_object(0, &o));
+	CHECK(!strcmp(o.name, "AID") && !strcmp(o.owner, "Q1ABC") && !o.killed);
+	CHECK(o.pos.lat == 480583333 && o.pos.sym_code == '>' && o.frequency_hz == 146520000u);
+	CHECK(!strcmp(o.comment, "146.520MHz Meet here") && o.ms == now);
+	aprs_station_t st;
+	CHECK(ui_svc_aprs_station_find("Q1ABC", &st) && st.lat == 492250000 && !strcmp(st.text, "Publisher"));
+	rx_line("Q2ABC>APRS:;AID      _092345z4803.50N/07001.75W>Closed");
+	CHECK(aprs_object_count() == 1 && aprs_object(0, &o) && o.killed && !strcmp(o.owner, "Q2ABC"));
+	rx_line("Q1ABC>APRS:)TENT!4803.50N/07001.75W>123.45MHz Invalid frequency");
+	CHECK(aprs_object_count() == 2 && aprs_object(0, &o) && !o.frequency_hz);
+	rx_line("Q1ABC>APRS:)TENT_4803.50N/07001.75W>Gone");
+	CHECK(aprs_object(0, &o) && o.killed);
+	uint32_t killed_at = now;
+	now = killed_at + APRS_REMOVED_MS - 2u * RADIO_POLL_MS;
+	run(RADIO_POLL_MS);
+	CHECK(aprs_object_count() == 2);
+	run(RADIO_POLL_MS);
+	CHECK(aprs_object_count() == 0);
+	// A kill can be revived; a newer owner takes over the same named entity.
+	rx_line("Q1ABC>APRS:)TENT!4803.50N/07001.75W>Open");
+	CHECK(aprs_object(0, &o) && !o.killed);
+	for (unsigned i = 0; i < APRS_OBJECTS + 2; i++) {
+		char line[128];
+		snprintf(line, sizeof line, "Q1ABC>APRS:)OBJ%u!4803.50N/07001.75W>Test", i);
+		rx_line(line);
+	}
+	CHECK(aprs_object_count() == APRS_OBJECTS && aprs_object(0, &o) && !strcmp(o.name, "OBJ9"));
+	rx_line("Q1ABC>APRS:;BAD      *092345zbroken");
+	CHECK(aprs_object_count() == APRS_OBJECTS && aprs_object(0, &o) && !strcmp(o.name, "OBJ9"));
+	// General, announcement, group and NWS addresses never enter the personal inbox or queue an ack.
+	const char *lines[] = {
+		"Q1ABC>APRS::BLN1     :Road closed{12",
+		"Q1ABC>APRS::BLNA     :Meeting tomorrow",
+		"Q1ABC>APRS::BLN2ARES :Meet at tent",
+		"Q1ABC>APRS::NWS-WARN :Heavy rain",
+	};
+	for (unsigned i = 0; i < sizeof lines / sizeof lines[0]; i++) {
+		rx_line(lines[i]);
+		CHECK(ui_svc_aprs_bulletin_alert(&b));
+		CHECK(!aprs_bulletin_alert(&b));
+		rx_line(lines[i]);
+		CHECK(!aprs_bulletin_alert(&b));
+	}
+	CHECK(ui_svc_aprs_bulletin_count() == 4 && ui_svc_aprs_bulletin(0, &b) && !strcmp(b.group, "NWS-WARN"));
+	CHECK(aprs_msg_count() == 0 && !aprs_rf_pending());
+	rx_line("Q1ABC>APRS::BLN2ARES :New meeting place");
+	CHECK(aprs_bulletin_count() == 4 && aprs_bulletin_alert(&b) && !strcmp(b.text, "New meeting place"));
+	rx_line("Q1ABC>APRS::BLN?     :Not a bulletin");
+	CHECK(aprs_bulletin_count() == 4 && !aprs_bulletin_alert(&b));
+	rx_line("Q1GATE>APRS:}Q2ABC>APRS,TCPIP*::NWS-TEST :From origin");
+	CHECK(aprs_bulletin_alert(&b) && !strcmp(b.from, "Q2ABC"));
+	rx_line("Q1GATE>APRS:}Q2ABC>APRS:;GATEOBJ  *092345z4803.50N/07001.75W>Origin");
+	CHECK(aprs_object(0, &o) && !strcmp(o.owner, "Q2ABC"));
+	for (unsigned i = 0; i < 10; i++) {
+		char line[100];
+		snprintf(line, sizeof line, "Q1ABC>APRS::BLN%u     :Bulletin %u", i, i);
+		rx_line(line);
+	}
+	CHECK(aprs_bulletin_count() == APRS_BULLETINS && aprs_bulletin(0, &b) && !strcmp(b.group, "BLN9"));
+	CHECK(aprs_msg_count() == 0 && !aprs_rf_pending());
+	now += APRS_RETAIN_MS;
+	run(RADIO_POLL_MS);
+	CHECK(aprs_object_count() == 0 && aprs_bulletin_count() == 0);
+	rx_line("Q1ABC>APRS::BLN0     :acknowledge at the tent");
+	CHECK(aprs_bulletin_alert(&b) && !strcmp(b.text, "acknowledge at the tent"));
+	CHECK(!aprs_rf_pending());
+	// Unsigned ages also expire across the millisecond clock wrap.
+	now = UINT32_MAX - 1000u;
+	rx_line(lines[0]);
+	rx_line("Q1ABC>APRS:)TENT_4803.50N/07001.75W>Gone");
+	now += APRS_REMOVED_MS;
+	run(RADIO_POLL_MS);
+	CHECK(aprs_object_count() == 0 && aprs_bulletin_count() == 1);
+	reset();
+	CHECK(aprs_bulletin_count() == 0 && !aprs_bulletin_alert(&b));
+	fuzz_t fuzz;
+	fuzz_init(&fuzz, 0x0B1EC7);
+	for (long i = 0; i < fuzz_iters(300); i++) {
+		static const char seed[] = "Q1ABC>APRS:)TENT!4803.50N/07001.75W>146.520MHz Test";
+		uint8_t buf[AX25_TNC2_MAX];
+		memcpy(buf, seed, sizeof(seed) - 1u);
+		int n = fuzz_mutate(&fuzz, buf, sizeof(seed) - 1u, sizeof buf);
+		uint8_t *exact = fuzz_exact(buf, n);
+		ax25_frame_t frame;
+		if (ax25_from_tnc2((const char *)exact, (size_t)n, &frame)) {
+			uint8_t encoded[AX25_FRAME_MAX];
+			size_t len = ax25_encode(&frame, encoded, sizeof encoded);
+			if (len) aprs_rx_frame(encoded, len, now);
+		}
+		free(exact);
+		CHECK(aprs_object_count() <= APRS_OBJECTS && aprs_bulletin_count() <= APRS_BULLETINS);
+	}
+}
+#endif
+
 int main(void)
 {
 	test_defaults();
@@ -1510,6 +1617,7 @@ int main(void)
 	test_rx_stream();
 	test_rx_board_only();
 	test_station_range();
+	test_objects_bulletins();
 #endif
 	printf("# aprsRadioTest: %d checks, %s\n", checks, failures ? "FAILED" : "PASSED");
 	return failures ? 1 : 0;

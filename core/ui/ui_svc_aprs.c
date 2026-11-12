@@ -50,6 +50,11 @@ bool ui_svc_aprs_send_message(const char *to, const char *text, uint8_t flags)
 }
 
 #if CONFIG_APRS_RX
+uint8_t ui_svc_aprs_object_count(void) { return aprs_object_count(); }
+bool ui_svc_aprs_object(uint8_t i, aprs_object_t *out) { return aprs_object(i, out); }
+uint8_t ui_svc_aprs_bulletin_count(void) { return aprs_bulletin_count(); }
+bool ui_svc_aprs_bulletin(uint8_t i, aprs_bulletin_t *out) { return aprs_bulletin(i, out); }
+bool ui_svc_aprs_bulletin_alert(aprs_bulletin_t *out) { return aprs_bulletin_alert(out); }
 uint8_t ui_svc_aprs_msg_count(void) { return aprs_msg_count(); }
 bool ui_svc_aprs_msg(uint8_t i, aprs_msg_t *out, bool read)
 {

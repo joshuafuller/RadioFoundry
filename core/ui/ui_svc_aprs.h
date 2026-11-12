@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "aprs/aprs.h"
+#include "aprs/aprs_objects.h"
 
 // False when APRS isn't in this build
 bool ui_svc_aprs_view(aprs_view_t *v);
@@ -25,4 +26,11 @@ bool ui_svc_aprs_station_find(const char *call, aprs_station_t *out);
 // it): false when the station or we have no position
 bool ui_svc_aprs_range(const aprs_station_t *s, uint32_t *m, uint16_t *deg);
 
+#if CONFIG_APRS_RX
+uint8_t ui_svc_aprs_object_count(void);
+bool ui_svc_aprs_object(uint8_t i, aprs_object_t *out);
+uint8_t ui_svc_aprs_bulletin_count(void);
+bool ui_svc_aprs_bulletin(uint8_t i, aprs_bulletin_t *out);
+bool ui_svc_aprs_bulletin_alert(aprs_bulletin_t *out);
+#endif
 #endif

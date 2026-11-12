@@ -512,6 +512,10 @@ msgstr "%: ricarica presto"
 msgid "That zone was deleted"
 msgstr "Quella zona è stata eliminata"
 
+#: core/ui/ui_app.c core/ui/ui_aprs_objects.c
+msgid "Bulletin"
+msgstr "Bollettino"
+
 #: core/ui/ui_app.c
 msgid "Moved to "
 msgstr "Spostato in "
@@ -616,7 +620,7 @@ msgstr " su "
 msgid " (sending)"
 msgstr " (invio)"
 
-#: core/ui/ui_aprs.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_objects.c
 msgid "No position"
 msgstr "Nessuna posizione"
 
@@ -636,7 +640,7 @@ msgstr "Invia posizione ora"
 msgid "Automatic beacons"
 msgstr "Beacon automatici"
 
-#: core/ui/ui_aprs.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_objects.c
 msgid "Frequency"
 msgstr "Frequenza"
 
@@ -667,6 +671,14 @@ msgstr "KISS su USB"
 #: core/ui/ui_aprs.c
 msgid "Stations heard"
 msgstr "Stazioni sentite"
+
+#: core/ui/ui_aprs.c core/ui/ui_aprs_objects.c
+msgid "Objects"
+msgstr "Oggetti"
+
+#: core/ui/ui_aprs.c core/ui/ui_aprs_objects.c
+msgid "Bulletins"
+msgstr "Bollettini"
 
 #: core/ui/ui_aprs.c
 msgid "NMEA on USB"
@@ -708,11 +720,11 @@ msgstr "Questa radio non riceve APRS"
 msgid "0-9 pick  Back"
 msgstr "0-9 scegli  Indietro"
 
-#: core/ui/ui_aprs.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_objects.c
 msgid "Heard"
 msgstr "Sentite"
 
-#: core/ui/ui_aprs.c core/ui/ui_menus.c core/ui/ui_screens.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_objects.c core/ui/ui_menus.c core/ui/ui_screens.c
 msgid "Back"
 msgstr "Indietro"
 
@@ -724,7 +736,7 @@ msgstr "Ancora niente sentito"
 msgid "Message"
 msgstr "Messaggio"
 
-#: core/ui/ui_aprs.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_objects.c
 msgid "No longer in list"
 msgstr "Non più in elenco"
 
@@ -760,9 +772,49 @@ msgstr "Simbolo"
 msgid "Packets"
 msgstr "Pacchetti"
 
-#: core/ui/ui_aprs.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_objects.c
 msgid "OK choose  Back"
 msgstr "OK scegli  Indietro"
+
+#: core/ui/ui_aprs_objects.c
+msgid "Removed"
+msgstr "Rimosso"
+
+#: core/ui/ui_aprs_objects.c
+msgid "No objects heard"
+msgstr "Nessun oggetto ricevuto"
+
+#: core/ui/ui_aprs_objects.c core/ui/ui_menus.c
+msgid "From "
+msgstr "Da "
+
+#: core/ui/ui_aprs_objects.c
+msgid "Live"
+msgstr "Attivo"
+
+#: core/ui/ui_aprs_objects.c
+msgid "Distance"
+msgstr "Distanza"
+
+#: core/ui/ui_aprs_objects.c
+msgid "Unknown"
+msgstr "Sconosciuto"
+
+#: core/ui/ui_aprs_objects.c
+msgid "Comment"
+msgstr "Commento"
+
+#: core/ui/ui_aprs_objects.c
+msgid "Object"
+msgstr "Oggetto"
+
+#: core/ui/ui_aprs_objects.c
+msgid "Announcement"
+msgstr "Annuncio"
+
+#: core/ui/ui_aprs_objects.c
+msgid "No bulletins heard"
+msgstr "Nessun bollettino ricevuto"
 
 #: core/ui/ui_dual.c core/ui/ui_screens.c
 msgid "No tone"
@@ -1327,10 +1379,6 @@ msgstr "Messaggio eliminato"
 #: core/ui/ui_menus.c
 msgid "Couldn't delete: try again"
 msgstr "Eliminazione non riuscita: riprova"
-
-#: core/ui/ui_menus.c
-msgid "From "
-msgstr "Da "
 
 #: core/ui/ui_menus.c
 msgid "To "
