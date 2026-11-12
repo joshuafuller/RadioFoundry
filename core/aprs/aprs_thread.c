@@ -73,6 +73,49 @@ void aprs_thread_update(uint8_t state)
 	aprs_changed();
 }
 
+bool aprs_message_action(const aprs_thread_msg_t *message, bool retry)
+{
+	LOCK();
+	bool ok = false;
+	for (uint8_t i = 0; i < count; i++) {
+		aprs_pending_t *p = &outgoing[i].pending;
+		if (outgoing[i].ms != message->ms || outgoing[i].state != message->state ||
+		    strcmp(p->to, message->call) || strcmp(p->text, message->text))
+			continue;
+		if (retry) {
+			if (outgoing[i].state != APRS_MSG_NO_ACK && outgoing[i].state != APRS_MSG_REJECTED)
+				break;
+			uint8_t waiting = 0;
+			for (uint8_t j = 0; j < count; j++)
+				waiting += outgoing[j].state <= APRS_MSG_SENDING;
+			if (waiting >= APRS_OUT_QUEUE)
+				break;
+			p->active = true;
+			p->acked = false;
+			p->tries = 0;
+			p->next_ms = aprs_s.now;
+			outgoing[i].state = APRS_MSG_QUEUED;
+			outgoing[i].done_ms = 0;
+		} else {
+			if (outgoing[i].state != APRS_MSG_QUEUED && outgoing[i].state != APRS_MSG_SENDING)
+				break;
+			if (active == (int8_t)i) {
+				aprs_ax25_cancel_message();
+				active = -1;
+			} else if (active > (int8_t)i) {
+				active--;
+			}
+			memmove(&outgoing[i], &outgoing[i + 1], (count - i - 1u) * sizeof outgoing[0]);
+			count--;
+		}
+		ok = true;
+		aprs_changed();
+		break;
+	}
+	UNLOCK();
+	return ok;
+}
+
 uint8_t aprs_thread(const char *call, aprs_thread_msg_t out[APRS_THREAD_MAX], bool read)
 {
 	LOCK();

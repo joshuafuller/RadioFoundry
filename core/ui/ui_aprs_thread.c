@@ -19,6 +19,15 @@ __attribute__((weak)) uint8_t ui_svc_aprs_thread(const char *call, aprs_thread_m
 	return 0;
 }
 
+__attribute__((weak)) bool ui_svc_aprs_message_action(const aprs_thread_msg_t *message, bool retry)
+{
+	(void)message; (void)retry;
+	return false;
+}
+
+static bool pending(uint8_t state) { return state == APRS_MSG_QUEUED || state == APRS_MSG_SENDING; }
+static bool failed(uint8_t state) { return state == APRS_MSG_NO_ACK || state == APRS_MSG_REJECTED; }
+
 // One newest-first entry per callsign, with unread reflecting the whole conversation.
 static uint8_t conversations(void)
 {
@@ -127,8 +136,10 @@ static void thread_draw(void)
 			sb_chr(&b, '\n');
 		}
 	}
-	last = (uint16_t)ui_draw_text_page(ui_view(), &ui_st, thread_call, ui_aprs_text, &first);
-	ui_draw_hint(TR("OK reply  Back"), false);
+	last = (uint16_t)ui_draw_text_page(ui_view(), &ui_st, thread_call, ui_aprs_text, &first, true);
+	uint8_t state = total ? messages[selected].state : APRS_MSG_INCOMING;
+	ui_draw_hint(pending(state) ? TR("OK reply  # Cancel") :
+		failed(state) ? TR("OK reply  # Retry") : TR("OK reply  Back"), false);
 }
 
 static bool thread_key(const input_event_t *ev)
@@ -136,6 +147,14 @@ static bool thread_key(const input_event_t *ev)
 	if (ev->gesture != GESTURE_PRESS && ev->gesture != GESTURE_REPEAT && ev->gesture != GESTURE_LONG &&
 	    ev->action != ACT_ENC_STEP)
 		return false;
+	if (ev->action == ACT_CONTEXT && total &&
+	    (pending(messages[selected].state) || failed(messages[selected].state))) {
+		if (!ui_svc_aprs_message_action(&messages[selected], failed(messages[selected].state)))
+			ui_toast(TR("Busy"));
+		first = 0;
+		ui_dirty();
+		return true;
+	}
 	if (ev->action == ACT_SELECT || ev->action == ACT_CONTEXT) {
 		ui_aprs_compose(thread_call);
 		return true;

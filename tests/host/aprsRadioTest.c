@@ -819,6 +819,41 @@ static void test_message_replaces_pending(void)
 	CHECK(strstr(frames[2], "::K1ABC-9  :Second{") != NULL);
 }
 
+static void test_message_actions(void)
+{
+#if CONFIG_APRS_RX
+	reset();
+	aprs_set_test_call("Q1TST");
+	configure(0, false);
+	aprs_thread_msg_t thread[APRS_THREAD_MAX];
+	CHECK(aprs_send_message("Q1ABC-9", "Cancel queued"));
+	CHECK(aprs_thread("Q1ABC-9", thread, false) == 1);
+	CHECK(!aprs_message_action(&thread[0], true));
+	CHECK(aprs_message_action(&thread[0], false));
+	CHECK(!aprs_message_action(&thread[0], false));
+	run(5000);
+	CHECK(nframes == 0);
+	CHECK(aprs_send_message("Q1ABC-9", "Cancel active"));
+	CHECK(wait_start(1, 5000));
+	CHECK(aprs_thread("Q1ABC-9", thread, false) == 1);
+	CHECK(aprs_message_action(&thread[0], false));
+	wait_idle();
+	run(220000);
+	CHECK(nframes == 1);
+	CHECK(aprs_thread(NULL, thread, false) == 0);
+	CHECK(aprs_send_message("Q1ABC-9", "Retry retained body"));
+	run(230000);
+	CHECK(aprs_thread("Q1ABC-9", thread, false) == 1);
+	CHECK(thread[0].state == APRS_MSG_NO_ACK);
+	CHECK(!aprs_message_action(&thread[0], false));
+	CHECK(aprs_message_action(&thread[0], true));
+	CHECK(!aprs_message_action(&thread[0], true));
+	CHECK(aprs_thread("Q1ABC-9", thread, false) == 1);
+	CHECK(thread[0].state == APRS_MSG_QUEUED && thread[0].tries == 0);
+	CHECK(!strcmp(thread[0].text, "Retry retained body"));
+#endif
+}
+
 static void test_message_queue(void)
 {
 	reset();
@@ -2002,6 +2037,7 @@ int main(void)
 	test_messages();
 	test_message_options();
 	test_message_queue();
+	test_message_actions();
 	test_message_replaces_pending();
 #if CONFIG_APRS_RX
 	test_message_rejection();

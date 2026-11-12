@@ -750,7 +750,10 @@ static void banner_open(void)
 	b->kind = UI_BANNER_NONE;
 #if CONFIG_APRS_RX
 	if (kind == UI_BANNER_APRS) {
-		ui_aprs_station_open(b->title);
+		if (msg)
+			ui_aprs_thread_open(b->title);
+		else
+			ui_aprs_station_open(b->title);
 		return;
 	}
 #endif
@@ -786,10 +789,21 @@ static void aprs_arrival(void)
 		return;
 	aprs_packet_seen = p.serial;
 	dirty = true;
-	// Addressed messages retain their inbox alert path; routine traffic never replaces another alert.
-	if (p.to_us || aprs_banner_blocked() ||
+	// Traffic never replaces another alert.
+	if (aprs_banner_blocked() ||
 	    (ui_st.banner.kind != UI_BANNER_NONE && ui_st.banner.kind != UI_BANNER_APRS) || now - p.ms >= BANNER_MS)
 		return;
+	if (p.to_us) {
+		for (uint8_t i = 0; i < ui_svc_aprs_msg_count(); i++) {
+			aprs_msg_t m;
+			if (ui_svc_aprs_msg(i, &m, false) && !m.read && m.ms == p.ms && !strcmp(m.from, p.call)) {
+				banner(UI_BANNER_APRS, false, 0, m.from, m.text);
+				ui_st.banner.msg = 1;
+				return;
+			}
+		}
+		return;
+	}
 	char text[UI_BANNER_TEXT];
 	sbuf_t b;
 	sb_init(&b, text, sizeof text);
@@ -802,6 +816,7 @@ static void aprs_arrival(void)
 		sb_range(&b, m, deg);
 	}
 	banner(UI_BANNER_APRS, false, 0, p.call, text);
+	ui_st.banner.msg = 0;
 }
 #endif
 

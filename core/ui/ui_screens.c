@@ -2340,8 +2340,17 @@ void ui_draw_banner(const ui_state_t *s)
 	}
 	int nx = bn->text[0] ? wrap_lines(f, bn->text, w - 4, 2, text, bn->kind == UI_BANNER_MESSAGE) : 0;
 #if CONFIG_APRS_RX
-	// A short APRS arrival yields its preview before it can cover the voice target.
+	// Keep addressed previews on the sender row so the voice target stays visible.
 	if (bn->kind == UI_BANNER_APRS && gfx_height() <= 64) {
+		if (bn->msg) {
+			char preview[sizeof bn->title + sizeof bn->text];
+			sbuf_t b;
+			sb_init(&b, preview, sizeof preview);
+			sb_str(&b, bn->title);
+			sb_chr(&b, ' ');
+			sb_str(&b, bn->text);
+			gfx_text_fit(f, preview, w - 4, title[0], sizeof title[0]);
+		}
 		nt = 1;
 		nx = 0;
 	}
@@ -2461,16 +2470,15 @@ static size_t label_len(const char *t)
 }
 
 int ui_draw_text_page(const radio_view_t *v, const ui_state_t *s, const char *title, const char *text,
-	uint16_t *first)
+	uint16_t *first, bool body)
 {
 	const ui_layout_t *L = &ui_layout;
-	const font_t *f = L->tiny;
+	const font_t *f = body ? L->small : L->tiny;
 	int w = gfx_width();
 	char line[64];
 	gfx_clear(ui_col.bg);
-	// No status strip while idle: the page gets the whole height. A call or a transmission brings it back (P2: the
-	// TX / RX pill is never hidden)
-	int y = v->state != RS_IDLE ? ui_draw_top(v, s, NULL, title) : 0;
+	// Diagnostic pages hide idle status; received text keeps its title and status.
+	int y = body || v->state != RS_IDLE ? ui_draw_top(v, s, NULL, title) : 0;
 	int y_end = list_bottom(s);
 	int rows = (y_end - y) / f->h;
 	if (rows < 1)

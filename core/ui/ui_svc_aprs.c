@@ -68,6 +68,10 @@ bool ui_svc_aprs_packet(uint8_t i, aprs_packet_t *out) { return aprs_packet(i, o
 bool ui_svc_aprs_listening(void) { return aprs_rx_listening(); }
 bool ui_svc_aprs_can_receive(void) { return aprs_can_receive(); }
 
+bool ui_svc_aprs_message_action(const aprs_thread_msg_t *message, bool retry)
+{
+	return aprs_message_action(message, retry);
+}
 uint8_t ui_svc_aprs_thread(const char *call, aprs_thread_msg_t out[APRS_THREAD_MAX], bool read)
 {
 	return aprs_thread(call, out, read);

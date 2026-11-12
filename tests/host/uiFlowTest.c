@@ -674,6 +674,8 @@ static const flow_t flows[] = {
 	  "screen=aprs-station shows=Q4WAB-9", 1, false },
 	{ "A arrival preserves message alert", "msg:9991234,Hello", "aprs:packet ctx",
 	  "screen=message", 1, false },
+	{ "A addressed banner identity", "", "aprs:incoming", "banner=Q4WAB-9 shows=Hello_APRS", 0, false },
+	{ "A addressed banner opens thread", "aprs:incoming", "ctx", "screen=aprs-thread shows=Hello_APRS", 1, false },
 	{ "A arrival timeout", "aprs:packet", "wait:8000", "banner=none", 0, false },
 	{ "A arrival during TX", "pttdown", "aprs:packet", "banner=none", 0, false },
 	{ "A TX hides arrival", "aprs:packet", "pttdown", "banner=none", 1, false },
@@ -1670,6 +1672,17 @@ static void thread_checks(void)
 				body_end |= sim_run("expect:shows=truck.", err, sizeof err);
 			}
 			ok &= found && body_end;
+			if (!strcmp(cases[i].state, "queued") || !strcmp(cases[i].state, "sending")) {
+				ok &= sim_run("ctx expect:shows=Hello_APRS", err, sizeof err);
+			} else if (!strcmp(cases[i].state, "noack") || !strcmp(cases[i].state, "rejected")) {
+				ok &= sim_run("ctx", err, sizeof err);
+				bool queued = false;
+				for (unsigned line = 0; line < 24; line++) {
+					queued |= sim_run("expect:shows=Queued", err, sizeof err);
+					(void)sim_run("down", err, sizeof err);
+				}
+				ok &= queued;
+			}
 			for (unsigned line = 0; line < 24; line++)
 				(void)sim_run("up", err, sizeof err);
 			ok &= sim_run("expect:shows=Hello_APRS ok expect:screen=compose expect:shows=Q4WAB-9", err, sizeof err);
@@ -1943,14 +1956,17 @@ static void aprs_home_checks(void)
 	int n = 0;
 	for (int y = ui_layout.talk_y; y < ui_layout.chips_y; y++)
 		for (int x = 0; x < 128; x++) target[n++] = gfx_get_pixel(x, y);
-	(void)sim_run("aprs:packet", err, sizeof err);
-	n = 0;
-	for (int y = ui_layout.talk_y; y < ui_layout.chips_y; y++) {
-		for (int x = 0; x < 128; x++) {
-			if (target[n++] != gfx_get_pixel(x, y)) {
-				printf("FAIL APRS arrival covers voice target\n");
-				fails++;
-				return;
+	const char *arrivals[] = { "aprs:packet", "aprs:incoming" };
+	for (unsigned i = 0; i < sizeof arrivals / sizeof arrivals[0]; i++) {
+		(void)sim_run(arrivals[i], err, sizeof err);
+		n = 0;
+		for (int y = ui_layout.talk_y; y < ui_layout.chips_y; y++) {
+			for (int x = 0; x < 128; x++) {
+				if (target[n++] != gfx_get_pixel(x, y)) {
+					printf("FAIL APRS arrival covers voice target: %s\n", arrivals[i]);
+					fails++;
+					return;
+				}
 			}
 		}
 	}

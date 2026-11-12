@@ -707,6 +707,18 @@ bool ui_svc_aprs_msg(uint8_t i, aprs_msg_t *out, bool read)
 	return true;
 }
 #if CONFIG_APRS_RX
+bool ui_svc_aprs_message_action(const aprs_thread_msg_t *message, bool retry)
+{
+	if (strcmp(message->call, aprs_sim.outgoing.call) || message->state != aprs_sim.outgoing.state)
+		return false;
+	if (retry) {
+		aprs_sim.outgoing.state = APRS_MSG_QUEUED;
+		aprs_sim.outgoing.tries = 0;
+	} else {
+		memset(&aprs_sim.outgoing, 0, sizeof aprs_sim.outgoing);
+	}
+	return true;
+}
 uint8_t ui_svc_aprs_thread(const char *call, aprs_thread_msg_t out[APRS_THREAD_MAX], bool read)
 {
 	uint8_t n = 0;
@@ -3080,7 +3092,7 @@ static bool run_token(char *t, char *err, size_t len)
 		return true;
 	}
 	if (strcmp(t, "aprs") == 0 && arg != NULL) {	// aprs:off (not built), aprs:nocall, aprs:nopos, aprs:custom (a custom frequency set)
-		if (strcmp(arg, "packet") == 0 || strcmp(arg, "packet2") == 0 || strcmp(arg, "packet-speed") == 0 || strcmp(arg, "addressed") == 0) {
+		if (strcmp(arg, "packet") == 0 || strcmp(arg, "packet2") == 0 || strcmp(arg, "packet-speed") == 0 || strcmp(arg, "addressed") == 0 || strcmp(arg, "incoming") == 0) {
 			aprs_packet_t *p = &aprs_sim.packet;
 			p->serial++;
 			p->ms = now_ms;
@@ -3090,7 +3102,12 @@ static bool run_token(char *t, char *err, size_t len)
 			p->speed_kn = p->has_pos ? 15 : APRS_SPEED_NONE;
 			p->course = APRS_COURSE_NONE;
 			p->direct = true;
-			p->to_us = strcmp(arg, "addressed") == 0;
+			p->to_us = strcmp(arg, "addressed") == 0 || strcmp(arg, "incoming") == 0;
+			if (!strcmp(arg, "incoming")) {
+				aprs_sim.message = true;
+				aprs_sim.message_ms = now_ms;
+				strcpy(p->call, "Q4WAB-9");
+			}
 			memcpy(p->info, ">hi\x01", 4);
 			p->len = 4;
 			p->truncated = true;

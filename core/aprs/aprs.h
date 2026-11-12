@@ -213,6 +213,8 @@ typedef struct {
 } aprs_thread_msg_t;
 // Snapshot in time order, optionally marking this callsign's incoming messages read. NULL call: all messages.
 uint8_t aprs_thread(const char *call, aprs_thread_msg_t out[APRS_THREAD_MAX], bool read);
+// Cancel removes a pending record; retry requeues a failed record. Stale snapshots are refused.
+bool aprs_message_action(const aprs_thread_msg_t *message, bool retry);
 #endif
 
 // --- The radio task ---

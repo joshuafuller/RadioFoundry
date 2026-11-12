@@ -323,7 +323,8 @@ Received weather uses these same display units.
 ## Home status and the APRS hub
 
 On builds with the APRS Home feature, enable **Settings > Display > APRS line** (off by default).
-The bottom row shows **APRS TX on** or **APRS TX off**. A mono arrival keeps the voice target visible by omitting its preview.
+The bottom row shows **APRS TX on** or **APRS TX off**. A mono arrival keeps the voice target visible.
+Addressed messages show sender and preview together, shortened to fit; other arrivals omit the preview.
 Station ranges say **No own pos** when your position is unavailable.
 Below the channel controls, Home shows when APRS last sent and when the next timed beacon is due, or why it
 cannot send or listen. Receiving does not need your position. A second line, when there is room, shows
@@ -376,3 +377,12 @@ This APRS setting is **Off** by default. Turn it on to put your current voice fr
 position beacon comments. Changing channels updates the next beacon; it does not send one immediately. Your
 existing comment follows if it fits. Digital channels and inverted DCS do not advertise an FM frequency.
 These controls require a build with `CONFIG_APRS_TUNE`.
+
+### Reading and managing messages
+
+The message reader keeps the other station's callsign in the title. Up/Down scrolls the complete text,
+then moves between retained messages. OK replies. # Cancel removes a queued or sending message and stops
+its future retries; a frame already on air finishes. # Retry requeues a failed or rejected message with
+its original recipient and text. A full queue leaves the failed message available to retry later.
+Received-message banners show the sender and a text preview; # opens the conversation.
+Bulletin and object text wraps to the display width and remains available by scrolling.

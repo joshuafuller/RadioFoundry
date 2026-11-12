@@ -235,10 +235,10 @@ void ui_draw_list(const radio_view_t *v, const ui_state_t *s, const ui_list_t *l
 // One word-wrapped line; returns the remaining text. Long words split only when necessary.
 const char *ui_wrap_line(const font_t *f, const char *text, int max_w, char *line, size_t cap);
 
-// A page of text (About) in the smallest font, word-wrapped, never shortened: lines from *first on (clamped so the
-// last page is full). The status strip only while the radio isn't idle. Returns the largest *first (0: all fits)
+// Word-wrapped text from *first, clamped to fill the last page. body keeps the title and uses the body font;
+// otherwise use the tiny font and hide idle status. Returns the largest *first (0: all fits).
 int ui_draw_text_page(const radio_view_t *v, const ui_state_t *s, const char *title, const char *text,
-	uint16_t *first);
+	uint16_t *first, bool body);
 // Rows that fit below the title (and header) on this display, for paging
 int ui_list_rows(const ui_list_t *l);
 

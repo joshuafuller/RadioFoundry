@@ -1388,8 +1388,20 @@ msgid "To "
 msgstr "A "
 
 #: core/ui/ui_aprs_thread.c
+msgid "OK reply  # Cancel"
+msgstr "OK rispondi  # Annulla"
+
+#: core/ui/ui_aprs_thread.c
+msgid "OK reply  # Retry"
+msgstr "OK rispondi  # Riprova"
+
+#: core/ui/ui_aprs_thread.c
 msgid "OK reply  Back"
 msgstr "OK rispondi  Indietro"
+
+#: core/ui/ui_aprs_thread.c core/ui/ui_screens.c
+msgid "Busy"
+msgstr "Occupato"
 
 #: core/ui/ui_aprs_tune.c
 msgid "Tune to"
@@ -4250,10 +4262,6 @@ msgstr "0-9 freq  * Rapido  Su/Giù"
 #: core/ui/ui_screens.c
 msgid "Heard "
 msgstr "Sentito "
-
-#: core/ui/ui_screens.c
-msgid "Busy"
-msgstr "Occupato"
 
 #: core/ui/ui_screens.c
 msgid "SENDING on "
