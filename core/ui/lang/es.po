@@ -973,14 +973,6 @@ msgstr "OK cambiar  Atrás"
 msgid "OK choose  Back"
 msgstr "OK elegir  Atrás"
 
-#: core/ui/ui_aprs.c core/ui/ui_aprs_objects.c core/ui/ui_aprs_tune.c
-msgid "Heard"
-msgstr "Oídas"
-
-#: core/ui/ui_aprs.c core/ui/ui_aprs_list.c
-msgid "Nothing heard yet"
-msgstr "Aún nada oído"
-
 #: core/ui/ui_aprs.c core/ui/ui_menus.c
 msgid "Message"
 msgstr "Mensaje"
@@ -997,6 +989,10 @@ msgstr "{Distancia|Dist|}"
 #. requires: CONFIG_APRS_RX
 msgid "Old"
 msgstr "Vieja"
+
+#: core/ui/ui_aprs.c core/ui/ui_aprs_objects.c core/ui/ui_aprs_tune.c
+msgid "Heard"
+msgstr "Oídas"
 
 #: core/ui/ui_aprs.c core/ui/ui_aprs_beacon.c
 msgid "Direct"
@@ -1128,6 +1124,10 @@ msgstr " descartados"
 #: core/ui/ui_aprs.c core/ui/ui_aprs_radar.c
 msgid "OK open  Back"
 msgstr "OK abrir  Atrás"
+
+#: core/ui/ui_aprs.c core/ui/ui_aprs_list.c
+msgid "Nothing heard yet"
+msgstr "Aún nada oído"
 
 #: core/ui/ui_aprs.c core/ui/ui_menus.c
 msgid "To"

@@ -973,14 +973,6 @@ msgstr "OK cambia  Indietro"
 msgid "OK choose  Back"
 msgstr "OK scegli  Indietro"
 
-#: core/ui/ui_aprs.c core/ui/ui_aprs_objects.c core/ui/ui_aprs_tune.c
-msgid "Heard"
-msgstr "Sentite"
-
-#: core/ui/ui_aprs.c core/ui/ui_aprs_list.c
-msgid "Nothing heard yet"
-msgstr "Ancora niente sentito"
-
 #: core/ui/ui_aprs.c core/ui/ui_menus.c
 msgid "Message"
 msgstr "Messaggio"
@@ -997,6 +989,10 @@ msgstr "{Distanza|Dist|}"
 #. requires: CONFIG_APRS_RX
 msgid "Old"
 msgstr "Datata"
+
+#: core/ui/ui_aprs.c core/ui/ui_aprs_objects.c core/ui/ui_aprs_tune.c
+msgid "Heard"
+msgstr "Sentite"
 
 #: core/ui/ui_aprs.c core/ui/ui_aprs_beacon.c
 msgid "Direct"
@@ -1128,6 +1124,10 @@ msgstr " scartati"
 #: core/ui/ui_aprs.c core/ui/ui_aprs_radar.c
 msgid "OK open  Back"
 msgstr "OK apri  Indietro"
+
+#: core/ui/ui_aprs.c core/ui/ui_aprs_list.c
+msgid "Nothing heard yet"
+msgstr "Ancora niente sentito"
 
 #: core/ui/ui_aprs.c core/ui/ui_menus.c
 msgid "To"
