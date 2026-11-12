@@ -45,6 +45,9 @@ const char build_features[] =
 #if CONFIG_APRS_DMR
 	"APRS_DMR,"
 #endif
+#if CONFIG_APRS_HOME
+	"APRS_HOME,"
+#endif
 #if CONFIG_APRS_RX
 	"APRS_RX,"
 #endif

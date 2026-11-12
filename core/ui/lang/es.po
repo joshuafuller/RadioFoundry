@@ -665,12 +665,32 @@ msgid "KISS on USB"
 msgstr "KISS por USB"
 
 #: core/ui/ui_aprs.c
+msgid "Stations"
+msgstr "Estaciones"
+
+#: core/ui/ui_aprs.c core/ui/ui_find.c core/ui/ui_menus.c
+msgid "Messages"
+msgstr "Mensajes"
+
+#: core/ui/ui_aprs.c
+msgid "Weather"
+msgstr "Tiempo"
+
+#: core/ui/ui_aprs.c
+msgid "My beacon"
+msgstr "Mi baliza"
+
+#: core/ui/ui_aprs.c
 msgid "Stations heard"
 msgstr "Estaciones oídas"
 
 #: core/ui/ui_aprs.c
 msgid "NMEA on USB"
 msgstr "NMEA por USB"
+
+#: core/ui/ui_aprs.c
+msgid " unread"
+msgstr " sin leer"
 
 #: core/ui/ui_aprs.c core/ui/ui_menus.c core/ui/ui_screens.c
 msgid "On"
@@ -679,6 +699,10 @@ msgstr "Sí"
 #: core/ui/ui_aprs.c
 msgid "As channel"
 msgstr "Como canal"
+
+#: core/ui/ui_aprs.c core/ui/ui_menus.c
+msgid " new"
+msgstr " nuevos"
 
 #: core/ui/ui_aprs.c
 msgid "Sending position"
@@ -705,16 +729,20 @@ msgid "This radio can't receive APRS"
 msgstr "Esta radio no recibe APRS"
 
 #: core/ui/ui_aprs.c
+msgid "Symbol"
+msgstr "Símbolo"
+
+#: core/ui/ui_aprs.c core/ui/ui_menus.c core/ui/ui_screens.c
+msgid "Back"
+msgstr "Atrás"
+
+#: core/ui/ui_aprs.c
 msgid "0-9 pick  Back"
 msgstr "0-9 elegir  Atrás"
 
 #: core/ui/ui_aprs.c
 msgid "Heard"
 msgstr "Oídas"
-
-#: core/ui/ui_aprs.c core/ui/ui_menus.c core/ui/ui_screens.c
-msgid "Back"
-msgstr "Atrás"
 
 #: core/ui/ui_aprs.c
 msgid "Nothing heard yet"
@@ -753,16 +781,84 @@ msgid "Course"
 msgstr "Rumbo"
 
 #: core/ui/ui_aprs.c
-msgid "Symbol"
-msgstr "Símbolo"
-
-#: core/ui/ui_aprs.c
 msgid "Packets"
 msgstr "Paquetes"
 
 #: core/ui/ui_aprs.c
 msgid "OK choose  Back"
 msgstr "OK elegir  Atrás"
+
+#: core/ui/ui_aprs_home.c
+msgid "Not sending: no callsign"
+msgstr "No envía: sin indicativo"
+
+#: core/ui/ui_aprs_home.c
+msgid "Not sending: no frequency"
+msgstr "No envía: sin frecuencia"
+
+#: core/ui/ui_aprs_home.c
+msgid "Not sending: outside ham band"
+msgstr "No envía: fuera de banda"
+
+#: core/ui/ui_aprs_home.c
+msgid "Not sending: no transmitter"
+msgstr "No envía: sin transmisor"
+
+#: core/ui/ui_aprs_home.c
+msgid "Not sending: busy"
+msgstr "No envía: ocupado"
+
+#: core/ui/ui_aprs_home.c
+msgid "Not sending: no position"
+msgstr "No envía: sin posición"
+
+#: core/ui/ui_aprs_home.c
+msgid "Repeated by "
+msgstr "Repetido por "
+
+#: core/ui/ui_aprs_home.c
+msgid " heard"
+msgstr " oídas"
+
+#: core/ui/ui_aprs_home.c
+msgid ", nearest "
+msgstr ", más cercana "
+
+#: core/ui/ui_aprs_home.c
+msgid "APRS sending"
+msgstr "APRS enviando"
+
+#: core/ui/ui_aprs_home.c
+msgid "APRS sent "
+msgstr "APRS enviado "
+
+#: core/ui/ui_aprs_home.c
+msgid ", next "
+msgstr ", siguiente "
+
+#: core/ui/ui_aprs_home.c
+msgid "APRS listening"
+msgstr "APRS escuchando"
+
+#: core/ui/ui_aprs_home.c
+msgid "Not listening: off"
+msgstr "No escucha: apagado"
+
+#: core/ui/ui_aprs_home.c
+msgid "Not listening: no receiver"
+msgstr "No escucha: sin receptor"
+
+#: core/ui/ui_aprs_home.c
+msgid "Not listening: voice channel"
+msgstr "No escucha: canal de voz"
+
+#: core/ui/ui_aprs_home.c
+msgid "Not listening: radio busy"
+msgstr "No escucha: radio ocupada"
+
+#: core/ui/ui_aprs_home.c
+msgid "Not listening: receiver busy"
+msgstr "No escucha: receptor ocupado"
 
 #: core/ui/ui_dual.c core/ui/ui_screens.c
 msgid "No tone"
@@ -935,10 +1031,6 @@ msgstr "OK elegir  Atrás"
 #: core/ui/ui_find.c core/ui/ui_menus.c
 msgid "Contacts"
 msgstr "Contactos"
-
-#: core/ui/ui_find.c core/ui/ui_menus.c
-msgid "Messages"
-msgstr "Mensajes"
 
 #: core/ui/ui_find.c core/ui/ui_menus.c
 msgid "Recent"
@@ -1119,10 +1211,6 @@ msgstr "Último en llamar"
 #: core/ui/ui_menus.c
 msgid "Zones"
 msgstr "Zonas"
-
-#: core/ui/ui_menus.c
-msgid " new"
-msgstr " nuevos"
 
 #: core/ui/ui_menus.c
 msgid "Scanning"
@@ -2811,6 +2899,10 @@ msgstr "Ayuda de comandos"
 #: core/ui/ui_menus.c
 msgid "Language"
 msgstr "Idioma/Language"
+
+#: core/ui/ui_menus.c
+msgid "APRS line"
+msgstr "Línea APRS"
 
 #: core/ui/ui_menus.c
 msgid "Reply window"

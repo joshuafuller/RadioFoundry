@@ -1193,6 +1193,13 @@ bool ui_home_key(const input_event_t *ev)
 
 void ui_home_draw(void)
 {
+#if CONFIG_APRS_HOME
+	for (unsigned i = 0; i < 2; i++) {
+		ui_st.aprs_lines[i][0] = 0;
+		if (ui_svc_setting_get(UI_SET_APRS_LINE))
+			ui_aprs_status(ui_st.aprs_lines[i], sizeof ui_st.aprs_lines[i], i != 0);
+	}
+#endif
 	ui_draw_home(view, &ui_st);
 }
 

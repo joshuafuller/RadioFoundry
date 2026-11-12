@@ -38,6 +38,9 @@ typedef enum {
 	SCR_CP_FOREIGN,			// another firmware's codeplug: what the first edit does with it (ui_svc_codeplug_answer)
 	SCR_APRS_TO,			// destination callsign editor for APRS transmission
 	SCR_APRS_STATION,		// a heard station's actions
+#if CONFIG_APRS_HOME
+	SCR_APRS_BEACON,
+#endif
 	SCR_MESSAGE_TEXT,		// message body editor
 	SCR_COUNT
 } ui_scr_t;

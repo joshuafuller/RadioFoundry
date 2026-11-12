@@ -665,12 +665,32 @@ msgid "KISS on USB"
 msgstr "KISS su USB"
 
 #: core/ui/ui_aprs.c
-msgid "Stations heard"
+msgid "Stations"
 msgstr "Stazioni sentite"
+
+#: core/ui/ui_aprs.c core/ui/ui_find.c core/ui/ui_menus.c
+msgid "Messages"
+msgstr "Messaggi"
+
+#: core/ui/ui_aprs.c
+msgid "Weather"
+msgstr "Meteo"
+
+#: core/ui/ui_aprs.c
+msgid "My beacon"
+msgstr "Il mio beacon"
+
+#: core/ui/ui_aprs.c
+msgid "Stations heard"
+msgstr "Stazioni ascoltate"
 
 #: core/ui/ui_aprs.c
 msgid "NMEA on USB"
 msgstr "NMEA su USB"
+
+#: core/ui/ui_aprs.c
+msgid " unread"
+msgstr " non letti"
 
 #: core/ui/ui_aprs.c core/ui/ui_menus.c core/ui/ui_screens.c
 msgid "On"
@@ -679,6 +699,10 @@ msgstr "Sì"
 #: core/ui/ui_aprs.c
 msgid "As channel"
 msgstr "Come canale"
+
+#: core/ui/ui_aprs.c core/ui/ui_menus.c
+msgid " new"
+msgstr " nuovi"
 
 #: core/ui/ui_aprs.c
 msgid "Sending position"
@@ -705,16 +729,20 @@ msgid "This radio can't receive APRS"
 msgstr "Questa radio non riceve APRS"
 
 #: core/ui/ui_aprs.c
+msgid "Symbol"
+msgstr "Simbolo"
+
+#: core/ui/ui_aprs.c core/ui/ui_menus.c core/ui/ui_screens.c
+msgid "Back"
+msgstr "Indietro"
+
+#: core/ui/ui_aprs.c
 msgid "0-9 pick  Back"
 msgstr "0-9 scegli  Indietro"
 
 #: core/ui/ui_aprs.c
 msgid "Heard"
 msgstr "Sentite"
-
-#: core/ui/ui_aprs.c core/ui/ui_menus.c core/ui/ui_screens.c
-msgid "Back"
-msgstr "Indietro"
 
 #: core/ui/ui_aprs.c
 msgid "Nothing heard yet"
@@ -753,16 +781,84 @@ msgid "Course"
 msgstr "Rotta"
 
 #: core/ui/ui_aprs.c
-msgid "Symbol"
-msgstr "Simbolo"
-
-#: core/ui/ui_aprs.c
 msgid "Packets"
 msgstr "Pacchetti"
 
 #: core/ui/ui_aprs.c
 msgid "OK choose  Back"
 msgstr "OK scegli  Indietro"
+
+#: core/ui/ui_aprs_home.c
+msgid "Not sending: no callsign"
+msgstr "Non invia: nominativo assente"
+
+#: core/ui/ui_aprs_home.c
+msgid "Not sending: no frequency"
+msgstr "Non invia: frequenza assente"
+
+#: core/ui/ui_aprs_home.c
+msgid "Not sending: outside ham band"
+msgstr "Non invia: fuori banda"
+
+#: core/ui/ui_aprs_home.c
+msgid "Not sending: no transmitter"
+msgstr "Non invia: trasmettitore assente"
+
+#: core/ui/ui_aprs_home.c
+msgid "Not sending: busy"
+msgstr "Non invia: occupato"
+
+#: core/ui/ui_aprs_home.c
+msgid "Not sending: no position"
+msgstr "Non invia: posizione assente"
+
+#: core/ui/ui_aprs_home.c
+msgid "Repeated by "
+msgstr "Ripetuto da "
+
+#: core/ui/ui_aprs_home.c
+msgid " heard"
+msgstr " ascoltate"
+
+#: core/ui/ui_aprs_home.c
+msgid ", nearest "
+msgstr ", più vicina "
+
+#: core/ui/ui_aprs_home.c
+msgid "APRS sending"
+msgstr "APRS in trasmissione"
+
+#: core/ui/ui_aprs_home.c
+msgid "APRS sent "
+msgstr "APRS inviato "
+
+#: core/ui/ui_aprs_home.c
+msgid ", next "
+msgstr ", prossimo "
+
+#: core/ui/ui_aprs_home.c
+msgid "APRS listening"
+msgstr "APRS in ascolto"
+
+#: core/ui/ui_aprs_home.c
+msgid "Not listening: off"
+msgstr "Non ascolta: spento"
+
+#: core/ui/ui_aprs_home.c
+msgid "Not listening: no receiver"
+msgstr "Non ascolta: ricevitore assente"
+
+#: core/ui/ui_aprs_home.c
+msgid "Not listening: voice channel"
+msgstr "Non ascolta: canale voce"
+
+#: core/ui/ui_aprs_home.c
+msgid "Not listening: radio busy"
+msgstr "Non ascolta: radio occupata"
+
+#: core/ui/ui_aprs_home.c
+msgid "Not listening: receiver busy"
+msgstr "Non ascolta: ricevitore occupato"
 
 #: core/ui/ui_dual.c core/ui/ui_screens.c
 msgid "No tone"
@@ -935,10 +1031,6 @@ msgstr "OK scegli  Indietro"
 #: core/ui/ui_find.c core/ui/ui_menus.c
 msgid "Contacts"
 msgstr "Contatti"
-
-#: core/ui/ui_find.c core/ui/ui_menus.c
-msgid "Messages"
-msgstr "Messaggi"
 
 #: core/ui/ui_find.c core/ui/ui_menus.c
 msgid "Recent"
@@ -1119,10 +1211,6 @@ msgstr "Ultimo chiamante"
 #: core/ui/ui_menus.c
 msgid "Zones"
 msgstr "Zone"
-
-#: core/ui/ui_menus.c
-msgid " new"
-msgstr " nuovi"
 
 #: core/ui/ui_menus.c
 msgid "Scanning"
@@ -2811,6 +2899,10 @@ msgstr "Riga suggerim."
 #: core/ui/ui_menus.c
 msgid "Language"
 msgstr "Lingua/Language"
+
+#: core/ui/ui_menus.c
+msgid "APRS line"
+msgstr "Riga APRS"
 
 #: core/ui/ui_menus.c
 msgid "Reply window"

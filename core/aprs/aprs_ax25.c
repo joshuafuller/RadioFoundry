@@ -8,6 +8,7 @@
 #if CONFIG_APRS_AFSK
 #include <string.h>
 #include "aprs/aprs_int.h"
+#include "aprs/aprs_home.h"
 #include "aprs/hdlc.h"
 #include "aprs/kiss.h"
 #include "board.h"
@@ -732,8 +733,9 @@ void aprs_rx_frame(const uint8_t *frame, size_t n, uint32_t now_ms)
 	aprs_s.v.rx_frames++;
 	host_emit(KISS_CMD_DATA, frame, n);
 	if (aprs_s.me_ok && ax25_addr_equal(&f.src, &aprs_s.me)) {
+		aprs_home_repeat(&f, now_ms);
 		UNLOCK();
-		return;		// our own packet, digipeated back
+		return;		// our own packet never enters the station table
 	}
 	aprs_parse(&f.dst, f.info, f.info_len, &p);
 	station_update(&f, &p);
@@ -828,6 +830,12 @@ void aprs_ax25_rx_service(const aprs_radio_t *r, uint32_t now_ms)
 	if (!want) {
 		aprs_s.rx_retry_wait = false;	// a refusal's wait is for the try it followed, not a later one
 	}
+	LOCK();
+	aprs_home_listening(!aprs_s.cfg.rx_on ? APRS_LISTEN_OFF :
+		!(own || rx_by_stream()) ? APRS_LISTEN_UNAVAILABLE :
+		r->rx_hz != aprs_cfg_freq(&aprs_s.cfg) ? APRS_LISTEN_CHANNEL :
+		!r->fm_rx ? APRS_LISTEN_BUSY : !aprs_s.rx_running ? APRS_LISTEN_FAILED : APRS_LISTEN_ON);
+	UNLOCK();
 	if (aprs_s.rx_running) {
 		uint16_t n = (uint16_t)(sizeof(aprs_s.rxbuf) / sizeof(aprs_s.rxbuf[0]));
 		uint16_t k;
@@ -932,6 +940,8 @@ void aprs_rf_done(aprs_rf_result_t r, uint32_t now_ms)
 	LOCK();
 	aprs_s.now = now_ms;
 	if (r == APRS_RF_SENT) {
+		for (uint8_t i = 0; i < aprs_s.taken && i < aprs_s.qn; i++)
+			aprs_home_sent(aprs_s.q[i].data, aprs_s.q[i].len, now_ms);
 		queue_drop(aprs_s.taken);
 		aprs_s.v.rf_sent++;
 	} else {

@@ -8,6 +8,12 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "aprs/aprs.h"
+#include "aprs/aprs_home.h"
+
+#if CONFIG_APRS_HOME
+void ui_svc_aprs_home(aprs_home_t *h);
+void ui_aprs_status(char *out, size_t len, bool second);
+#endif
 
 // False when APRS isn't in this build
 bool ui_svc_aprs_view(aprs_view_t *v);

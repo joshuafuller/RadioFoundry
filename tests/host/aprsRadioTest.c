@@ -11,6 +11,7 @@
 #include "radio/radio_sm.h"
 #include "settings/settings.h"
 #include "aprs/aprs.h"
+#include "aprs/aprs_home.h"
 #include "aprs/aprs_host.h"
 #include "aprs/aprs_beacon.h"
 #include "aprs/aprs_fmt.h"
@@ -1478,6 +1479,64 @@ static void test_rx_board_only(void)
 }
 #endif
 
+static void test_home_repeat(void)
+{
+	reset();
+	aprs_set_test_call("Q1TST");
+	configure(60, false);
+	CHECK(aprs_send_now());
+	CHECK(wait_start(1, 5000));
+	wait_idle();
+	aprs_home_t h;
+	aprs_home_get(&h);
+	CHECK(h.sent && h.digi[0] == 0);
+	uint32_t sent_ms = h.sent_ms;
+	const char *info = strchr(frames[0], ':');
+	CHECK(info != NULL);
+	char line[AX25_TNC2_MAX];
+	snprintf(line, sizeof line, "Q1TST-7>APZRDF,Q4DIG-1*%s", info);
+	rx_line(line);
+	aprs_home_get(&h);
+	CHECK(strcmp(h.digi, "Q4DIG-1") == 0 && h.repeat_serial == 1);
+	CHECK(h.sent_ms == sent_ms && h.repeated_ms == now && aprs_station_count() == 0);
+	// Same identity alone, a direct echo, an alias, or an old packet is not repeat evidence.
+	snprintf(line, sizeof line, "Q1TST-7>APZRDF,Q4BAD-1*:>different");
+	rx_line(line);
+	snprintf(line, sizeof line, "Q1TST-7>APZRDF,Q4BAD-1%s", info);
+	rx_line(line);
+	snprintf(line, sizeof line, "Q1TST-7>APZRDF,WIDE1-1*%s", info);
+	rx_line(line);
+	aprs_home_get(&h);
+	CHECK(h.repeat_serial == 1 && aprs_station_count() == 0);
+	// An expired repeat and a relayed foreign packet cannot change our evidence.
+	uint32_t saved_now = now;
+	now = sent_ms + 600001u;
+	snprintf(line, sizeof line, "Q1TST-7>APZRDF,Q4DIG-1*%s", info);
+	rx_line(line);
+	aprs_home_get(&h);
+	CHECK(h.repeat_serial == 1);
+	now = saved_now;
+	ax25_frame_t foreign;
+	uint8_t raw[AX25_FRAME_MAX];
+	const char *other = "Q2OTHR>APZRDF:>foreign";
+	CHECK(ax25_from_tnc2(other, strlen(other), &foreign));
+	size_t raw_len = ax25_encode(&foreign, raw, sizeof raw);
+	aprs_home_sent(raw, raw_len, now);
+	aprs_home_get(&h);
+	CHECK(h.sent_ms == sent_ms && strcmp(h.digi, "Q4DIG-1") == 0);
+	// A later successful packet clears the previous repeat.
+	run(6000);
+	CHECK(aprs_send_status("new packet"));
+	CHECK(wait_start(2, 5000));
+	wait_idle();
+	aprs_home_get(&h);
+	CHECK(h.digi[0] == 0 && h.sent_ms > sent_ms);
+	snprintf(line, sizeof line, "Q1TST-7>APZRDF,Q4DIG-1*%s", info);
+	rx_line(line);
+	aprs_home_get(&h);
+	CHECK(h.digi[0] == 0 && aprs_station_count() == 0);
+}
+
 int main(void)
 {
 	test_defaults();
@@ -1506,6 +1565,7 @@ int main(void)
 	test_codeplug_path();
 	test_rf_failures();
 #if CONFIG_APRS_RX
+	test_home_repeat();
 	test_stations_digi_igate();
 	test_rx_stream();
 	test_rx_board_only();
