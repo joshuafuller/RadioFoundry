@@ -93,6 +93,7 @@ typedef struct {
 #define FD6818_REG_BANDWIDTH	0x43
 #define FD6818_REG_AF		0x47	// AF output: 0x6042 = muted in FM, FD6818_AF_FM / FD6818_AF_AM below
 #define FD6818_REG_VOLUME	0x48
+#define FD6818_REG_AUDIO_GAIN	0x53	// RX audio gain: audio_rx_gain_sh 15:13 (6 dB steps), audio_rx_gain 9:5 (1 dB steps, 0 = mute)
 #define FD6818_REG_AM_4A	0x4A	// FD6818_AM_4A in AM, else the variant's init word (if any); meaning not known
 #define FD6818_REG_SQ_NOISE	0x4F	// squelch noise thresholds: noise_sq_th_out 14:8, noise_sq_th_in 6:0 (guide, squelch)
 #define FD6818_REG_SUBAUDIO	0x51

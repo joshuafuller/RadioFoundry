@@ -11,6 +11,7 @@
 #include "platform.h"
 #include "hal_time.h"
 #include "rf/fd6818/fd6818.h"
+#include "rf/fd6818/fd6818sh.h"
 #include "modem/hrc7000/hrc7000.h"
 #include "fm_rx_audio.h"
 #include "hrc_afsk.h"
@@ -99,9 +100,11 @@ static uint16_t last_rssi_raw, last_noise_raw;
 static bool pcm_on;		// a beep or DMR voice plays through the codec
 static bool rx_audio;		// the squelch is open (the radio's audio hook)
 // Soft volume (rf-i7t): the knob is analog on the amplifier and the MCU can't read it, so the firmware's volume sits
-// under it. FM: the FD6818's AF DAC gain, 0x48 bits 3:0 (the mode tables write 0xF: the default step keeps it);
-// DMR voice and beeps: the HR_C7000's line out (dac_gain). Step 0 keeps the amplifier off for receive audio
-static uint8_t vol_nibble = 0xFu;
+// under it. FM: the FD6818's RX audio gain word 0x53 (audio_rx_gain_sh 15:13, audio_rx_gain 9:5, per the FD6818
+// programming guide; the same word the superhet driver builds, fd6818sh_volume_word); the default step and above
+// keep the chip's own value. DMR voice and beeps: the HR_C7000's line out (dac_gain). Step 0 keeps the amplifier off
+static uint8_t vol_step = RADIO_VOLUME_DEFAULT;
+static int32_t vol_r53 = -1;	// the chip's 0x53 before the first change, restored at the default step
 static bool vol_muted;
 static bool asleep;		// the receiver is powered down between listen windows (rx_sleep)
 static bool aprs_listen;	// APRS takes the HR_C7000's FM audio (aprs_listen_route)
@@ -691,12 +694,19 @@ static void vol_apply(void)
 	if (fd.bus == NULL || asleep) {
 		return;		// wake() and the next tune apply it
 	}
-	uint16_t r = rfbus_read(fd.bus, FD6818_REG_VOLUME);
-	fd6818_write(&fd, FD6818_REG_VOLUME, (uint16_t)((r & ~0xFu) | vol_nibble));
+	if (vol_r53 < 0) {
+		if (vol_step >= RADIO_VOLUME_DEFAULT) {
+			return;		// nothing changed yet: leave the chip's own word alone
+		}
+		vol_r53 = rfbus_read(fd.bus, FD6818_REG_AUDIO_GAIN);
+	}
+	uint16_t w = vol_step >= RADIO_VOLUME_DEFAULT ? (uint16_t)vol_r53
+		: fd6818sh_volume_word((uint8_t)(vol_step * 15u / RADIO_VOLUME_DEFAULT));
+	fd6818_write(&fd, FD6818_REG_AUDIO_GAIN, w);
 }
 
-// percent of the volume scale back to its step; FM: the default step and above keep the full nibble (the knob is the
-// ceiling), each step below takes 2 off; the line out: 0 dB at the default step, as on the other HR_C7000 boards
+// percent of the volume scale back to its step; FM: below the default step the 0x53 gain word for that level (the
+// knob is the ceiling above it); the line out: 0 dB at the default step, as on the other HR_C7000 boards
 static void volume(uint8_t percent)
 {
 	unsigned step = (percent * RADIO_VOLUME_MAX + 50u) / 100u;
@@ -707,8 +717,7 @@ static void volume(uint8_t percent)
 	step = RADIO_VOLUME_DEFAULT;	// the knob already sets the amplifier: the chip stays at full gain under it
 #endif
 	vol_muted = step == 0;
-	unsigned down = step >= RADIO_VOLUME_DEFAULT ? 0u : (RADIO_VOLUME_DEFAULT - step) * 2u;
-	vol_nibble = (uint8_t)(down >= 15u ? 0u : 15u - down);
+	vol_step = (uint8_t)step;
 	uint8_t code = hrc7000_dac_code(hrc7000_volume_db(step, RADIO_VOLUME_DEFAULT, RADIO_VOLUME_MAX, 12));
 	if (fd.bus != NULL) {
 		hrc7000_set_dac_gain(&modem, code);
