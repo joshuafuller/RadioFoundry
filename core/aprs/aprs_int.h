@@ -53,7 +53,9 @@ typedef struct {
 	aprs_view_t v;
 #if CONFIG_APRS_AFSK
 	// The AX.25 half (aprs_ax25.c)
+#if !CONFIG_APRS_BEACON
 	char comment[CODEPLUG_APRS_COMMENT + 1];	// from the codeplug's APRS configuration 1
+#endif
 	char test_call[AX25_CALL_LEN + 4];
 	ax25_addr_t me;
 	bool me_ok;
@@ -121,6 +123,7 @@ void aprs_cfg_store_defaults(settings_t *s);
 void aprs_ax25_init(uint32_t now_ms);
 // Who we are, from the settings and the codeplug (reads storage: outside the lock)
 void aprs_ax25_identity(void);
+const char *aprs_ax25_comment(void); // caller holds the APRS lock
 // Every tick, outside the lock: the identity again when the codeplug changed, and now and then
 void aprs_ax25_poll(uint32_t now_ms);
 // Every tick, lock held, before the beacon triggers: the host's rate limit, old station positions, what blocks RF

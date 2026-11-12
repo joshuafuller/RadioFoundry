@@ -440,6 +440,7 @@ static struct {
 	bool repeat;
 	bool no_pos;		// "aprs:nopos": no position of our own (no GPS fix, no fixed position)
 	aprs_cfg_t cfg;
+	char comment[APRS_COMMENT_MAX + 1];
 	uint32_t sent;
 } aprs_sim;
 static void aprs_sim_reset(void)
@@ -449,6 +450,8 @@ static void aprs_sim_reset(void)
 	aprs_sim.listening = APRS_LISTEN_ON;
 	aprs_sim.cfg.region = APRS_REGION_NA;
 	aprs_sim.cfg.ssid = 7;
+	aprs_sim.cfg.sym_table = '/';
+	aprs_sim.cfg.sym_code = '[';
 	aprs_sim.cfg.path = APRS_PATH_WIDE1_WIDE2;
 	aprs_sim.cfg.level = 50;
 	aprs_sim.cfg.rx_on = true;
@@ -484,6 +487,14 @@ bool ui_svc_aprs_view(aprs_view_t *v)
 }
 void ui_svc_aprs_cfg(aprs_cfg_t *c) { *c = aprs_sim.cfg; }
 void ui_svc_aprs_set_cfg(const aprs_cfg_t *c) { aprs_sim.cfg = *c; }
+#if CONFIG_APRS_BEACON
+void ui_svc_aprs_comment(char out[APRS_COMMENT_MAX + 1]) { strcpy(out, aprs_sim.comment); }
+bool ui_svc_aprs_set_comment(const char *text)
+{
+	snprintf(aprs_sim.comment, sizeof aprs_sim.comment, "%s", text);
+	return true;
+}
+#endif
 bool ui_svc_aprs_send_now(void)
 {
 	if (aprs_sim.off || aprs_sim.no_call)
@@ -2587,6 +2598,8 @@ static bool check(const char *kv, char *err, size_t len)
 	else if (strcmp(key, "crash_sends") == 0) snprintf(got, sizeof got, "%u", crash_sim.sends);
 	else if (strcmp(key, "crash_seen") == 0) snprintf(got, sizeof got, "%u", crash_sim.seen);
 	else if (strcmp(key, "crash_have") == 0) snprintf(got, sizeof got, "%u", crash_sim.have);
+	else if (strcmp(key, "aprs_comment") == 0) snprintf(got, sizeof got, "%s", aprs_sim.comment);
+	else if (strcmp(key, "aprs_symbol") == 0) snprintf(got, sizeof got, "%c%c", aprs_sim.cfg.sym_table, aprs_sim.cfg.sym_code);
 	else if (strcmp(key, "aprs_auto") == 0) snprintf(got, sizeof got, "%u", aprs_sim.cfg.tx_on);
 	else if (strcmp(key, "aprs_region") == 0) snprintf(got, sizeof got, "%u", aprs_sim.cfg.region);
 	else if (strcmp(key, "aprs_interval") == 0) snprintf(got, sizeof got, "%u", aprs_sim.cfg.interval_s);

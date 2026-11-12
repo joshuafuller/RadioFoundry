@@ -33,6 +33,12 @@
 
 enum { K_BEACON, K_STATUS, K_MSG, K_ACK, K_HOST, K_GATE, K_DIGI };
 
+#if CONFIG_APRS_BEACON
+static char beacon_comment[APRS_COMMENT_MAX + 1]; // main RAM: the longer comment must not grow CPU-only RAM
+#else
+#define beacon_comment aprs_s.comment
+#endif
+
 static uint8_t rf_block(void);
 
 #if CONFIG_APRS_RX
@@ -222,10 +228,16 @@ void aprs_ax25_identity(void)
 		memcpy(aprs_s.me.call, call, n + 1u);
 		aprs_s.me.ssid = aprs_s.cfg.ssid;
 	}
-	aprs_s.comment[0] = '\0';
+	beacon_comment[0] = '\0';
 	if (have_cp) {
-		memcpy(aprs_s.comment, cp.comment, sizeof(aprs_s.comment));
+		memcpy(beacon_comment, cp.comment, sizeof(cp.comment));
 	}
+#if CONFIG_APRS_BEACON
+	if (st.aprs_flags2 & SETTINGS_APRS2_COMMENT) {
+		memcpy(beacon_comment, st.aprs_comment, sizeof(beacon_comment));
+		beacon_comment[APRS_COMMENT_MAX] = '\0';
+	}
+#endif
 	aprs_s.block = rf_block();
 	aprs_changed();
 	UNLOCK();
@@ -235,6 +247,41 @@ void aprs_ax25_identity(void)
 		take_codeplug_path(&st, &cp);
 	}
 }
+
+const char *aprs_ax25_comment(void) { return beacon_comment; }
+
+#if CONFIG_APRS_BEACON
+void aprs_get_comment(char out[APRS_COMMENT_MAX + 1])
+{
+	LOCK();
+	memcpy(out, beacon_comment, APRS_COMMENT_MAX + 1);
+	UNLOCK();
+}
+
+bool aprs_set_comment(const char *text, uint32_t now_ms)
+{
+	if (text == NULL) {
+		return false;
+	}
+	size_t n = 0;
+	while (n <= APRS_COMMENT_MAX && text[n] != '\0') {
+		if ((unsigned char)text[n] < ' ' || (unsigned char)text[n] > '~') {
+			return false;
+		}
+		n++;
+	}
+	if (n > APRS_COMMENT_MAX) {
+		return false;
+	}
+	settings_t *s = settings_begin();
+	memset(s->aprs_comment, 0, sizeof(s->aprs_comment));
+	memcpy(s->aprs_comment, text, n);
+	s->aprs_flags2 |= SETTINGS_APRS2_COMMENT;
+	settings_end(now_ms);
+	aprs_ax25_identity();
+	return true;
+}
+#endif
 
 // --- Small helpers (lock held) ---
 
@@ -417,7 +464,7 @@ static size_t build_beacon(const position_fix_t *f)
 	r.compressed = aprs_s.cfg.compressed;
 	r.messaging = aprs_s.cfg.messaging;
 	r.ambiguity = aprs_s.cfg.compressed ? 0 : position_ambiguity();
-	r.comment = aprs_s.comment;
+	r.comment = beacon_comment;
 	return aprs_build_position(&r, aprs_s.info, sizeof(aprs_s.info));
 }
 

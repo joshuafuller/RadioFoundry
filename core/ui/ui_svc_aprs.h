@@ -24,6 +24,10 @@ bool ui_svc_aprs_wx_station(uint8_t i, aprs_wx_station_t *out);
 bool ui_svc_aprs_view(aprs_view_t *v);
 void ui_svc_aprs_cfg(aprs_cfg_t *c);
 void ui_svc_aprs_set_cfg(const aprs_cfg_t *c);
+#if CONFIG_APRS_BEACON
+void ui_svc_aprs_comment(char out[APRS_COMMENT_MAX + 1]);
+bool ui_svc_aprs_set_comment(const char *text);
+#endif
 bool ui_svc_aprs_send_now(void);
 bool ui_svc_aprs_send_message(const char *to, const char *text, uint8_t flags);
 uint8_t ui_svc_aprs_msg_count(void);

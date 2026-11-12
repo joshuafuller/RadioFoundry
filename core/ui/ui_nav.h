@@ -47,7 +47,7 @@ typedef enum {
 	SCR_APRS_FILTER,		// station display filter
 	SCR_APRS_RADAR,
 
-#if CONFIG_APRS_HOME
+#if CONFIG_APRS_HOME || CONFIG_APRS_BEACON
 	SCR_APRS_BEACON,
 #endif
 	SCR_MESSAGE_TEXT,		// message body editor
@@ -55,6 +55,7 @@ typedef enum {
 #if CONFIG_APRS_RX
 	SCR_APRS_THREAD,
 #endif
+	SCR_APRS_SYMBOL, SCR_APRS_PACE, SCR_APRS_REACH, SCR_APRS_COMMENT,
 	SCR_COUNT
 } ui_scr_t;
 
@@ -131,6 +132,8 @@ void ui_focus_changed(void);
 // Open the actions for a target (SCR_ACTIONS)
 void ui_open_actions(const ui_target_t *t);
 void ui_aprs_compose(const char *call);
+extern char ui_aprs_text[320]; // shared draw scratch: only the current APRS screen uses it
+const char *ui_aprs_beacon_status(void);
 void ui_aprs_list_reset(void);
 #if CONFIG_APRS_RX
 void ui_aprs_station_open(const char *call);
@@ -139,6 +142,9 @@ void ui_aprs_thread_open(const char *call);
 bool ui_aprs_thread_exists(const char *call);
 uint8_t ui_aprs_conversation_count(void);
 bool ui_aprs_conversation(uint8_t i, aprs_msg_t *out);
+#endif
+#if CONFIG_APRS_BEACON
+void ui_aprs_comment_edit(char *target, void (*done)(void));
 #endif
 #if CONFIG_CONTACT_EDIT
 // The contact editor on a new contact for t: its ID, type and name (a talkgroup or ID as its name when it has none)

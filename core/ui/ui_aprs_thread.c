@@ -10,7 +10,6 @@
 // Main RAM: neither the engine's CCM state nor the UI task's stack holds these snapshots.
 static aprs_thread_msg_t messages[APRS_THREAD_MAX];
 static char thread_call[AX25_CALL_LEN + 4];
-static char text[320];
 static uint8_t selected, total;
 static uint16_t first, last;
 
@@ -109,7 +108,7 @@ static void thread_draw(void)
 	if (selected >= total)
 		selected = total ? (uint8_t)(total - 1u) : 0;
 	sbuf_t b;
-	sb_init(&b, text, sizeof text);
+	sb_init(&b, ui_aprs_text, sizeof ui_aprs_text);
 	if (total) {
 		const aprs_thread_msg_t *m = &messages[selected];
 		sb_u32(&b, selected + 1u, 1);
@@ -128,7 +127,7 @@ static void thread_draw(void)
 			sb_chr(&b, '\n');
 		}
 	}
-	last = (uint16_t)ui_draw_text_page(ui_view(), &ui_st, thread_call, text, &first);
+	last = (uint16_t)ui_draw_text_page(ui_view(), &ui_st, thread_call, ui_aprs_text, &first);
 	ui_draw_hint(TR("OK reply  Back"), false);
 }
 

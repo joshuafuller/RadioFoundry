@@ -20,7 +20,7 @@ msgstr "PC Loader conectado"
 msgid "Power-cycle to exit"
 msgstr "Reinicia para salir"
 
-#: core/ui/fmt.c core/ui/ui_aprs.c core/ui/ui_menus.c core/ui/ui_screens.c
+#: core/ui/fmt.c core/ui/ui_aprs.c core/ui/ui_aprs_beacon.c core/ui/ui_menus.c core/ui/ui_screens.c
 msgid "Off"
 msgstr "No"
 
@@ -516,31 +516,31 @@ msgstr "Esa zona fue borrada"
 msgid "Moved to "
 msgstr "Movido a "
 
-#: core/ui/ui_aprs.c core/ui/ui_menus.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_beacon.c core/ui/ui_menus.c
 msgid "1 min"
 msgstr "1 min"
 
-#: core/ui/ui_aprs.c core/ui/ui_menus.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_beacon.c core/ui/ui_menus.c
 msgid "2 min"
 msgstr "2 min"
 
-#: core/ui/ui_aprs.c core/ui/ui_menus.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_beacon.c core/ui/ui_menus.c
 msgid "5 min"
 msgstr "5 min"
 
-#: core/ui/ui_aprs.c core/ui/ui_menus.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_beacon.c core/ui/ui_menus.c
 msgid "10 min"
 msgstr "10 min"
 
-#: core/ui/ui_aprs.c core/ui/ui_menus.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_beacon.c core/ui/ui_menus.c
 msgid "30 min"
 msgstr "30 min"
 
-#: core/ui/ui_aprs.c core/ui/ui_menus.c core/ui/ui_screens.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_beacon.c core/ui/ui_menus.c core/ui/ui_screens.c
 msgid "None"
 msgstr "Ninguno"
 
-#: core/ui/ui_aprs.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_beacon.c
 msgid "Proportional"
 msgstr "Proporcional"
 
@@ -584,7 +584,7 @@ msgstr "Japón"
 msgid "China"
 msgstr "China"
 
-#: core/ui/ui_aprs.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_beacon.c
 msgid "Custom"
 msgstr "Propio"
 
@@ -693,7 +693,7 @@ msgstr "Paquetes recientes"
 msgid "Messages"
 msgstr "Mensajes"
 
-#: core/ui/ui_aprs.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_beacon.c
 msgid "My beacon"
 msgstr "Mi baliza"
 
@@ -761,7 +761,7 @@ msgstr "La ruta usa turnos de un minuto"
 msgid "This radio can't receive APRS"
 msgstr "Esta radio no recibe APRS"
 
-#: core/ui/ui_aprs.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_beacon.c
 msgid "Symbol"
 msgstr "Símbolo"
 
@@ -793,7 +793,7 @@ msgstr "Ya no está en lista"
 msgid "{Distance|Dist|}"
 msgstr "{Distancia|Dist|}"
 
-#: core/ui/ui_aprs.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_beacon.c
 msgid "Direct"
 msgstr "Directo"
 
@@ -817,7 +817,7 @@ msgstr "Rumbo"
 msgid "Packets"
 msgstr "Paquetes"
 
-#: core/ui/ui_aprs.c core/ui/ui_aprs_list.c core/ui/ui_aprs_wx.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_beacon.c core/ui/ui_aprs_list.c core/ui/ui_aprs_wx.c
 msgid "OK choose  Back"
 msgstr "OK elegir  Atrás"
 
@@ -926,6 +926,214 @@ msgstr "[truncado]"
 #. requires: CONFIG_APRS_RX
 msgid "Packet"
 msgstr "Paquete"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "On foot"
+msgstr "A pie"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Car"
+msgstr "Coche"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Bicycle"
+msgstr "Bicicleta"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Truck"
+msgstr "Camión"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Home"
+msgstr "Casa"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Boat"
+msgstr "Barco"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Camp"
+msgstr "Campamento"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Event"
+msgstr "Evento"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Motorcycle"
+msgstr "Moto"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Jeep"
+msgstr "Jeep"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Sport utility vehicle"
+msgstr "Todoterreno"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Van"
+msgstr "Furgoneta"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Recreational vehicle"
+msgstr "Autocaravana"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Bus"
+msgstr "Autobús"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Large truck"
+msgstr "Camión grande"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Tractor"
+msgstr "Tractor"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Train"
+msgstr "Tren"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Canoe"
+msgstr "Canoa"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Sailboat"
+msgstr "Velero"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Small aircraft"
+msgstr "Avión pequeño"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Large aircraft"
+msgstr "Avión grande"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Helicopter"
+msgstr "Helicóptero"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Glider"
+msgstr "Planeador"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Balloon"
+msgstr "Globo"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Horse"
+msgstr "Caballo"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Snowmobile"
+msgstr "Moto de nieve"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Wheelchair"
+msgstr "Silla de ruedas"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Weather station"
+msgstr "Estación meteo"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Digipeater"
+msgstr "Repetidor digital"
+
+#: core/ui/ui_aprs_beacon.c core/ui/ui_menus.c
+msgid "Repeater"
+msgstr "Repetidor"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Ambulance"
+msgstr "Ambulancia"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Fire truck"
+msgstr "Camión de bomberos"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Fire station"
+msgstr "Parque de bomberos"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Police"
+msgstr "Policía"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Aid station"
+msgstr "Puesto de socorro"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Hospital"
+msgstr "Hospital"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Command post"
+msgstr "Puesto de mando"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Emergency center"
+msgstr "Centro de emergencias"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Shelter"
+msgstr "Refugio"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Laptop"
+msgstr "Portátil"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Local relay"
+msgstr "Repetidor local"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Local then wide"
+msgstr "Local y amplio"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Wide one hop"
+msgstr "Amplio, un salto"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Wide two hops"
+msgstr "Amplio, dos saltos"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Smart"
+msgstr "Inteligente"
+
+#: core/ui/ui_aprs_beacon.c core/ui/ui_menus.c
+msgid "Comment"
+msgstr "Comentario"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Beacons"
+msgstr "Balizas"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Pace"
+msgstr "Ritmo"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Reach"
+msgstr "Alcance"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Automatic"
+msgstr "Automático"
+
+#: core/ui/ui_aprs_beacon.c
+msgid "Comment not saved"
+msgstr "Comentario no guardado"
+
+#: core/ui/ui_aprs_beacon.c core/ui/ui_menus.c core/ui/ui_position.c
+msgid "OK change  Back"
+msgstr "OK cambiar  Atrás"
 
 #: core/ui/ui_aprs_home.c
 msgid "Not sending: no callsign"
@@ -1075,6 +1283,54 @@ msgstr "Ajustes > Ubicación"
 msgid "No positions yet"
 msgstr "Aún sin posiciones"
 
+#: core/ui/ui_aprs_thread.c
+msgid "Queued"
+msgstr "En cola"
+
+#: core/ui/ui_aprs_thread.c core/ui/ui_menus.c
+msgid "Sending"
+msgstr "Enviando"
+
+#: core/ui/ui_aprs_thread.c
+msgid "Try "
+msgstr "Intento "
+
+#: core/ui/ui_aprs_thread.c
+msgid " s"
+msgstr " s"
+
+#: core/ui/ui_aprs_thread.c
+msgid "Delivered (acked)"
+msgstr "Entregado (confirmado)"
+
+#: core/ui/ui_aprs_thread.c
+msgid "No ack after "
+msgstr "Sin confirmar tras "
+
+#: core/ui/ui_aprs_thread.c
+msgid " tries"
+msgstr " intentos"
+
+#: core/ui/ui_aprs_thread.c
+msgid "Rejected"
+msgstr "Rechazado"
+
+#: core/ui/ui_aprs_thread.c
+msgid "Sent, no ack requested"
+msgstr "Enviado sin pedir confirmación"
+
+#: core/ui/ui_aprs_thread.c core/ui/ui_menus.c
+msgid "From "
+msgstr "De "
+
+#: core/ui/ui_aprs_thread.c core/ui/ui_menus.c
+msgid "To "
+msgstr "A "
+
+#: core/ui/ui_aprs_thread.c
+msgid "OK reply  Back"
+msgstr "OK responder  Atrás"
+
 #: core/ui/ui_aprs_wx.c
 msgid "No weather reports"
 msgstr "Sin informes meteorológicos"
@@ -1138,54 +1394,6 @@ msgstr "Desconocido"
 #: core/ui/ui_aprs_wx.c
 msgid "Up/Down scroll  Back"
 msgstr "Arr/Ab desplazar  Atrás"
-
-#: core/ui/ui_aprs_thread.c
-msgid "Queued"
-msgstr "En cola"
-
-#: core/ui/ui_aprs_thread.c core/ui/ui_menus.c
-msgid "Sending"
-msgstr "Enviando"
-
-#: core/ui/ui_aprs_thread.c
-msgid "Try "
-msgstr "Intento "
-
-#: core/ui/ui_aprs_thread.c
-msgid " s"
-msgstr " s"
-
-#: core/ui/ui_aprs_thread.c
-msgid "Delivered (acked)"
-msgstr "Entregado (confirmado)"
-
-#: core/ui/ui_aprs_thread.c
-msgid "No ack after "
-msgstr "Sin confirmar tras "
-
-#: core/ui/ui_aprs_thread.c
-msgid " tries"
-msgstr " intentos"
-
-#: core/ui/ui_aprs_thread.c
-msgid "Rejected"
-msgstr "Rechazado"
-
-#: core/ui/ui_aprs_thread.c
-msgid "Sent, no ack requested"
-msgstr "Enviado sin pedir confirmación"
-
-#: core/ui/ui_aprs_thread.c core/ui/ui_menus.c
-msgid "From "
-msgstr "De "
-
-#: core/ui/ui_aprs_thread.c core/ui/ui_menus.c
-msgid "To "
-msgstr "A "
-
-#: core/ui/ui_aprs_thread.c
-msgid "OK reply  Back"
-msgstr "OK responder  Atrás"
 
 #: core/ui/ui_dual.c core/ui/ui_screens.c
 msgid "No tone"
@@ -1936,6 +2144,10 @@ msgid "Empty zone"
 msgstr "Zona vacía"
 
 #: core/ui/ui_menus.c
+msgid "remaining"
+msgstr "restantes"
+
+#: core/ui/ui_menus.c
 msgid "That's the most it can hold"
 msgstr "Máximo alcanzado"
 
@@ -2418,10 +2630,6 @@ msgstr "Usuario"
 #: core/ui/ui_menus.c
 msgid "User (ERDM)"
 msgstr "Usuario (ERDM)"
-
-#: core/ui/ui_menus.c
-msgid "Repeater"
-msgstr "Repetidor"
 
 #: core/ui/ui_menus.c
 msgid "Repeater (ERDM style)"
@@ -3518,10 +3726,6 @@ msgstr " a "
 #: core/ui/ui_menus.c
 msgid ", steps of "
 msgstr ", pasos de "
-
-#: core/ui/ui_menus.c core/ui/ui_position.c
-msgid "OK change  Back"
-msgstr "OK cambiar  Atrás"
 
 #: core/ui/ui_menus.c
 msgid "No, keep settings"

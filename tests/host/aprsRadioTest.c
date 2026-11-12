@@ -794,6 +794,30 @@ static void test_message_options(void)
 	CHECK(strstr(frames[1], "::K1ABC-9  :Ack me{") != NULL);
 }
 
+static void test_message_replaces_pending(void)
+{
+	reset();
+	aprs_set_test_call("Q1TST");
+	configure(0, false);
+	CHECK(aprs_send_message("Q1ABC-9", "First"));
+	CHECK(wait_start(1, 5000));
+	wait_idle();
+	CHECK(aprs_send_message("K1ABC-9", "Second"));
+#if CONFIG_APRS_RX
+	// The queue keeps the pending first message until acknowledged.
+	char ack[64];
+	const char *number = strchr(frames[0], '{');
+	snprintf(ack, sizeof ack, "Q1ABC-9>APRS::Q1TST-7  :ack%s", number ? number + 1 : "");
+	rx_line(ack);
+#endif
+	CHECK(wait_start(2, 5000));
+	CHECK(strstr(frames[1], "::K1ABC-9  :Second{") != NULL);
+	wait_idle();
+	run(28u * 1000u);
+	CHECK(wait_start(3, 6000));
+	CHECK(strstr(frames[2], "::K1ABC-9  :Second{") != NULL);
+}
+
 static void test_message_queue(void)
 {
 	reset();
@@ -1698,6 +1722,67 @@ static void test_weather_store(void)
 }
 #endif
 
+#if CONFIG_APRS_BEACON
+static void test_beacon_comment(void)
+{
+	reset();
+	char text[APRS_COMMENT_MAX + 1];
+	aprs_get_comment(text);
+	CHECK(strcmp(text, "RadioFoundry test") == 0);
+	CHECK(!aprs_set_comment(NULL, now));
+	CHECK(!aprs_set_comment("bad\ncomment", now));
+	CHECK(!aprs_set_comment("caf\xc3\xa9", now));
+	CHECK(!aprs_set_comment("12345678901234567890123456789012345678901234", now));
+	CHECK(aprs_set_comment("1234567890123456789012345678901234567890123", now));
+	aprs_cfg_t c;
+	aprs_get_cfg(&c);
+	CHECK(!c.decay);
+	c.decay = true;
+	c.sym_table = '\\';
+	c.sym_code = 'k';
+	c.path = APRS_PATH_NONE;
+	c.smart = false;
+	c.interval_s = 300;
+	aprs_set_cfg(&c, now);
+	fixed_position(490583333, -720291667);
+	reload_settings();
+	run(200);
+	aprs_get_cfg(&c);
+	CHECK(!c.tx_on && !c.smart && c.interval_s == 300 && c.path == APRS_PATH_NONE && c.decay);
+	CHECK(c.sym_table == '\\' && c.sym_code == 'k');
+	aprs_get_comment(text);
+	CHECK(strlen(text) == APRS_COMMENT_MAX);
+	CHECK(strcmp(text, "1234567890123456789012345678901234567890123") == 0);
+	run(3600000);
+	CHECK(hw.tx_calls == 0);
+	// Decode the actual packet to check the saved override is what others receive.
+	aprs_set_test_call("Q1TST");
+	c.compressed = false;
+	aprs_set_cfg(&c, now);
+	CHECK(aprs_send_now());
+	CHECK(wait_start(1, 5000));
+	CHECK(nframes == 1 && strstr(frames[0], "Wk1234567890123456789012345678901234567890123") != NULL);
+	wait_idle();
+	CHECK(aprs_set_comment("", now));
+	reload_settings();
+	run(200);
+	aprs_get_comment(text);
+	CHECK(text[0] == '\0');
+	aprs_get_cfg(&c);
+	CHECK(!c.tx_on && c.decay);
+	CHECK(aprs_set_comment("1234567890123456789012345678901234567890123", now));
+	c.tx_on = true;
+	c.interval_s = 60;
+	aprs_set_cfg(&c, now);
+	CHECK(wait_start(2, 65000));
+	wait_idle();
+	run(100);
+	aprs_view_t v;
+	aprs_get_view(&v);
+	CHECK(v.next_s > 110 && v.next_s <= 120);
+}
+#endif
+
 int main(void)
 {
 	test_proportional();
@@ -1719,6 +1804,7 @@ int main(void)
 	test_messages();
 	test_message_options();
 	test_message_queue();
+	test_message_replaces_pending();
 #if CONFIG_APRS_RX
 	test_message_rejection();
 #endif
@@ -1728,6 +1814,9 @@ int main(void)
 	test_cfg_store();
 	test_dmr_dst();
 	test_codeplug_path();
+#if CONFIG_APRS_BEACON
+	test_beacon_comment();
+#endif
 	test_rf_failures();
 #if CONFIG_APRS_RX
 	test_recent_packets();

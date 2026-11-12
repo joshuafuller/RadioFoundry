@@ -13,7 +13,7 @@ typedef struct {
 	uint16_t base_s, interval_s;
 	uint8_t path, slot;
 	int32_t lat, lon;
-	char comment[CODEPLUG_APRS_COMMENT + 1];
+	char comment[APRS_COMMENT_MAX + 1];
 } aprs_pathing_t;
 
 void aprs_pathing_update(aprs_pathing_t *p, const aprs_cfg_t *c, const aprs_beacon_pos_t *pos,

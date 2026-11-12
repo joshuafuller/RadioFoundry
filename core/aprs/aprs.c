@@ -104,7 +104,7 @@ static void cfg_to_settings(const aprs_cfg_t *c, settings_t *s)
 				   (c->messaging ? SETTINGS_APRS2_MESSAGING : 0) |
 				   (c->decay ? SETTINGS_APRS2_DECAY : 0) |
 				   (c->dmr_udt ? SETTINGS_APRS2_DMR_UDT : 0) | (c->to_is ? SETTINGS_APRS2_TO_IS : 0) |
-				   (s->aprs_flags2 & SETTINGS_APRS2_DMR_GPS));
+				   (s->aprs_flags2 & (SETTINGS_APRS2_DMR_GPS | SETTINGS_APRS2_COMMENT)));
 	s->aprs_region = c->region;
 	s->aprs_ssid = c->ssid;
 	s->aprs_freq_hz = c->freq_hz;
@@ -266,7 +266,7 @@ void aprs_tick(const aprs_radio_t *r, uint32_t now_ms)
 #if CONFIG_APRS_PATHING
 	const char *comment = "";
 #if CONFIG_APRS_AFSK
-	comment = aprs_s.comment;
+	comment = aprs_ax25_comment();
 #endif
 	aprs_pathing_update(&pathing, &aprs_s.cfg, &bp, comment);
 	timing.interval_s = aprs_pathing_interval(&pathing, &aprs_s.cfg);

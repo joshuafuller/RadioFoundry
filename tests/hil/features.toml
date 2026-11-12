@@ -227,6 +227,11 @@ source = ["core/aprs/aprs_pathing.c", "core/aprs/aprs.c", "core/ui/ui_aprs.c"]
 switch = "APRS_AFSK"
 spec = "docs/spec/aprs.md"
 
+[feature.aprs_beacon]
+switch = "APRS_BEACON"
+spec = "docs/spec/aprs.md"
+source = ["core/ui/ui_aprs_beacon.c", "core/aprs/aprs_ax25.c"]
+
 [feature.aprs_dmr]
 switch = "APRS_DMR"
 spec = "docs/spec/aprs.md"

@@ -578,6 +578,24 @@ static const flow_t flows[] = {
 	{ "A Home listening", "aprs:home", "", "shows=APRS_listening", 0, false },
 	{ "A Home no position", "aprs:home aprs:nopos", "", "shows=Not_sending", 0, false },
 	{ "A Home repeat", "aprs:home aprs:repeat", "", "shows=APRS_sent", 0, false },
+#if CONFIG_APRS_BEACON
+	{ "A My beacon", "", "ok 6 8 5", "screen=aprs-beacon shows=Q0SIM-7 shows=On_foot aprs_auto=0", 4, false },
+	{ "A symbol picker", "ok 6 8 5", "1", "screen=aprs-symbol count=40", 1, false },
+	{ "A car symbol", "ok 6 8 5 1", "down ok", "screen=aprs-beacon aprs_symbol=/> aprs_auto=0", 2, false },
+	{ "A symbol cancel", "ok 6 8 5 1", "down back", "aprs_symbol=/[ aprs_auto=0", 2, false },
+	{ "A comment editor", "ok 6 8 5", "2", "screen=aprs-comment shows=43_remaining", 1, false },
+	{ "A comment save", "ok 6 8 5 2", "2 ok", "screen=aprs-beacon aprs_comment=A aprs_auto=0", 2, false },
+	{ "A comment clear", "ok 6 8 5 2 2 ok 2", "back ok", "screen=aprs-beacon aprs_comment= aprs_auto=0", 2, false },
+	{ "A automatic", "ok 6 8 5", "3", "aprs_auto=1", 1, false },
+	{ "A automatic off", "ok 6 8 5 3", "3", "aprs_auto=0", 1, false },
+	{ "A pace picker", "ok 6 8 5", "4", "screen=aprs-pace", 1, false },
+	{ "A fixed pace", "ok 6 8 5 4", "4", "screen=aprs-beacon aprs_smart=0 aprs_interval=300 aprs_auto=0", 1, false },
+	{ "A smart pace", "ok 6 8 5 4", "1", "aprs_smart=1 aprs_auto=0", 1, false },
+	{ "A reach picker", "ok 6 8 5", "5", "screen=aprs-reach shows=Direct", 1, false },
+	{ "A direct reach", "ok 6 8 5 5", "1", "screen=aprs-beacon aprs_path=0 aprs_auto=0", 1, false },
+	{ "A proportional reach", "ok 6 8 5 5", "6", "screen=aprs-beacon aprs_path=5 aprs_auto=0 shows=Proportional", 1, false },
+	{ "A reach cancel", "ok 6 8 5 5", "down back", "aprs_path=2 aprs_auto=0", 2, false },
+#endif
 	{ "A APRS page", "", "ok 6 8", "screen=aprs", 3, false },
 	{ "A send position now", "", "ok 6 8 4", "aprs_sent=1 toast=Sending_position", 4, false },
 	{ "A send without a callsign", "aprs:nocall", "ok 6 8 4", "aprs_sent=0 toast=Set_your_callsign", 4, false },
@@ -1606,6 +1624,27 @@ static void thread_checks(void)
 // battery they are all there
 // A split DMR VFO on Home, at every display class: the whole TX frequency in the top row, or the whole offset among
 // the chips where there is no top row; never shortened (the step gives way first)
+#if CONFIG_APRS_BEACON
+static void beacon_comment_checks(void)
+{
+	char script[2048], err[300];
+	for (int g = 0; g < sim_geom_count; g++) {
+		sim_reset(&sim_geoms[g], SIM_MAP_K);
+		strcpy(script, "ok 6 8 5 2 ctx ");
+		for (int i = 0; i < 44; i++) {
+			strcat(script, "1 ");
+		}
+		strcat(script, "expect:shows=0_remaining ok expect:screen=aprs-beacon expect:aprs_auto=0 "
+		       "expect:aprs_comment=1111111111111111111111111111111111111111111 2 back long:back "
+		       "expect:screen=home expect:aprs_comment=1111111111111111111111111111111111111111111");
+		if (!sim_run(script, err, sizeof err)) {
+			printf("FAIL beacon comment [%s]: %s\n", sim_geoms[g].name, err);
+			fails++;
+		}
+	}
+}
+#endif
+
 static void vfo_split_dmr_checks(void)
 {
 	char err[300];
@@ -1920,6 +1959,9 @@ int main(int argc, char **argv)
 
 #if CONFIG_APRS_WX
 	weather_checks();
+#endif
+#if CONFIG_APRS_BEACON
+	beacon_comment_checks();
 #endif
 	vfo_split_dmr_checks();
 	no_battery_checks();
