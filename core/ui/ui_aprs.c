@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 The RadioFoundry Authors
-// Tools > APRS (docs/spec/aprs.md 10): what APRS is doing (callsign, frequency, position, next beacon, or why nothing
-// can be sent) and the everyday choices, one row each: send now, automatic beacons, the frequency (region), the RF
-// power (as the channel, or a level of its own), the digipeater path (the hops), the interval, SmartBeaconing, the
-// way out (radio / DMR / both), KISS on the host port, and the stations heard (receive builds). Where the position
-// comes from is the position service's (Settings > Location, ui_position.c). The rest (symbol, comment, digital
-// destination, iGate, digipeater) is set with qdmr, the debug link or tools/rfoundry_debug.py (aprs.md 11).
+// APRS operating status and tasks; reporting policy lives on the Settings page.
 #include <string.h>
 #include "ui_nav.h"
 #include "ui_svc_aprs.h"
@@ -50,7 +45,7 @@ enum { AP_SEND, AP_AUTO, AP_FREQ, AP_POWER, AP_PATH, AP_INTERVAL, AP_SMART, AP_V
 #if CONFIG_APRS_HOME
 	AP_MESSAGES,
 #endif
-	AP_BEACON, AP_WEATHER,
+	AP_BEACON, AP_WEATHER, AP_SETTINGS, AP_POSITION, AP_LOCAL, AP_REPEAT,
 #if CONFIG_APRS_TUNE
 	AP_MY_FREQ,
 #endif
@@ -59,11 +54,29 @@ enum { AP_SEND, AP_AUTO, AP_FREQ, AP_POWER, AP_PATH, AP_INTERVAL, AP_SMART, AP_V
 // The rows this build shows, in order: the packet rows only with the AX.25 backend (CONFIG_APRS_AFSK), "Send via"
 // only when there is a choice (both backends built)
 static const uint8_t rows[] = {
+	AP_SEND, AP_LOCAL, AP_REPEAT, AP_HEARD,
 #if CONFIG_APRS_HOME
-	AP_HEARD, AP_MESSAGES, AP_WEATHER, AP_SEND, AP_BEACON, AP_AUTO,
-#else
-	AP_SEND, AP_AUTO,
+	AP_MESSAGES,
 #endif
+#if CONFIG_APRS_RX
+	AP_BULLETINS,
+#endif
+#if CONFIG_APRS_WX
+	AP_WEATHER,
+#endif
+#if CONFIG_APRS_RX
+	AP_OBJECTS,
+#endif
+#if CONFIG_APRS_HOME || CONFIG_APRS_BEACON
+	AP_BEACON,
+#endif
+#if CONFIG_APRS_RX
+	AP_RECENT,
+#endif
+	AP_POSITION, AP_SETTINGS,
+};
+static const uint8_t settings_rows[] = {
+	AP_AUTO,
 #if CONFIG_APRS_AFSK
 	AP_FREQ, AP_POWER, AP_PATH,
 #endif
@@ -74,30 +87,17 @@ static const uint8_t rows[] = {
 #if CONFIG_APRS_PATHING
 	AP_DECAY,
 #endif
-#if CONFIG_APRS_WX && !CONFIG_APRS_HOME
-	AP_WEATHER,
-#endif
-#if CONFIG_APRS_BEACON && !CONFIG_APRS_HOME
-	AP_BEACON,
-#endif
 	AP_KISS,
 #if CONFIG_APRS_TUNE
 	AP_MY_FREQ,
 #endif
-#if CONFIG_APRS_AFSK && CONFIG_APRS_RX
-	AP_OBJECTS, AP_BULLETINS, AP_RECENT,
-#endif
-#if !CONFIG_APRS_HOME && CONFIG_APRS_AFSK
-	AP_HEARD,
-#endif
-
 };
-#define N_ROWS	((uint16_t)(sizeof(rows) / sizeof(rows[0])))
-
-// Beacons go out on RF only: no DMR backend, or the setting says so
-static bool rf_only(const aprs_cfg_t *c)
+#define N_ROWS (sizeof(rows) / sizeof(rows[0]))
+#define N_SETTINGS (sizeof(settings_rows) / sizeof(settings_rows[0]))
+static uint8_t aprs_row(uint16_t i)
 {
-	return !CONFIG_APRS_DMR || c->via == APRS_VIA_RF;
+	return ui_frame()->scr == SCR_APRS_SETTINGS ?
+		(i < N_SETTINGS ? settings_rows[i] : AP_COUNT) : (i < N_ROWS ? rows[i] : AP_COUNT);
 }
 
 static const uint16_t intervals[] = { 0, 60, 120, 300, 600, 1800 };
@@ -183,7 +183,127 @@ const char *ui_aprs_beacon_status(void)
 	return t;
 }
 
+// A proposed setting stays here until the last review page is explicitly saved.
+static aprs_cfg_t review_cfg;
+static const char *review_comment;
+static uint16_t review_first, review_last;
+static uint8_t review_page;
+
+void ui_aprs_review(const aprs_cfg_t *cfg, const char *comment)
+{
+	review_cfg = *cfg;
+	review_comment = comment;
+	review_page = 0;
+	review_first = 0;
+	ui_push(SCR_APRS_REVIEW, 0);
+}
+
+static void review_draw(void)
+{
+	aprs_view_t v;
+	ui_svc_aprs_view(&v);
+	sbuf_t b;
+	sb_init(&b, ui_aprs_text, sizeof ui_aprs_text);
+	const aprs_cfg_t *c = &review_cfg;
+	switch (review_page) {
+	case 0:
+		sb_str(&b, TR("Precision: "));
+		if (c->compressed) sb_str(&b, TR("Compressed position, 1-2 ft resolution. No ambiguity."));
+		else {
+			static const char *const minutes[] = { "0.01", "0.1", "1", "10", "60" };
+			sb_str(&b, minutes[v.ambiguity < 5 ? v.ambiguity : 4]);
+			sb_str(&b, TR(" minutes of position resolution."));
+		}
+		break;
+	case 1:
+		sb_str(&b, TR("Voice frequency: "));
+#if CONFIG_APRS_TUNE
+		if (c->my_frequency) {
+			sb_str(&b, TR("Follows the voice channel. "));
+			if (ui_view()->ch.mode == RADIO_MODE_FM && ui_view()->ch.rx_hz % 1000u == 0 &&
+			    ui_view()->ch.rx_hz >= 1000000u && ui_view()->ch.rx_hz < 1000000000u &&
+			    ui_view()->ch.tx_tone.type != TONE_DCS_INV) {
+				sb_freq(&b, ui_view()->ch.rx_hz);
+				sb_str(&b, " MHz");
+			} else sb_str(&b, TR("Not included on this channel."));
+		} else
+#endif
+			sb_str(&b, TR("Not included."));
+		break;
+	case 2:
+		sb_str(&b, TR("Position source: "));
+		sb_str(&b, v.pos_valid ? tr(pos_names[v.pos_src < 4 ? v.pos_src : 0]) : TR("No position"));
+		if (v.pos_valid) {
+			sb_chr(&b, '\n');
+			sb_str(&b, TR("Position age: "));
+			if (v.pos_src == 3) sb_str(&b, TR("Entry age unknown"));
+			else { sb_u32(&b, v.pos_age_s, 1); sb_chr(&b, 's'); }
+			sb_chr(&b, '\n');
+			sb_degrees(&b, v.lat); sb_chr(&b, ' '); sb_degrees(&b, v.lon);
+		}
+		break;
+	case 3:
+		sb_str(&b, c->tx_on ? TR("Automatic beacons on. ") : TR("Automatic beacons off. "));
+		if (c->smart) {
+			sb_str(&b, TR("Smart: 30 min up to 5 km/h or unknown speed; 3 min from 90 km/h. Between: 270/speed min, at most 30 min. Above 5 km/h, turns over 28 + 400/speed degrees may send after 30s. Interval and decay do not apply."));
+		} else {
+			uint16_t seconds = CONFIG_APRS_PATHING && c->path == APRS_PATH_PROPORTIONAL ? 60 : c->interval_s;
+			sb_str(&b, TR("Interval: ")); sb_u32(&b, seconds, 1); sb_chr(&b, 's');
+#if CONFIG_APRS_PATHING
+			if (c->decay) sb_str(&b, TR(". Decay doubles unchanged reports up to 30 min."));
+#endif
+		}
+		break;
+	default:
+		sb_str(&b, TR("Save beacon settings?"));
+		sb_chr(&b, '\n');
+		sb_str(&b, c->tx_on ? TR("Automatic beacons on. ") : TR("Automatic beacons off. "));
+		sb_chr(&b, '\n');
+		sb_str(&b, TR("Path: "));
+		sb_str(&b, tr(path_names[c->path < APRS_PATH_COUNT ? c->path : 0]));
+		if (review_comment) { sb_chr(&b, '\n'); sb_str(&b, review_comment); }
+		break;
+	}
+	review_last = (uint16_t)ui_draw_text_page(ui_view(), &ui_st, TR("Beacon review"), ui_aprs_text, &review_first, true);
+	ui_draw_hint(review_page == 4 ? TR("OK save  Back") :
+		review_first < review_last ? TR("Up/Dn more  OK next") : TR("OK next  Back"), false);
+}
+
+static bool review_key(const input_event_t *ev)
+{
+	if (ev->gesture != GESTURE_PRESS && ev->gesture != GESTURE_REPEAT && ev->action != ACT_ENC_STEP)
+		return false;
+	if (ev->action == ACT_SELECT) {
+		if (review_page < 4) { review_page++; review_first = 0; }
+		else {
+#if CONFIG_APRS_BEACON
+			if (review_comment) {
+				if (!ui_svc_aprs_set_comment(review_comment)) {
+					ui_toast(TR("Comment not saved"));
+					return true;
+				}
+			} else
+#endif
+				ui_svc_aprs_set_cfg(&review_cfg);
+			ui_pop();
+		}
+		ui_dirty();
+		return true;
+	}
+	int dir = ev->action == ACT_NAV_UP ? -1 : ev->action == ACT_NAV_DOWN ? 1 :
+		ev->action == ACT_ENC_STEP ? ev->value : 0;
+	if (!dir) return false;
+	int line = review_first + dir;
+	review_first = (uint16_t)(line < 0 ? 0 : line > review_last ? review_last : line);
+	ui_dirty();
+	return true;
+}
+const ui_scr_def_t ui_aprs_review_screen = {
+	.name = "aprs-review", .prefix = TRN("Beacon review"), .draw = review_draw, .key = review_key,
+};
+
 static uint16_t aprs_count(void) { return N_ROWS; }
+static uint16_t settings_count(void) { return N_SETTINGS; }
 
 static uint8_t interval_index(uint16_t s)
 {
@@ -247,7 +367,7 @@ static void aprs_item(uint16_t i, ui_item_t *it)
 #if CONFIG_APRS_HOME
 		TRN("Messages"),
 #endif
-		TRN("My beacon"), TRN("Weather"),
+		TRN("My beacon"), TRN("Weather"), TRN("Settings"), TRN("My position"), TRN("Local TX"), TRN("Repeat"),
 #if CONFIG_APRS_TUNE
 					     TRN("My frequency in my beacon"),
 #endif
@@ -256,8 +376,27 @@ static void aprs_item(uint16_t i, ui_item_t *it)
 	aprs_cfg_t c;
 	bool built = ui_svc_aprs_view(&v);
 	ui_svc_aprs_cfg(&c);
-	it->num = i < 10u ? (char)('0' + (i + 1u) % 10u) : 0;	// rows after the 10th have no digit
-	i = i < N_ROWS ? rows[i] : AP_COUNT;
+	bool settings = ui_frame()->scr == SCR_APRS_SETTINGS;
+	it->num = settings && i < 10u ? (char)('0' + (i + 1u) % 10u) : 0;
+	i = aprs_row(i);
+	if (!settings) {
+		switch (i) {
+		case AP_HEARD: it->num = '1'; break;
+#if CONFIG_APRS_HOME
+		case AP_MESSAGES: it->num = '2'; break;
+#endif
+#if CONFIG_APRS_RX
+		case AP_BULLETINS: it->num = '3'; break;
+		case AP_OBJECTS: it->num = '5'; break;
+		case AP_RECENT: it->num = '7'; break;
+#endif
+		case AP_WEATHER: it->num = '4'; break;
+		case AP_BEACON: it->num = '6'; break;
+		case AP_POSITION: it->num = '8'; break;
+		case AP_SETTINGS: it->num = '0'; break;
+		default: break;
+		}
+	}
 	if (i >= AP_COUNT) {
 		return;
 	}
@@ -277,17 +416,27 @@ static void aprs_item(uint16_t i, ui_item_t *it)
 		return;
 	}
 	switch (i) {
+	case AP_LOCAL:
+	case AP_REPEAT: {
+		it->flags |= UI_ITEM_DIM;
+#if CONFIG_APRS_HOME
+		aprs_home_t h;
+		ui_svc_aprs_home(&h);
+		if (i == AP_REPEAT) sb_str(&b, h.digi[0] ? h.digi : TR("No repeat heard"));
+		else if (h.sent) sb_age_long(&b, ui_st.now_ms - h.sent_ms);
+		else sb_str(&b, TR("Not sent"));
+#else
+		sb_str(&b, TR("Unknown"));
+#endif
+		break;
+	}
 #if CONFIG_APRS_HOME
 	case AP_MESSAGES:
 		sb_u32(&b, v.unread, 1);
 		sb_str(&b, TR(" unread"));
 		break;
 #endif
-	case AP_SEND:
-		if (v.block != APRS_OK && rf_only(&c)) {
-			it->flags |= UI_ITEM_DIM;
-		}
-		break;
+	case AP_SEND: break;
 	case AP_AUTO: sb_str(&b, c.tx_on ? TR("On") : TR("Off")); break;
 	case AP_FREQ:
 		if (board.afsk == NULL && !CONFIG_APRS_RX) {
@@ -361,7 +510,7 @@ static void aprs_select(uint16_t i, bool hold)
 		return;
 	}
 	ui_svc_aprs_cfg(&c);
-	switch (i < N_ROWS ? rows[i] : AP_COUNT) {
+	switch (aprs_row(i)) {
 #if CONFIG_APRS_HOME
 	case AP_MESSAGES:
 		ui_push(SCR_MESSAGES, 0);
@@ -370,6 +519,8 @@ static void aprs_select(uint16_t i, bool hold)
 		ui_push(SCR_APRS_BEACON, 0);
 		return;
 #endif
+	case AP_SETTINGS: ui_push(SCR_APRS_SETTINGS, 0); return;
+	case AP_POSITION: ui_push(SCR_GROUP, 4); return;
 	case AP_SEND:
 		if (ui_svc_aprs_send_now()) {
 			ui_toast(TR("Sending position"));
@@ -379,7 +530,6 @@ static void aprs_select(uint16_t i, bool hold)
 		return;
 	case AP_AUTO:
 		c.tx_on = !c.tx_on;
-		ui_toast(c.tx_on ? TR("Beacons on") : TR("Beacons off"));
 		break;
 	case AP_FREQ:
 		if (board.afsk == NULL && !CONFIG_APRS_RX) {
@@ -408,7 +558,7 @@ static void aprs_select(uint16_t i, bool hold)
 			ui_toast(TR("SmartBeaconing sets timing"));
 			return;
 		}
-		if (rows[i] == AP_INTERVAL) {
+		if (aprs_row(i) == AP_INTERVAL) {
 			if (CONFIG_APRS_PATHING && c.path == APRS_PATH_PROPORTIONAL) {
 				ui_toast(TR("Path uses one-minute slots"));
 				return;
@@ -449,8 +599,7 @@ static void aprs_select(uint16_t i, bool hold)
 		return;
 	default: return;
 	}
-	ui_svc_aprs_set_cfg(&c);
-	ui_dirty();
+	ui_aprs_review(&c, NULL);
 }
 
 #if CONFIG_APRS_RX && CONFIG_UI_COLOR
@@ -465,25 +614,24 @@ static void aprs_context(uint16_t i)
 
 static const char *aprs_body(void)
 {
-#if CONFIG_APRS_HOME
-	char *body = ui_aprs_text;
-	ui_aprs_status(body, sizeof ui_aprs_text, false);
+	aprs_view_t v;
+	aprs_cfg_t c;
+	if (!ui_svc_aprs_view(&v)) return TR("APRS: not in this build");
+	ui_svc_aprs_cfg(&c);
 	sbuf_t b;
-	sb_init(&b, body + strlen(body), sizeof ui_aprs_text - strlen(body));
+	sb_init(&b, ui_aprs_text, sizeof ui_aprs_text);
+	sb_str(&b, v.call[0] ? v.call : TR("No callsign"));
+	sb_chr(&b, ' ');
+	sb_str(&b, v.pos_valid ? tr(pos_names[v.pos_src < 4 ? v.pos_src : 0]) : TR("No position"));
 	sb_chr(&b, '\n');
-	size_t used = strlen(body);
-	ui_aprs_status(body + used, sizeof ui_aprs_text - used, true);
-	sb_init(&b, body + strlen(body), sizeof ui_aprs_text - strlen(body));
-#if CONFIG_APRS_RX && CONFIG_UI_COLOR
-	if (gfx_bpp() != 1) {
+	sb_str(&b, c.tx_on ? TR("TX on") : TR("TX off"));
+	sb_chr(&b, ' ');
+	sb_str(&b, c.via == APRS_VIA_DMR ? "DMR" : c.via == APRS_VIA_BOTH ? TR("FM + DMR") : "FM");
+	if (c.via != APRS_VIA_DMR) {
 		sb_chr(&b, '\n');
-		sb_str(&b, TR("# radar"));
+		sb_str(&b, tr(path_names[c.path < APRS_PATH_COUNT ? c.path : 0]));
 	}
-#endif
-	return body;
-#else
-	return ui_aprs_beacon_status();
-#endif
+	return ui_aprs_text;
 }
 
 #if CONFIG_APRS_HOME && !CONFIG_APRS_BEACON
@@ -504,11 +652,15 @@ const ui_scr_def_t ui_aprs_beacon_screen = {
 };
 
 #endif
+const ui_scr_def_t ui_aprs_settings_screen = {
+	.name = "aprs-settings", .flags = SF_LIST | SF_NUMBERED, .prefix = TRN("APRS settings"),
+	.hint = TRN("OK change  Back"), .count = settings_count, .item = aprs_item, .select = aprs_select,
+};
 const ui_scr_def_t ui_aprs_screen = {
 #if CONFIG_APRS_RX && CONFIG_UI_COLOR
 	.context = aprs_context,
 #endif
-	.name = "aprs", .flags = SF_LIST | SF_NUMBERED | SF_FIELD, .prefix = "APRS", .hint = TRN("0-9 pick  Back"),
+	.name = "aprs", .flags = SF_LIST | SF_NUMBERED | SF_FIELD, .prefix = "APRS", .hint = TRN("OK choose  Back"),
 	.count = aprs_count, .item = aprs_item, .select = aprs_select, .body = aprs_body,
 };
 

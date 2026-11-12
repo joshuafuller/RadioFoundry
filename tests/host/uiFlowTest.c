@@ -571,10 +571,10 @@ static const flow_t flows[] = {
 	{ "S message failed text", "", "", "screen=home", 0, false },
 	// APRS (docs/spec/aprs.md 10): Tools 9, one row each
 	{ "A hub Messages", "", "ok 6 8 2", "screen=messages", 4, false },
-	{ "A hub Weather", "", "ok 6 8 3", "screen=aprs-weather", 4, false },
-	{ "A My beacon review", "", "ok 6 8 5", "screen=aprs-beacon shows=Q0SIM-7", 4, false },
+	{ "A hub Weather", "", "ok 6 8 4", "screen=aprs-weather", 4, false },
+	{ "A My beacon review", "", "ok 6 8 6", "screen=aprs-beacon shows=Q0SIM-7", 4, false },
 	{ "A Home line off", "", "", "hides=APRS_listening", 0, false },
-	{ "A Stations visit clears new", "ok 6 8 1", "back", "shows=0_new", 1, false },
+	{ "A Stations visit clears new", "ok 6 8 1", "back", "aprs_sent=0", 1, false },
 	{ "A Home not listening refresh", "aprs:home", "aprs:notlistening", "shows=Not_listening hides=APRS_listening shows=APRS_TX_off", 0, false },
 	{ "A Home TX enabled", "aprs:home aprs:txon", "", "shows=APRS_TX_on", 0, false },
 	{ "A Home transmitting", "aprs:home aprs:sending", "", "shows=APRS_sending", 0, false },
@@ -582,45 +582,47 @@ static const flow_t flows[] = {
 	{ "A Home no position", "aprs:home aprs:nopos", "", "shows=Not_sending", 0, false },
 	{ "A Home repeat", "aprs:home aprs:repeat", "", "shows=Repeated_by", 0, false },
 #if CONFIG_APRS_BEACON
-	{ "A My beacon", "", "ok 6 8 5", "screen=aprs-beacon shows=Q0SIM-7 shows=On_foot aprs_auto=0", 4, false },
-	{ "A symbol picker", "ok 6 8 5", "1", "screen=aprs-symbol count=40", 1, false },
-	{ "A car symbol", "ok 6 8 5 1", "down ok", "screen=aprs-beacon aprs_symbol=/> aprs_auto=0", 2, false },
-	{ "A symbol cancel", "ok 6 8 5 1", "down back", "aprs_symbol=/[ aprs_auto=0", 2, false },
-	{ "A comment editor", "ok 6 8 5", "2", "screen=aprs-comment shows=43_remaining", 1, false },
-	{ "A comment save", "ok 6 8 5 2", "2 ok", "screen=aprs-beacon aprs_comment=A aprs_auto=0", 2, false },
-	{ "A comment clear", "ok 6 8 5 2 2 ok 2", "back ok", "screen=aprs-beacon aprs_comment= aprs_auto=0", 2, false },
-	{ "A automatic", "ok 6 8 5", "3", "aprs_auto=1", 1, false },
-	{ "A automatic off", "ok 6 8 5 3", "3", "aprs_auto=0", 1, false },
-	{ "A pace picker", "ok 6 8 5", "4", "screen=aprs-pace", 1, false },
-	{ "A fixed pace", "ok 6 8 5 4", "4", "screen=aprs-beacon aprs_smart=0 aprs_interval=300 aprs_auto=0", 1, false },
-	{ "A smart pace", "ok 6 8 5 4", "1", "aprs_smart=1 aprs_auto=0", 1, false },
-	{ "A reach picker", "ok 6 8 5", "5", "screen=aprs-reach shows=Direct", 1, false },
-	{ "A direct reach", "ok 6 8 5 5", "1", "screen=aprs-beacon aprs_path=0 aprs_auto=0", 1, false },
-	{ "A proportional reach", "ok 6 8 5 5", "6", "screen=aprs-beacon aprs_path=5 aprs_auto=0 shows=Proportional", 1, false },
-	{ "A reach cancel", "ok 6 8 5 5", "down back", "aprs_path=2 aprs_auto=0", 2, false },
+	{ "A My beacon", "", "ok 6 8 6", "screen=aprs-beacon shows=Q0SIM-7 shows=On_foot aprs_auto=0", 4, false },
+	{ "A symbol picker", "ok 6 8 6", "1", "screen=aprs-symbol count=40", 1, false },
+	{ "A car symbol", "ok 6 8 6 1", "down ok ok ok ok ok ok", "screen=aprs-beacon aprs_symbol=/> aprs_auto=0", 7, false },
+	{ "A symbol cancel", "ok 6 8 6 1", "down back", "aprs_symbol=/[ aprs_auto=0", 2, false },
+	{ "A comment editor", "ok 6 8 6", "2", "screen=aprs-comment shows=43_remaining", 1, false },
+	{ "A comment save", "ok 6 8 6 2", "2 ok ok ok ok ok ok", "screen=aprs-beacon aprs_comment=A aprs_auto=0", 7, false },
+	{ "A comment clear", "ok 6 8 6 2 2 ok ok ok ok ok ok 2", "back ok ok ok ok ok ok", "screen=aprs-beacon aprs_comment= aprs_auto=0", 7, false },
+	{ "A automatic", "ok 6 8 6", "3 ok ok ok ok ok", "aprs_auto=1", 6, false },
+	{ "A automatic off", "ok 6 8 6 3 ok ok ok ok ok", "3 ok ok ok ok ok", "aprs_auto=0", 6, false },
+	{ "A pace picker", "ok 6 8 6", "4", "screen=aprs-pace", 1, false },
+	{ "A fixed pace", "ok 6 8 6 4", "4 ok ok ok ok ok", "screen=aprs-beacon aprs_smart=0 aprs_interval=300 aprs_auto=0", 6, false },
+	{ "A smart pace", "ok 6 8 6 4", "1 ok ok ok ok ok", "aprs_smart=1 aprs_auto=0", 6, false },
+	{ "A reach picker", "ok 6 8 6", "5", "screen=aprs-reach shows=Direct", 1, false },
+	{ "A direct reach", "ok 6 8 6 5", "1 ok ok ok ok ok", "screen=aprs-beacon aprs_path=0 aprs_auto=0", 6, false },
+	{ "A proportional reach", "ok 6 8 6 5", "6 ok ok ok ok ok", "screen=aprs-beacon aprs_path=5 aprs_auto=0 shows=Proportional", 6, false },
+	{ "A reach cancel", "ok 6 8 6 5", "down back", "aprs_path=2 aprs_auto=0", 2, false },
 #endif
-	{ "A APRS page", "", "ok 6 8", "screen=aprs", 3, false },
-	{ "A send position now", "", "ok 6 8 4", "aprs_sent=1 toast=Sending_position", 4, false },
-	{ "A send without a callsign", "aprs:nocall", "ok 6 8 4", "aprs_sent=0 toast=Set_your_callsign", 4, false },
-	{ "A beacons on", "", "ok 6 8 6", "aprs_auto=1 toast=Beacons_on", 4, false },
-	{ "A beacons off again", "ok 6 8 6", "6", "aprs_auto=0 toast=Beacons_off", 1, false },
-	{ "A next region", "", "ok 6 8 7", "aprs_region=1", 4, false },
-	{ "A regions skip an unset custom", "ok 6 8 7 7 7 7 7", "7", "aprs_region=0", 1, false },
-	{ "A regions with a custom frequency", "aprs:custom ok 6 8 7 7 7 7 7", "7", "aprs_region=6", 1, false },
-	{ "A power as the channel", "ok 6 8", "down down down down down down down", "shows=As_channel aprs_power=0", 7, false },
-	{ "A power of its own", "", "ok 6 8 8", "aprs_power=1", 4, false },
-	{ "A path shows the default", "ok 6 8", "down down down down down down down down", "shows=WIDE1-1,WIDE2-1 aprs_path=2", 8, false },
-	{ "A path: the next choice", "", "ok 6 8 9", "aprs_path=3 shows=WIDE2-1", 4, false },
-	{ "A proportional path", "ok 6 8 9 9", "9", "aprs_path=5 shows=Proportional", 1, false },
-	{ "A path: WIDE2-2 then none", "ok 6 8 9 9", "9 9", "aprs_path=0 shows=None", 2, false },
-	{ "A path wraps to WIDE1-1", "ok 6 8 9 9 9 9", "9", "aprs_path=1", 1, false },
-	{ "A interval", "", "ok 6 8 0", "aprs_interval=60", 4, false },
-	{ "A SmartBeaconing", "", "ok 6 8 up up up up up up up up ok", "aprs_smart=1", 12, false },
-	{ "A decay on", "ok 6 8", "up up up up up up ok", "aprs_decay=1", 7, false },
-	{ "A Smart disables interval", "ok 6 8 up up up up up up up up ok", "0", "aprs_interval=0 toast=SmartBeaconing_sets_timing", 1, false },
-	{ "A Smart disables decay", "ok 6 8 up up up up up up ok up up ok", "down down ok", "aprs_decay=1 toast=SmartBeaconing_sets_timing", 3, false },
-	{ "A proportional interval", "ok 6 8 9 9 9", "0", "aprs_interval=0 toast=Path_uses_one-minute_slots", 1, false },
-	{ "A send via DMR", "", "ok 6 8 up up up up up up up ok", "aprs_via=1", 11, false },
+	{ "A APRS page", "", "ok 6 8", "screen=aprs shows=Send_position_now shows=Q0SIM-7 shows=TX_off hides=SmartBeaconing", 3, false },
+	{ "A hub position", "", "ok 6 8 8", "screen=group shows=Location", 4, false },
+	{ "A send position now", "", "ok 6 8 ok", "aprs_sent=1 toast=Sending_position", 4, false },
+	{ "A send without a callsign", "aprs:nocall", "ok 6 8 ok", "aprs_sent=0 toast=Set_your_callsign", 4, false },
+	{ "A settings", "", "ok 6 8 0", "screen=aprs-settings", 4, false },
+	{ "A beacons review", "ok 6 8 0", "1", "screen=aprs-review aprs_auto=0 shows=Precision", 1, false },
+	{ "A beacons save", "ok 6 8 0 1", "ok ok ok ok ok", "screen=aprs-settings aprs_auto=1", 5, false },
+	{ "A review voice", "ok 6 8 0 1", "ok", "screen=aprs-review shows=Voice_frequency aprs_auto=0 aprs_sent=0", 1, false },
+	{ "A review source", "ok 6 8 0 1 ok", "ok", "shows=Position_source aprs_auto=0 aprs_sent=0", 1, false },
+	{ "A review timing", "ok 6 8 0 1 ok ok", "ok", "shows=Automatic_beacons_on aprs_auto=0 aprs_sent=0", 1, false },
+	{ "A review final", "ok 6 8 0 1 ok ok ok", "ok", "shows=Save_beacon_settings aprs_auto=0 aprs_sent=0", 1, false },
+	{ "A review final cancel", "ok 6 8 0 1 ok ok ok ok", "back", "screen=aprs-settings aprs_auto=0 aprs_sent=0", 1, false },
+	{ "A symbol review cancel", "ok 6 8 6 1 down ok", "back", "screen=aprs-beacon aprs_symbol=/[ aprs_auto=0", 1, false },
+	{ "A comment review cancel", "ok 6 8 6 2 2 ok", "back", "screen=aprs-beacon aprs_comment= aprs_auto=0", 1, false },
+	{ "A beacons cancel", "ok 6 8 0 1", "back", "screen=aprs-settings aprs_auto=0", 1, false },
+	{ "A next region", "ok 6 8 0 2", "ok ok ok ok ok", "aprs_region=1", 5, false },
+	{ "A power of its own", "ok 6 8 0 3", "ok ok ok ok ok", "aprs_power=1", 5, false },
+	{ "A next path", "ok 6 8 0 4", "ok ok ok ok ok", "aprs_path=3", 5, false },
+	{ "A interval", "ok 6 8 0 5", "ok ok ok ok ok", "aprs_interval=60", 5, false },
+	{ "A SmartBeaconing", "ok 6 8 0 6", "ok ok ok ok ok", "aprs_smart=1", 5, false },
+	{ "A decay on", "ok 6 8 0 8", "ok ok ok ok ok", "aprs_decay=1", 5, false },
+	{ "A Smart disables interval", "ok 6 8 0 6 ok ok ok ok ok", "5", "aprs_interval=0 toast=SmartBeaconing_sets_timing", 1, false },
+	{ "A Smart disables decay", "ok 6 8 0 6 ok ok ok ok ok", "8", "aprs_decay=0 toast=SmartBeaconing_sets_timing", 1, false },
+	{ "A send via DMR", "ok 6 8 0 7", "ok ok ok ok ok", "aprs_via=1", 5, false },
 	// Settings > Location: what every position report sends (the position service; ui_position.c). The page opens on
 	// Answer GPS requests (no GPS here: the rows above are dimmed); the position rows follow it
 	{ "L position source", "ok 7 5 down", "ok", "pos_source=1 shows=GPS", 1, false },
@@ -645,28 +647,28 @@ static const flow_t flows[] = {
 	{ "G GPS signal page", "ok 6 2", "3", "shows=9_of_14_in_the_fix", 1, false },
 	{ "G GPS grid page", "ok 6 2", "4", "shows=FN42li", 1, false },
 	{ "G GPS pages wrap", "ok 6 2", "up down", "shows=Status", 2, false },
-	{ "A beacon frequency setting", "ok 6 8", "up up up up ok", "aprs_myfreq=1", 5, false },
+	{ "A beacon frequency setting", "ok 6 8 0 0", "ok ok ok ok ok", "aprs_myfreq=1", 5, false },
 	{ "A frequency action", "aprs:freq ok 6 8 1 ok", "down", "focus=Tune_to_146.520_T100", 1, false },
 	{ "A frequency tune", "aprs:freq ok 6 8 1 ok down", "ok", "screen=home temporary=1", 1, false },
 	{ "A frequency undo", "aprs:freq ok 6 8 1 ok down ok", "back", "screen=home temporary=0", 1, false },
 	{ "A frequency refused", "aprs:badfreq ok 6 8 1 ok down", "ok", "screen=aprs-station toast=This_radio_can't_receive", 1, false },
-	{ "A objects empty", "", "ok 6 8 up up up ok", "screen=aprs-objects count=0", 7, false },
-	{ "A object list", "aprs:objects", "ok 6 8 up up up ok", "screen=aprs-objects shows=AID_TENT", 7, false },
-	{ "A object detail", "aprs:objects ok 6 8 up up up ok", "ok", "screen=aprs-object shows=Q1ABC-9", 1, false },
-	{ "A object frequency", "aprs:objects ok 6 8 up up up ok ok", "down down down",
+	{ "A objects empty", "", "ok 6 8 5", "screen=aprs-objects count=0", 7, false },
+	{ "A object list", "aprs:objects", "ok 6 8 5", "screen=aprs-objects shows=AID_TENT", 7, false },
+	{ "A object detail", "aprs:objects ok 6 8 5", "ok", "screen=aprs-object shows=Q1ABC-9", 1, false },
+	{ "A object frequency", "aprs:objects ok 6 8 5 ok", "down down down",
 	  "screen=aprs-object shows=146.520", 3, false },
-	{ "A object complete comment", "aprs:objects ok 6 8 up up up ok ok", "up wait:1000", "shows=here.", 1, false },
-	{ "A object remains selected after reorder", "aprs:objects ok 6 8 up up up ok ok", "aprs:reorder",
+	{ "A object complete comment", "aprs:objects ok 6 8 5 ok", "up wait:1000", "shows=here.", 1, false },
+	{ "A object remains selected after reorder", "aprs:objects ok 6 8 5 ok", "aprs:reorder",
 	  "screen=aprs-object shows=AID_TENT shows=Q1ABC-9", 0, false },
-	{ "A object removal", "aprs:objects ok 6 8 up up up ok ok", "aprs:removed down", "shows=Removed", 1, false },
-	{ "A object eviction", "aprs:objects ok 6 8 up up up ok ok", "aprs:evict wait:1000", "shows=No_longer", 0, false },
-	{ "A bulletins empty", "", "ok 6 8 up up ok", "screen=aprs-bulletins count=0", 6, false },
-	{ "A bulletins list", "aprs:bulletin", "ok 6 8 up up ok", "screen=aprs-bulletins shows=ARES", 6, false },
-	{ "A bulletin detail", "aprs:bulletin ok 6 8 up up ok", "ok", "screen=aprs-bulletin shows=Q1ABC-9", 1, false },
-	{ "A bulletin complete text", "aprs:bulletin ok 6 8 up up ok ok", "up wait:1000", "shows=here.", 1, false },
-	{ "A bulletin never replies", "aprs:bulletin ok 6 8 up up ok ok", "ok", "screen=aprs-bulletin sent=0", 1, false },
+	{ "A object removal", "aprs:objects ok 6 8 5 ok", "aprs:removed down", "shows=Removed", 1, false },
+	{ "A object eviction", "aprs:objects ok 6 8 5 ok", "aprs:evict wait:1000", "shows=No_longer", 0, false },
+	{ "A bulletins empty", "", "ok 6 8 3", "screen=aprs-bulletins count=0", 6, false },
+	{ "A bulletins list", "aprs:bulletin", "ok 6 8 3", "screen=aprs-bulletins shows=ARES", 6, false },
+	{ "A bulletin detail", "aprs:bulletin ok 6 8 3", "ok", "screen=aprs-bulletin shows=Q1ABC-9", 1, false },
+	{ "A bulletin complete text", "aprs:bulletin ok 6 8 3 ok", "up wait:1000", "shows=here.", 1, false },
+	{ "A bulletin never replies", "aprs:bulletin ok 6 8 3 ok", "ok", "screen=aprs-bulletin sent=0", 1, false },
 	{ "A bulletin banner", "", "aprs:bulletin-alert wait:200", "banner=Bulletin screen=home", 0, false },
-	{ "A KISS on USB", "ok 6 8", "up up up up up ok", "aprs_kiss=1", 6, false },
+	{ "A KISS on USB", "ok 6 8 0 9", "ok ok ok ok ok", "aprs_kiss=1", 5, false },
 	{ "A arrival banner", "", "aprs:packet", "banner=Q4WABC-15 shows=Q4WABC-15", 0, false },
 	{ "A arrival opens stable callsign", "aprs:packet aprs:reorder", "ctx",
 	  "screen=aprs-station shows=Q4WABC-15", 1, false },
@@ -682,12 +684,12 @@ static const flow_t flows[] = {
 	{ "A arrival during callsign entry", "ok 2 ok ok", "aprs:packet",
 	  "screen=aprs-to banner=none", 0, false },
 	{ "A addressed message has no traffic banner", "", "aprs:addressed", "banner=none", 0, false },
-	{ "A packet list empty", "", "ok 6 8 up ok", "screen=aprs-packets shows=Nothing_heard_yet", 6, false },
-	{ "A packet list not listening", "aprs:notlistening", "ok 6 8 up ok",
+	{ "A packet list empty", "", "ok 6 8 7", "screen=aprs-packets shows=Nothing_heard_yet", 6, false },
+	{ "A packet list not listening", "aprs:notlistening", "ok 6 8 7",
 	  "screen=aprs-packets shows=Not_listening", 6, false },
-	{ "A packet detail", "aprs:packet wait:8000 ok 6 8 up ok", "ok",
+	{ "A packet detail", "aprs:packet wait:8000 ok 6 8 7", "ok",
 	  "screen=aprs-packet shows=Q4WABC-15", 1, false },
-	{ "A packet snapshot survives arrival", "aprs:packet wait:8000 ok 6 8 up ok ok", "aprs:packet2 wait:8000",
+	{ "A packet snapshot survives arrival", "aprs:packet wait:8000 ok 6 8 7 ok", "aprs:packet2 wait:8000",
 	  "screen=aprs-packet shows=Q4WABC-15", 0, false },
 	{ "A stations heard", "", "ok 6 8 1", "screen=aprs-heard count=3", 5, false },
 	{ "A station message survives a newer packet", "ok 6 8 1 ok aprs:reorder", "ok",
@@ -1434,22 +1436,22 @@ static void heard_checks(void)
 static void weather_checks(void)
 {
 	static const char *const scripts[] = {
-		"wait:600000 ok 6 8 3 expect:screen=aprs-weather expect:shows=Newest down ok "
+		"wait:600000 ok 6 8 4 expect:screen=aprs-weather expect:shows=Newest down ok "
 		"expect:screen=aprs-weather-detail expect:shows=-7 down expect:shows=8_mph "
 		"down expect:shows=N down expect:shows=15_mph down expect:shows=1m "
 		"down expect:shows=0.02_in down expect:shows=0.10_in down expect:shows=0.00_in "
 		"down expect:shows=64% down expect:shows=29.92_inHg expect:count=10",
-		"aprs:reorder ok 6 8 3 ok expect:shows=Nearest down ok expect:shows=Q4WABC-15",
-		"aprs:nopos ok 6 8 3 ok down ok expect:screen=aprs-weather-detail",
+		"aprs:reorder ok 6 8 4 ok expect:shows=Nearest down ok expect:shows=Q4WABC-15",
+		"aprs:nopos ok 6 8 4 ok down ok expect:screen=aprs-weather-detail",
 		"aprs:nopos ok 6 8 1 expect:shows=No_own_pos",
-		"ok 6 8 3 down aprs:reorder ok expect:shows=Q4WABC-15 "
+		"ok 6 8 4 down aprs:reorder ok expect:shows=Q4WABC-15 "
 		"aprs:evict down expect:shows=Unknown",
-		"aprs:evict ok 6 8 3 expect:screen=aprs-weather expect:shows=No_weather_reports",
-		"aprs:wxunknown ok 6 8 3 down ok expect:count=1 expect:shows=Report_age expect:hides=Pressure",
-		"aprs:wxzero ok 6 8 3 down ok expect:count=11 expect:shows=0 "
+		"aprs:evict ok 6 8 4 expect:screen=aprs-weather expect:shows=No_weather_reports",
+		"aprs:wxunknown ok 6 8 4 down ok expect:count=1 expect:shows=Report_age expect:hides=Pressure",
+		"aprs:wxzero ok 6 8 4 down ok expect:count=11 expect:shows=0 "
 		"down expect:shows=0_mph down down down down expect:shows=0.00_in "
 		"down down down expect:shows=0% down expect:shows=0.00_inHg down expect:shows=0_W/m2",
-		"ok 7 2 up up up ok long:back ok 6 8 3 down ok expect:shows=-22 "
+		"ok 7 2 up up up ok long:back ok 6 8 4 down ok expect:shows=-22 "
 		"down expect:shows=13_km/h down down expect:shows=24_km/h down down expect:shows=0.5_mm "
 		"down down down down expect:shows=1013_hPa",
 	};
@@ -1617,14 +1619,14 @@ static void packet_checks(void)
 	char err[300];
 	for (int g = 0; g < sim_geom_count; g++) {
 		sim_reset(&sim_geoms[g], SIM_MAP_K);
-		if (!sim_run("aprs:packet wait:8000 ok 6 8 up ok expect:shows=status ok "
+		if (!sim_run("aprs:packet wait:8000 ok 6 8 7 expect:shows=status ok "
 			"expect:screen=aprs-packet down down down expect:shows=Raw down expect:shows=>hi\\x01 "
 			"down expect:shows=[truncated]", err, sizeof err)) {
 			printf("FAIL packet detail [%s]: %s\n", sim_geoms[g].name, err);
 			fails++;
 		}
 		sim_reset(&sim_geoms[g], SIM_MAP_K);
-		if (!sim_run("aprs:packet-speed wait:8000 ok 6 8 up ok ok down down down down down "
+		if (!sim_run("aprs:packet-speed wait:8000 ok 6 8 7 ok down down down down down "
 			"expect:shows=17_mph units:metric expect:shows=28_km/h units:us expect:shows=17_mph",
 			err, sizeof err)) {
 			printf("FAIL packet units [%s]: %s\n", sim_geoms[g].name, err);
@@ -1707,11 +1709,11 @@ static void beacon_comment_checks(void)
 	char script[2048], err[300];
 	for (int g = 0; g < sim_geom_count; g++) {
 		sim_reset(&sim_geoms[g], SIM_MAP_K);
-		strcpy(script, "ok 6 8 5 2 ctx ");
+		strcpy(script, "ok 6 8 6 2 ctx ");
 		for (int i = 0; i < 44; i++) {
 			strcat(script, "1 ");
 		}
-		strcat(script, "expect:shows=0_remaining ok expect:screen=aprs-beacon expect:aprs_auto=0 "
+		strcat(script, "expect:shows=0_remaining ok expect:screen=aprs-review ok ok ok ok ok expect:screen=aprs-beacon expect:aprs_auto=0 "
 		       "expect:aprs_comment=1111111111111111111111111111111111111111111 2 back long:back "
 		       "expect:screen=home expect:aprs_comment=1111111111111111111111111111111111111111111");
 		if (!sim_run(script, err, sizeof err)) {

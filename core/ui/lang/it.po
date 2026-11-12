@@ -641,6 +641,94 @@ msgid "  Sent "
 msgstr "  Inviato "
 
 #: core/ui/ui_aprs.c
+msgid "Precision: "
+msgstr "Precisione: "
+
+#: core/ui/ui_aprs.c
+msgid "Compressed position, 1-2 ft resolution. No ambiguity."
+msgstr "Posizione compressa, risoluzione di 30-60 cm. Nessuna ambiguità."
+
+#: core/ui/ui_aprs.c
+msgid " minutes of position resolution."
+msgstr " minuti di risoluzione della posizione."
+
+#: core/ui/ui_aprs.c
+msgid "Voice frequency: "
+msgstr "Frequenza voce: "
+
+#: core/ui/ui_aprs.c
+msgid "Follows the voice channel. "
+msgstr "Segue il canale voce. "
+
+#: core/ui/ui_aprs.c
+msgid "Not included on this channel."
+msgstr "Non inclusa su questo canale."
+
+#: core/ui/ui_aprs.c
+msgid "Not included."
+msgstr "Non inclusa."
+
+#: core/ui/ui_aprs.c
+msgid "Position source: "
+msgstr "Origine posizione: "
+
+#: core/ui/ui_aprs.c
+msgid "Position age: "
+msgstr "Età posizione: "
+
+#: core/ui/ui_aprs.c
+msgid "Entry age unknown"
+msgstr "Età inserimento sconosciuta"
+
+#: core/ui/ui_aprs.c
+msgid "Automatic beacons on. "
+msgstr "Beacon automatici attivi. "
+
+#: core/ui/ui_aprs.c
+msgid "Automatic beacons off. "
+msgstr "Beacon automatici disattivati. "
+
+#: core/ui/ui_aprs.c
+msgid "Smart: 30 min up to 5 km/h or unknown speed; 3 min from 90 km/h. Between: 270/speed min, at most 30 min. Above 5 km/h, turns over 28 + 400/speed degrees may send after 30s. Interval and decay do not apply."
+msgstr "Smart: 30 min fino a 5 km/h o velocità ignota; 3 min da 90 km/h. Tra i due: 270/velocità min, massimo 30. Oltre 5 km/h, svolte oltre 28 + 400/velocità gradi consentono invii dopo 30s. Intervallo e decadimento esclusi."
+
+#: core/ui/ui_aprs.c
+msgid "Interval: "
+msgstr "Intervallo: "
+
+#: core/ui/ui_aprs.c
+msgid ". Decay doubles unchanged reports up to 30 min."
+msgstr ". Il decadimento raddoppia i rapporti invariati fino a 30 min."
+
+#: core/ui/ui_aprs.c
+msgid "Save beacon settings?"
+msgstr "Salvare impostazioni beacon?"
+
+#: core/ui/ui_aprs.c
+msgid "Path: "
+msgstr "Percorso: "
+
+#: core/ui/ui_aprs.c
+msgid "Beacon review"
+msgstr "Beacon on"
+
+#: core/ui/ui_aprs.c
+msgid "OK save  Back"
+msgstr "OK salva  Indietro"
+
+#: core/ui/ui_aprs.c
+msgid "Up/Dn more  OK next"
+msgstr "Su/Giù altro  OK avanti"
+
+#: core/ui/ui_aprs.c
+msgid "OK next  Back"
+msgstr "OK avanti  Indietro"
+
+#: core/ui/ui_aprs.c
+msgid "Comment not saved"
+msgstr "Commento non salvato"
+
+#: core/ui/ui_aprs.c
 msgid "Send position now"
 msgstr "Invia posizione ora"
 
@@ -713,6 +801,22 @@ msgstr "Il mio beacon"
 msgid "Weather"
 msgstr "Meteo"
 
+#: core/ui/ui_aprs.c core/ui/ui_find.c core/ui/ui_menus.c
+msgid "Settings"
+msgstr "Impostazioni"
+
+#: core/ui/ui_aprs.c
+msgid "My position"
+msgstr "La mia posizione"
+
+#: core/ui/ui_aprs.c
+msgid "Local TX"
+msgstr "TX locale"
+
+#: core/ui/ui_aprs.c
+msgid "Repeat"
+msgstr "Ripetizione"
+
 #: core/ui/ui_aprs.c
 msgid "My frequency in my beacon"
 msgstr "La mia frequenza nel beacon"
@@ -720,6 +824,18 @@ msgstr "La mia frequenza nel beacon"
 #: core/ui/ui_aprs.c
 msgid "NMEA on USB"
 msgstr "NMEA su USB"
+
+#: core/ui/ui_aprs.c
+msgid "No repeat heard"
+msgstr "Nessuna ripetizione"
+
+#: core/ui/ui_aprs.c
+msgid "Not sent"
+msgstr "Non inviato"
+
+#: core/ui/ui_aprs.c core/ui/ui_aprs_objects.c core/ui/ui_aprs_wx.c
+msgid "Unknown"
+msgstr "Sconosciuto"
 
 #: core/ui/ui_aprs.c
 msgid " unread"
@@ -758,14 +874,6 @@ msgid "Can't send now"
 msgstr "Invio non possibile ora"
 
 #: core/ui/ui_aprs.c
-msgid "Beacons on"
-msgstr "Beacon on"
-
-#: core/ui/ui_aprs.c
-msgid "Beacons off"
-msgstr "Beacon off"
-
-#: core/ui/ui_aprs.c
 msgid "SmartBeaconing sets timing"
 msgstr "SmartBeaconing imposta il ritmo"
 
@@ -777,6 +885,18 @@ msgstr "La via usa intervalli di un minuto"
 msgid "This radio can't receive APRS"
 msgstr "Questa radio non riceve APRS"
 
+#: core/ui/ui_aprs.c
+msgid "TX on"
+msgstr "TX attiva"
+
+#: core/ui/ui_aprs.c
+msgid "TX off"
+msgstr "TX disattiva"
+
+#: core/ui/ui_aprs.c
+msgid "FM + DMR"
+msgstr "FM + DMR"
+
 #: core/ui/ui_aprs.c core/ui/ui_aprs_beacon.c
 msgid "Symbol"
 msgstr "Simbolo"
@@ -786,8 +906,16 @@ msgid "Back"
 msgstr "Indietro"
 
 #: core/ui/ui_aprs.c
-msgid "0-9 pick  Back"
-msgstr "0-9 scegli  Indietro"
+msgid "APRS settings"
+msgstr "Impostazioni APRS"
+
+#: core/ui/ui_aprs.c core/ui/ui_aprs_beacon.c core/ui/ui_menus.c core/ui/ui_position.c
+msgid "OK change  Back"
+msgstr "OK cambia  Indietro"
+
+#: core/ui/ui_aprs.c core/ui/ui_aprs_beacon.c core/ui/ui_aprs_list.c core/ui/ui_aprs_objects.c core/ui/ui_aprs_wx.c
+msgid "OK choose  Back"
+msgstr "OK scegli  Indietro"
 
 #: core/ui/ui_aprs.c core/ui/ui_aprs_objects.c
 msgid "Heard"
@@ -832,10 +960,6 @@ msgstr "Rotta"
 #: core/ui/ui_aprs.c
 msgid "Packets"
 msgstr "Pacchetti"
-
-#: core/ui/ui_aprs.c core/ui/ui_aprs_beacon.c core/ui/ui_aprs_list.c core/ui/ui_aprs_objects.c core/ui/ui_aprs_wx.c
-msgid "OK choose  Back"
-msgstr "OK scegli  Indietro"
 
 #: core/ui/ui_aprs.c
 #. requires: CONFIG_APRS_RX
@@ -1143,14 +1267,6 @@ msgstr "Portata"
 msgid "Automatic"
 msgstr "Automatico"
 
-#: core/ui/ui_aprs_beacon.c
-msgid "Comment not saved"
-msgstr "Commento non salvato"
-
-#: core/ui/ui_aprs_beacon.c core/ui/ui_menus.c core/ui/ui_position.c
-msgid "OK change  Back"
-msgstr "OK cambia  Indietro"
-
 #: core/ui/ui_aprs_home.c
 msgid "Not sending: no callsign"
 msgstr "Non invia: nominativo assente"
@@ -1310,10 +1426,6 @@ msgstr "Attivo"
 #: core/ui/ui_aprs_objects.c
 msgid "Distance"
 msgstr "Distanza"
-
-#: core/ui/ui_aprs_objects.c core/ui/ui_aprs_wx.c
-msgid "Unknown"
-msgstr "Sconosciuto"
 
 #: core/ui/ui_aprs_objects.c
 msgid "Object"
@@ -1666,10 +1778,6 @@ msgstr "Canali"
 #: core/ui/ui_find.c core/ui/ui_menus.c
 msgid "Tools"
 msgstr "Strumenti"
-
-#: core/ui/ui_find.c core/ui/ui_menus.c
-msgid "Settings"
-msgstr "Impostazioni"
 
 #: core/ui/ui_find.c core/ui/ui_menus.c
 msgid "Roaming"

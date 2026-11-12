@@ -1109,6 +1109,9 @@ static void test_dmr_position(void)
 	position_get_cfg(&pc);
 	aprs_get_cfg(&c);
 	CHECK(pc.dmr_gps && pc.ambiguity == 2 && pc.fix_lat == 490583333 && c.via == APRS_VIA_BOTH);
+	aprs_view_t precision;
+	aprs_get_view(&precision);
+	CHECK(precision.ambiguity == 2);
 #if CONFIG_APRS_RX
 	uint8_t n0 = aprs_station_count();
 	aprs_dmr_heard(9997040, "qd9xyz Bob", 337490000, -843880000, now);

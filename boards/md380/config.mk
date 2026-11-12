@@ -56,7 +56,8 @@ BOARD_NOT_WRITTEN += AUDIO_PROBE	# no board.audio_tap yet
 # radios (docs/spec/ppp.md), and this one has the adapter. Every switch on doesn't fit the 464 KB of flash with two
 # translations: maximal keeps Spanish, as the default build does (Italian builds on the other boards). APRS Tune and the
 # Home APRS lines need receive to be useful, which this radio doesn't have yet (above), so maximal leaves them off too
-MAXIMAL_SKIP := NET_PPP LANG_IT LANG_DEFAULT_IT APRS_TUNE APRS_HOME
+# Keep the default bitmap fonts in maximal too: APRS review must fit beside the optional features.
+MAXIMAL_SKIP := NET_PPP LANG_IT LANG_DEFAULT_IT APRS_TUNE APRS_HOME FONT_AA
 CONFIG_RX_EXT ?= n
 BOARD_NOT_WRITTEN += RX_EXT	# no receive range in its chip documents (a PLL and an IF chain, no single receiver chip)
 

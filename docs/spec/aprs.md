@@ -93,7 +93,7 @@ with the DMR backend alone.
 
 ## 3. Rules
 
-- Transmit is off by default. Automatic beacons need Tools > APRS > Automatic beacons; "Send position now" works
+- Transmit is off by default. Automatic beacons need Tools > APRS > Settings > Automatic beacons; "Send position now" works
   without it.
 - A callsign is required: the debug link's test call, else Settings > My radio's radio name, else the codeplug's
   radio name; its first word, upper case, 3-6 letters and digits with a digit after the first character, not N0CALL.
@@ -451,7 +451,7 @@ radio core into the station list).
 
 ## 9. Host port: KISS TNC
 
-With Tools > APRS > KISS on USB, the host link claims KISS frames (0xC0) and `$` lines on the USB serial port (and on
+With Tools > APRS > Settings > KISS on USB, the host link claims KISS frames (0xC0) and `$` lines on the USB serial port (and on
 UDP port 3334 in USB network mode, where the host port runs over the network). The host link's TNC mode
 (`HOSTLINK_TNC`) holds while frames flow and ends after 30 s idle, like the hotspot and CPS modes.
 
@@ -478,17 +478,24 @@ in the radio's own APRS-IS client (`CONFIG_NET_APRSIS`, `tcp-services.md` 7), wh
 
 ## 10. UI
 
-With `CONFIG_APRS_HOME` (defaults to `CONFIG_APRS_RX`), Tools > APRS is a task hub. Its header shows
-local send age and the next timed beacon, or the current blocked/listening state. The second line shows
-"Repeated by <callsign>" for a matching repeat, otherwise the heard count and nearest known distance in the selected display units.
-While listening and unblocked, repeat evidence precedes the local send age so it survives a one-line Home layout.
-No nearest distance is shown without positions on both sides. The numbered rows are Stations (count and new
-identities since the last visit), Messages (unread, opens the shared inbox), Weather (received reports when enabled),
-Send position now, My beacon (identity, frequency, position/source and symbol review), then the existing settings.
-Digits 1-9 and 0 select the first ten rows; later rows use Up / Down and OK. A new packet from a station already
-viewed is not a new station. The bounded viewed-call list is volatile.
+Tools > APRS is a status/task hub. Its header shows callsign-SSID, own position source, TX state and path.
+Send position now is the initial selection on every display class. Local TX and matching-repeat evidence
+precede secondary counts. The fixed task numbers are 1 Stations, 2 Messages, 3 Bulletins, 4 Weather,
+5 Objects, 6 My beacon, 7 Recent packets, 8 My position (Location settings), and 0 APRS settings.
+Unbuilt tasks are omitted without changing other numbers. A new packet from a station already viewed is not a
+new station. The bounded viewed-call list is volatile.
 
-Settings > Display > APRS line enables the same status on Home (default off, stored in `knob_flags` bit 1).
+Policy controls live on `aprs-settings`: automatic beacons, frequency, power, path, interval, SmartBeaconing,
+output, decay, host port and voice-frequency inclusion, as supported by the build.
+A changed configuration or comment is held in UI memory until `aprs-review` completes.
+Its five pages show encoding precision/ambiguity, voice inclusion, current source/age, effective timing, and Save.
+Up/Down scrolls whole-word wrapped body text on every display class. OK advances, then commits on the final page.
+Back or Home cancels. Comment reviews save only the comment; other reviews save the proposed APRS configuration.
+The position view exposes the position service's ambiguity even without a fix. Fixed-position entry age is unknown.
+Smart timing describes the engine's 5/90 km/h thresholds, 1800/180 second rates, interpolation and turn rule;
+interval and decay are overridden. The amateur-band block and engine send eligibility remain unchanged.
+
+Settings > Display > APRS line enables APRS status on Home (default off, stored in `knob_flags` bit 1).
 It occupies up to two existing activity rows below the channel and voice controls, never moving them. Voice
 activity, monitor and banners take priority. APRS TX on/off replaces the Home hint while the APRS line is enabled.
 A mono APRS arrival preserves the voice target; addressed messages combine sender and preview on one row,
@@ -503,33 +510,16 @@ field in main RAM. A received own-source frame never enters the station table. A
 minutes, with a used digipeater callsign (not a WIDE/TRACE alias), publishes a retained repeat event: callsign,
 receipt time and incrementing serial. The last used path address identifies the digipeater. A new successful
 transmission clears the previous repeat. This is evidence of an RF repeat, not internet or recipient delivery.
-The feature and its RAM compile out with `CONFIG_APRS_HOME=n`; builds without receive default to the compact page.
+The Home status feature and its retained repeat evidence compile out with `CONFIG_APRS_HOME=n`.
 
-The compact page and My beacon review retain the existing status details described below.
+My beacon retains its callsign/frequency/position preview. Settings use the existing configuration fields.
+Power and Path are dimmed without an RF transmitter; Frequency is dimmed without an AFSK or receive path.
+The station list and range calculations are unchanged.
 
-Tools > APRS (`ui_aprs.c`): the body shows the callsign and frequency, why nothing can be sent (no callsign, no
-frequency, not amateur, no AFSK), the position and its source, the next beacon and the count sent. Rows: Send
-position now, Automatic beacons, Frequency (region: N America 144.390, Europe 144.800, Australia 145.175, New Zealand
-144.575, Japan 144.660, China 144.640, Custom), Power (As channel, then each of the board's levels), Path (the
-digipeater path of RF packets: None, WIDE1-1, WIDE1-1,WIDE2-1, WIDE2-1, WIDE2-2; OK steps to the next and the last choice
-wraps to None), Interval (Off, 1, 2, 5, 10, 30 min), SmartBeaconing, Send via (AFSK, DMR, Both), KISS on USB, Stations
-heard (RX builds: the sorted list described below, dimmed when heard through a digipeater; a station with a position shows
-its distance and compass point from ours, `position_now` as DMR GPS Info uses it, "14.5 km NE" by `sb_range`,
-left out first when the row is too narrow, and nothing without a position on either side; that row's age is the
-position's, `pos_ms`, else the last packet's. An object's or item's position is not stored as its sender's; a
-station's position is dropped at 24 h, `STATION_POS_MS`, so its age never wraps). On a radio without
-`board.afsk`, Power and Path are dimmed, and so is Frequency unless the build receives APRS.
-
-The page shows the rows the build has:
-
-| Build | Rows left out | Body |
-|---|---|---|
-| Both backends | none | callsign and frequency, why RF is blocked, position, next beacon, count |
-| No `CONFIG_APRS_DMR` | Send via | the same |
-| No `CONFIG_APRS_AFSK` | Frequency, Power, Path, Send via, Stations heard; "KISS on USB" reads "NMEA on USB" | position, next beacon, count |
-
-The digit keys follow the rows shown. Where the position comes from, the fixed position and "Send in DMR calls" are
-in Settings > Location ([position.md](position.md) 6).
+Settings rows depend on the build. Send via appears only with both backends. Without AFSK,
+Frequency, Power and Path are omitted, and KISS on USB reads NMEA on USB. Settings digits follow its visible rows;
+hub task numbers remain fixed. Position source, fixed coordinates and Send in DMR calls remain in
+Settings > Location ([position.md](position.md) 6).
 
 The station list (`ui_aprs_list.c`, `CONFIG_APRS_RX`) starts with Nearest when our position is valid, otherwise
 Recent. `*` cycles Recent / Nearest / Callsign. An explicit sort and the filter last for the powered session.
@@ -596,9 +586,9 @@ UI polls, only the newest can raise a banner.
 Object comments and bulletin text use the shared UI word wrapper, as message threads do. Lines break at spaces;
 a word longer than a line splits only when necessary. Scrolling reaches all retained text.
 
-Objects and Bulletins follow KISS on USB. Recent packets follows Bulletins; the compact page then shows Stations heard.
+Objects, Bulletins and Recent packets are operating tasks on the hub.
 `Recent packets` opens `aprs-packets`: newest first, callsign, plain kind and receipt age.
-Digit picking follows the displayed rows; only the first ten rows have digits. The empty text is "Nothing heard
+Digit picking uses the fixed task numbers above. The empty text is "Nothing heard
 yet". When `aprs_rx_listening()` is false the body explains the unavailable receive path, receive setting off, TX,
 voice channel, or unavailable audio. Selecting a packet copies its snapshot into main RAM and opens `aprs-packet`;
 ring eviction cannot change it. The detail lists kind, age, direct/digipeated state, retained name/addressee and
@@ -612,7 +602,7 @@ With `CONFIG_APRS_BEACON`, My beacon (`ui_aprs_beacon.c`) adds a callsign, symbo
 then five rows: Symbol, Comment, Beacons, Pace and Reach. Symbol offers 40 named choices, with table/code
 assignments from the [APRS symbol specification](https://www.aprs.org/symbols/symbolsX.txt); no graphics are stored.
 A symbol outside this subset reads Custom and is preserved until a choice is saved. Comment uses the existing
-text editor, accepts up to 43 printable ASCII characters and shows the remaining count. OK saves, including an
+text editor, accepts up to 43 printable ASCII characters and shows the remaining count. OK reviews, including an
 empty comment; Back deletes, then cancels when empty. Hold Back cancels and returns Home.
 Beacons selects Off or Automatic. Pace selects Smart or a fixed interval of 1, 2, 5, 10 or 30 minutes; choosing
 Smart preserves the fallback interval. Reach selects Direct, Local relay, Local then wide, Wide one hop or
