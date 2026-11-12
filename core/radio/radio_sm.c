@@ -3646,8 +3646,9 @@ static inline void aprs_rf_abort(radio_sm_t *sm, uint32_t now_ms) { (void)sm; (v
 #endif
 
 #if CONFIG_APRS_RX && CONFIG_DUAL_WATCH
-// Voice squelch can miss AFSK: allow a whole packet before relying on carrier hold.
+// Bound voice absence even when data or carrier stays busy.
 #define APRS_WATCH_DWELL_MS	1000u
+#define APRS_WATCH_CAP_MS	3000u
 
 // Use dual watch's settle/carrier/hold timing without changing the selected voice channel.
 static bool aprs_watch_poll(radio_sm_t *sm, uint32_t now_ms)
@@ -3676,9 +3677,12 @@ static bool aprs_watch_poll(radio_sm_t *sm, uint32_t now_ms)
 	board.radio->status(&st);
 	uint8_t sq = away ? RADIO_SQUELCH_DEFAULT : sm->view.squelch;
 	bool carrier = st.carrier || sq == 0 || st.noise < radio_sm_squelch_open_below(sq);
-	bool active = carrier || (away && sm->scan.heard && now_ms - sm->scan.heard_ms <= 100);
-	if (scan_poll(&sm->scan, now_ms, active, carrier, false) == SCAN_ACT_NEXT &&
-	    (!away || now_ms - sm->scan.tuned_ms >= APRS_WATCH_DWELL_MS)) {
+	bool active = carrier || (away && (aprs_rx_busy(now_ms) ||
+		(sm->scan.heard && now_ms - sm->scan.heard_ms <= 100)));
+	bool next = scan_poll(&sm->scan, now_ms, active, carrier, false) == SCAN_ACT_NEXT;
+	uint32_t elapsed = now_ms - sm->scan.tuned_ms;
+	if ((away && elapsed >= APRS_WATCH_CAP_MS) ||
+	    (next && (!away || elapsed >= APRS_WATCH_DWELL_MS))) {
 		if (away) {
 			aprs_rf_end(sm, APRS_RF_ABORTED, now_ms);
 			sm->scan.cfg.dwell_ms = 750;

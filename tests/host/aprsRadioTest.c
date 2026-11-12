@@ -1501,7 +1501,7 @@ static void test_voice_listen(void)
 	run(100);
 	CHECK(hw.rx_hz == APRS_HZ);
 	hw.noise_on_aprs = 30;
-	run(2000);
+	run(500);
 	CHECK(hw.rx_hz == APRS_HZ && aprs_rx_listening() && !hw.tx_calls);
 	hw.noise_on_aprs = 120;
 	run(150);
@@ -1554,6 +1554,67 @@ static void test_voice_listen(void)
 	fake_tap.caps = 0;
 }
 
+static void test_watch_dcd(void)
+{
+	fake_tap.caps = AUDIO_TAP_FM_RX;
+	reset();
+	aprs_cfg_t c;
+	aprs_get_cfg(&c);
+	c.listen_voice = true;
+	aprs_set_cfg(&c, now);
+	for (unsigned i = 0; i < 100 && hw.rx_hz != APRS_HZ; i++) run(25);
+	CHECK(hw.rx_hz == APRS_HZ);
+	uint32_t entered = now;
+	// Settling samples never reach the correlators, even if they contain flags.
+	static uint8_t tones[1024];
+	static int16_t audio[40000];
+	hdlc_enc_t e;
+	hdlc_enc_init(&e, tones, sizeof tones);
+	CHECK(hdlc_enc_flags(&e, 600));
+	afsk_mod_t m;
+	afsk_mod_init(&m, 8000);
+	CHECK(afsk_mod(&m, tones, e.nbits, 8000, audio, 40000) > 30000);
+	aprs_rx_audio(audio, 656, now);
+	aprs_rx_stats_t stats;
+	aprs_rx_stats(&stats);
+	CHECK(stats.bits == 0 && !aprs_rx_busy(now));
+	run(700);
+	ax25_frame_t f;
+	uint8_t raw[AX25_FRAME_MAX];
+	const char *line = "Q1ABC-9>APRS:>Late packet";
+	CHECK(ax25_from_tnc2(line, strlen(line), &f));
+	size_t n = ax25_encode(&f, raw, sizeof raw);
+	hdlc_enc_init(&e, tones, sizeof tones);
+	CHECK(hdlc_enc_flags(&e, 40) && hdlc_enc_frame(&e, raw, n) && hdlc_enc_flags(&e, 3));
+	afsk_mod_init(&m, 8000);
+	memset(audio, 0, sizeof audio);
+	size_t samples = afsk_mod(&m, tones, e.nbits, 8000, audio, 40000);
+	for (size_t i = 0; i < samples; i += AUDIO_BLOCK_SAMPLES) {
+		feed(audio + i);
+		CHECK(hw.rx_hz == APRS_HZ);
+	}
+	CHECK(now - entered > 1000 && aprs_station_count() == 1 && !hw.tx_calls);
+	// Silence expires DCD and its tail; no reset occurred while decoding the late frame.
+	int16_t silence[AUDIO_BLOCK_SAMPLES] = {0};
+	for (unsigned i = 0; i < 8; i++) feed(silence);
+	CHECK(hw.rx_hz == CH_HZ && !aprs_rx_busy(now));
+	for (unsigned i = 0; i < 100 && hw.rx_hz != APRS_HZ; i++) run(25);
+	entered = now;
+	hdlc_enc_init(&e, tones, sizeof tones);
+	CHECK(hdlc_enc_flags(&e, 600));
+	afsk_mod_init(&m, 8000);
+	CHECK(afsk_mod(&m, tones, e.nbits, 8000, audio, 40000) > 30000);
+	for (unsigned i = 0; i < 120; i++) {
+		feed(audio + i * AUDIO_BLOCK_SAMPLES);
+		if (i >= 10 && i < 119) CHECK(aprs_rx_busy(now) && hw.rx_hz == APRS_HZ);
+	}
+	CHECK(now - entered == 3000 && hw.rx_hz == CH_HZ && !hw.tx_calls);
+	c.listen_voice = false;
+	aprs_set_cfg(&c, now);
+	run(50);
+	fake_tap.caps = 0;
+}
+
 static void test_rx_stream(void)
 {
 	fake_tap.caps = AUDIO_TAP_FM_RX;
@@ -1600,7 +1661,7 @@ static void test_rx_stream(void)
 	CHECK(aprs_station_count() == 1 && aprs_station(0, &st) && strcmp(st.call, "Q1ABC-9") == 0);
 	aprs_rx_stats_t rs;
 	aprs_rx_stats(&rs);
-	CHECK(rs.peak > 7000 && rs.peak <= 8000 && rs.frames == 1 && rs.bits > 900);
+	CHECK(rs.peak > 7000 && rs.peak <= 8000 && rs.frames == 1 && rs.bits >= e.nbits);
 	// A signal: the squelch holds through 100 ms of noise readings over the line (a packet's tones do that), closes
 	// after 300 ms of them
 	hw.noise_on_aprs = 30;
@@ -2281,6 +2342,7 @@ int main(void)
 	test_home_repeat();
 	test_stations_digi_igate();
 	test_voice_listen();
+	test_watch_dcd();
 	test_rx_stream();
 	test_rx_board_only();
 	test_station_range();

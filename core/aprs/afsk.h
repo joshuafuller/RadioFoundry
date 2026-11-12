@@ -66,12 +66,16 @@ typedef struct {
 	afsk_frame_fn fn;
 	void *ctx;
 	uint32_t samples, bits;		// counters: bits are the received path's
+	uint32_t dcd_at;
+	bool dcd_seen;
 	uint32_t frames, dups;		// frames delivered, and copies dropped
 } afsk_demod_t;
 
 // False when the rate can't be handled (below 7200 Hz or a correlator over AFSK_WIN_MAX)
 bool afsk_demod_init(afsk_demod_t *d, uint32_t rate, afsk_frame_fn fn, void *ctx);
 void afsk_demod(afsk_demod_t *d, const int16_t *s, size_t n);
+// Valid HDLC activity within the last 100 ms of samples.
+bool afsk_demod_busy(const afsk_demod_t *d);
 // The HDLC decoders' frames with a bad FCS and aborts, summed over the paths
 uint32_t afsk_demod_fcs_errors(const afsk_demod_t *d);
 uint32_t afsk_demod_aborts(const afsk_demod_t *d);

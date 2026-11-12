@@ -273,6 +273,8 @@ typedef struct {
 	uint32_t bits, frames, fcs_errors, aborts, start_fails;
 } aprs_rx_stats_t;
 void aprs_rx_stats(aprs_rx_stats_t *out);
+// Radio task: recent demodulator activity, independent of voice squelch.
+bool aprs_rx_busy(uint32_t now_ms);
 // Received audio (the radio task reads it from the board's receive path or the PCM stream while receiving FM)
 void aprs_rx_audio(const int16_t *s, size_t n, uint32_t now_ms);
 // A decoded AX.25 frame (without the FCS): from the demodulator, or the tests

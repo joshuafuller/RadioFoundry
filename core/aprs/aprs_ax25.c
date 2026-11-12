@@ -958,6 +958,11 @@ static void demod_frame(const uint8_t *frame, size_t n, void *ctx)
 void aprs_rx_audio(const int16_t *s, size_t n, uint32_t now_ms)
 {
 	aprs_s.now = now_ms;
+	aprs_s.rx_audio_ms = now_ms;
+	size_t discard = n < aprs_s.rx_discard ? n : aprs_s.rx_discard;
+	aprs_s.rx_discard -= discard;
+	s += discard;
+	n -= discard;
 	for (size_t i = 0; i < n; i++) {
 		uint16_t m = (uint16_t)(s[i] < 0 ? -(int32_t)s[i] : s[i]);
 		if (m > aprs_s.rx_peak) {
@@ -993,6 +998,8 @@ void aprs_ax25_rx_service(const aprs_radio_t *r, uint32_t now_ms)
 		    (own || rx_by_stream());
 	// The wait only after a refusal: an old rx_retry_ms compared 24.8 days later would read as in the future
 	if (want && !aprs_s.rx_running && (!aprs_s.rx_retry_wait || (int32_t)(now_ms - aprs_s.rx_retry_ms) >= 0)) {
+		// 50 ms settling plus one 32 ms receive half that may straddle the retune.
+		aprs_s.rx_discard = (own ? h->rx_rate_hz : 8000u) * 82u / 1000u;
 		aprs_s.rx_peak = 0;
 		aprs_s.rx_running = afsk_demod_init(&aprs_s.demod, own ? h->rx_rate_hz : 8000u, demod_frame, NULL);
 		if (aprs_s.rx_running && own) {
@@ -1045,6 +1052,12 @@ bool aprs_can_receive(void)
 }
 
 #if CONFIG_APRS_RX
+bool aprs_rx_busy(uint32_t now_ms)
+{
+	return aprs_s.rx_running && now_ms - aprs_s.rx_audio_ms < 100u &&
+		afsk_demod_busy(&aprs_s.demod);
+}
+
 void aprs_rx_stats(aprs_rx_stats_t *out)
 {
 	out->peak = aprs_s.rx_peak;

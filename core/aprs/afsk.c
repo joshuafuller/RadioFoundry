@@ -165,6 +165,10 @@ static void path_sample(afsk_demod_t *d, afsk_path_t *p, int32_t x, int32_t cm, 
 			d->bits++;
 		}
 		size_t n = hdlc_dec_bit(&p->hdlc, mark);
+		if (p->hdlc.in_frame) {
+			d->dcd_seen = true;
+			d->dcd_at = d->samples;
+		}
 		if (n != 0) {
 			deliver(d, &p->hdlc, n);
 		}
@@ -222,4 +226,9 @@ uint32_t afsk_demod_aborts(const afsk_demod_t *d)
 		n += d->path[p].hdlc.aborts;
 	}
 	return n;
+}
+
+bool afsk_demod_busy(const afsk_demod_t *d)
+{
+	return d->dcd_seen && d->samples - d->dcd_at < d->rate / 10u;
 }
