@@ -32,7 +32,7 @@ void aprs_beacon_ptt_end(aprs_beacon_t *b, const aprs_beacon_cfg_t *cfg, uint32_
 
 uint16_t aprs_smart_rate_s(const aprs_beacon_cfg_t *cfg, uint16_t speed_kmh)
 {
-	if (speed_kmh <= cfg->slow_kmh || speed_kmh == 0) {
+	if (speed_kmh <= cfg->slow_kmh || speed_kmh == 0 || speed_kmh == 0xFFFFu) {
 		return cfg->slow_s;
 	}
 	if (speed_kmh >= cfg->fast_kmh) {
@@ -60,9 +60,9 @@ static uint32_t min_ms(const aprs_beacon_cfg_t *cfg)
 	return (uint32_t)m * 1000u;
 }
 
-static bool smart_active(const aprs_beacon_cfg_t *cfg, const aprs_beacon_pos_t *pos)
+static bool smart_active(const aprs_beacon_cfg_t *cfg)
 {
-	return cfg->smart && pos->speed_kmh != 0xFFFFu && cfg->slow_s != 0 && cfg->fast_s != 0;
+	return cfg->smart && cfg->slow_s != 0 && cfg->fast_s != 0;
 }
 
 uint8_t aprs_beacon_due(const aprs_beacon_t *b, const aprs_beacon_cfg_t *cfg, const aprs_beacon_pos_t *pos,
@@ -84,11 +84,11 @@ uint8_t aprs_beacon_due(const aprs_beacon_t *b, const aprs_beacon_cfg_t *cfg, co
 	if (cfg->after_ptt && b->ptt_end && now_ms - b->ptt_end_ms >= PTT_SETTLE_MS) {
 		return APRS_WHY_PTT;
 	}
-	if (smart_active(cfg, pos)) {
+	if (smart_active(cfg)) {
 		if (since >= (uint32_t)aprs_smart_rate_s(cfg, pos->speed_kmh) * 1000u) {
 			return APRS_WHY_SMART;
 		}
-		if (pos->speed_kmh > cfg->slow_kmh && pos->course != 0xFFFFu && b->last_course != 0xFFFFu &&
+		if (pos->speed_kmh != 0xFFFFu && pos->speed_kmh > cfg->slow_kmh && pos->course != 0xFFFFu && b->last_course != 0xFFFFu &&
 		    since >= (uint32_t)cfg->turn_s * 1000u &&
 		    turn(pos->course, b->last_course) > aprs_smart_turn_deg(cfg, pos->speed_kmh)) {
 			return APRS_WHY_TURN;
@@ -128,7 +128,7 @@ uint16_t aprs_beacon_next_s(const aprs_beacon_t *b, const aprs_beacon_cfg_t *cfg
 		return 0xFFFFu;
 	}
 	uint32_t period;
-	if (smart_active(cfg, pos)) {
+	if (smart_active(cfg)) {
 		period = aprs_smart_rate_s(cfg, pos->speed_kmh);
 	} else if (cfg->interval_s != 0) {
 		period = cfg->interval_s;

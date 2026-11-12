@@ -25,7 +25,7 @@ typedef enum {
 typedef struct {
 	bool auto_on;		// automatic beacons at all (the master "APRS TX" switch; manual works without it)
 	uint16_t interval_s;	// fixed interval, 0 = off
-	bool smart;		// SmartBeaconing (replaces the interval while a speed is known)
+	bool smart;		// SmartBeaconing (replaces the interval; unknown speed uses the slow rate)
 	uint16_t fast_kmh, slow_kmh;	// speeds for the fast and slow rates
 	uint16_t fast_s, slow_s;	// rates at those speeds
 	uint8_t turn_deg;	// minimum turn angle

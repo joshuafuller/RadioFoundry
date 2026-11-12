@@ -7,6 +7,10 @@
 #include <string.h>
 #include "aprs/aprs_int.h"
 #include "aprs/aprs_dmr.h"
+#include "aprs/aprs_pathing.h"
+#if CONFIG_APRS_PATHING
+static aprs_pathing_t pathing; // main RAM: never put this in aprs_s
+#endif
 #include "board.h"
 #include "settings/settings.h"
 
@@ -51,6 +55,7 @@ static void cfg_from_settings(const settings_t *s, aprs_cfg_t *c)
 	uint8_t f = s->aprs_flags, f2 = s->aprs_flags2;
 	c->tx_on = (f & SETTINGS_APRS_TX) != 0;
 	c->smart = (f & SETTINGS_APRS_SMART) != 0;
+	c->decay = (f2 & SETTINGS_APRS2_DECAY) != 0;
 	c->compressed = (f & SETTINGS_APRS_COMPRESSED) != 0;
 	c->after_ptt = (f & SETTINGS_APRS_AFTER_PTT) != 0;
 	c->boot = (f & SETTINGS_APRS_BOOT) != 0;
@@ -96,6 +101,7 @@ static void cfg_to_settings(const aprs_cfg_t *c, settings_t *s)
 				  (c->rx_on ? SETTINGS_APRS_RX : 0));
 	s->aprs_flags2 = (uint8_t)((c->igate ? SETTINGS_APRS2_IGATE : 0) | (c->igate_tx ? SETTINGS_APRS2_IGATE_TX : 0) |
 				   (c->messaging ? SETTINGS_APRS2_MESSAGING : 0) |
+				   (c->decay ? SETTINGS_APRS2_DECAY : 0) |
 				   (c->dmr_udt ? SETTINGS_APRS2_DMR_UDT : 0) | (c->to_is ? SETTINGS_APRS2_TO_IS : 0) |
 				   (s->aprs_flags2 & SETTINGS_APRS2_DMR_GPS));
 	s->aprs_region = c->region;
@@ -174,7 +180,13 @@ static uint8_t via_now(void)
 static bool beacon(uint8_t why, const position_fix_t *f)
 {
 	uint8_t via = via_now();
-	bool any = aprs_ax25_beacon(f, via != APRS_VIA_DMR);
+	uint8_t path = aprs_s.cfg.path;
+#if CONFIG_APRS_PATHING
+	if (path == APRS_PATH_PROPORTIONAL) {
+		path = why == APRS_WHY_MANUAL ? APRS_PATH_NONE : aprs_pathing_path(&pathing);
+	}
+#endif
+	bool any = aprs_ax25_beacon(f, via != APRS_VIA_DMR, path);
 #if CONFIG_APRS_DMR
 	if (via != APRS_VIA_RF) {
 		aprs_s.dmr_due = true;
@@ -194,6 +206,9 @@ static bool beacon(uint8_t why, const position_fix_t *f)
 void aprs_init(uint32_t now_ms)
 {
 	memset(&aprs_s, 0, sizeof(aprs_s));
+#if CONFIG_APRS_PATHING
+	memset(&pathing, 0, sizeof(pathing));
+#endif
 	aprs_s.now = now_ms;
 	aprs_ax25_init(now_ms);
 	reload_cfg();
@@ -244,10 +259,23 @@ void aprs_tick(const aprs_radio_t *r, uint32_t now_ms)
 		bp.speed_kmh = f->speed_kmh;
 		bp.course = f->course;
 	}
-	uint8_t why = aprs_beacon_due(&aprs_s.bc, &aprs_s.bcfg, &bp, now_ms);
+	aprs_beacon_cfg_t timing = aprs_s.bcfg;
+#if CONFIG_APRS_PATHING
+	const char *comment = "";
+#if CONFIG_APRS_AFSK
+	comment = aprs_s.comment;
+#endif
+	aprs_pathing_update(&pathing, &aprs_s.cfg, &bp, comment);
+	timing.interval_s = aprs_pathing_interval(&pathing, &aprs_s.cfg);
+#endif
+	uint8_t why = aprs_beacon_due(&aprs_s.bc, &timing, &bp, now_ms);
 	if (why != APRS_WHY_NONE && f != NULL) {
 		if (beacon(why, f)) {
 			aprs_beacon_sent(&aprs_s.bc, why, &bp, now_ms);
+#if CONFIG_APRS_PATHING
+			aprs_pathing_sent(&pathing, &aprs_s.cfg, why);
+			timing.interval_s = aprs_pathing_interval(&pathing, &aprs_s.cfg);
+#endif
 		} else if (why == APRS_WHY_MANUAL) {
 			aprs_s.bc.manual = false;	// nowhere to send it (the view's block says why)
 		}
@@ -268,7 +296,7 @@ void aprs_tick(const aprs_radio_t *r, uint32_t now_ms)
 		aprs_s.v.course = f->course;
 		aprs_s.v.pos_age_s = (now_ms - f->ms) / 1000u;
 	}
-	aprs_s.v.next_s = aprs_beacon_next_s(&aprs_s.bc, &aprs_s.bcfg, &bp, now_ms);
+	aprs_s.v.next_s = aprs_beacon_next_s(&aprs_s.bc, &timing, &bp, now_ms);
 #if CONFIG_APRS_DMR
 	bool dmr_due = aprs_s.dmr_due;
 	aprs_s.dmr_due = false;

@@ -38,7 +38,7 @@ typedef enum {
 } aprs_region_t;
 
 typedef enum {
-	APRS_PATH_NONE, APRS_PATH_WIDE1, APRS_PATH_WIDE1_WIDE2, APRS_PATH_WIDE2, APRS_PATH_WIDE2_2, APRS_PATH_COUNT,
+	APRS_PATH_NONE, APRS_PATH_WIDE1, APRS_PATH_WIDE1_WIDE2, APRS_PATH_WIDE2, APRS_PATH_WIDE2_2, APRS_PATH_PROPORTIONAL, APRS_PATH_COUNT,
 } aprs_path_t;
 
 typedef enum { APRS_VIA_RF, APRS_VIA_DMR, APRS_VIA_BOTH, APRS_VIA_COUNT } aprs_via_t;
@@ -55,6 +55,7 @@ typedef struct {
 	bool messaging;		// we take messages
 	uint16_t interval_s;	// 0 = none
 	bool smart;
+	bool decay;
 	uint16_t distance_m;	// 0 = off
 	bool after_ptt;
 	bool boot;

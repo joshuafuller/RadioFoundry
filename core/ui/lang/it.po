@@ -541,6 +541,10 @@ msgid "None"
 msgstr "Nessuno"
 
 #: core/ui/ui_aprs.c
+msgid "Proportional"
+msgstr "Proporzionale"
+
+#: core/ui/ui_aprs.c
 msgid "Both"
 msgstr "Entrambi"
 
@@ -669,6 +673,10 @@ msgid "Stations heard"
 msgstr "Stazioni sentite"
 
 #: core/ui/ui_aprs.c
+msgid "Decay"
+msgstr "Decadimento"
+
+#: core/ui/ui_aprs.c
 msgid "NMEA on USB"
 msgstr "NMEA su USB"
 
@@ -679,6 +687,14 @@ msgstr "Sì"
 #: core/ui/ui_aprs.c
 msgid "As channel"
 msgstr "Come canale"
+
+#: core/ui/ui_aprs.c
+msgid "Smart on"
+msgstr "Smart attivo"
+
+#: core/ui/ui_aprs.c
+msgid "Path: 1 min"
+msgstr "Via: 1 min"
 
 #: core/ui/ui_aprs.c
 msgid "Sending position"
@@ -699,6 +715,14 @@ msgstr "Beacon on"
 #: core/ui/ui_aprs.c
 msgid "Beacons off"
 msgstr "Beacon off"
+
+#: core/ui/ui_aprs.c
+msgid "SmartBeaconing sets timing"
+msgstr "SmartBeaconing imposta il ritmo"
+
+#: core/ui/ui_aprs.c
+msgid "Path uses one-minute slots"
+msgstr "La via usa intervalli di un minuto"
 
 #: core/ui/ui_aprs.c
 msgid "This radio can't receive APRS"

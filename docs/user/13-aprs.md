@@ -35,7 +35,8 @@ frequency, your position and its source, and when the next beacon goes out. If t
 | Frequency | Your region: N America 144.390, Europe 144.800, Australia 145.175, New Zealand 144.575, Japan 144.660, China 144.640 MHz, or Custom (`tools/rfoundry_debug.py aprs set region custom`, then `aprs set freq_hz 144390000`) |
 | Power | As channel: APRS transmits at the radio's current power level. Or pick a level of its own, for example a low one for a nearby digipeater. Dimmed on radios that can't send APRS over the air |
 | Path | How far digipeaters pass your packets on: None, WIDE1-1, WIDE1-1,WIDE2-1 (the default), WIDE2-1 or WIDE2-2. See Path below. Dimmed on radios that can't send APRS over the air |
-| Interval | How often: Off, 1, 2, 5, 10 or 30 minutes |
+| Interval | How often: Off, 1, 2, 5, 10 or 30 minutes. Dimmed when SmartBeaconing or Proportional sets timing |
+| Decay | Off by default. Double the interval for unchanged position and comment, up to 30 minutes. Available in builds with beacon pathing; dimmed while SmartBeaconing is on |
 | SmartBeaconing | More often when you move fast, at once after a turn, rarely when you stand still |
 | Send via | AFSK (on FM), DMR, or both |
 | KISS on USB | The radio works as a KISS TNC for APRS programs on the computer |
@@ -74,12 +75,18 @@ The path says how many digipeater hops a packet may take on FM. Each **WIDEn-N**
 | WIDE1-1,WIDE2-1 | 2 | Mobile and handheld use in most of North America and Europe (the default) |
 | WIDE2-1 | 1 | Fixed stations that reach a wide digipeater directly |
 | WIDE2-2 | 2 | Sparse areas; skips fill-in digipeaters |
+| Proportional | 0, 1, 0, 2 | One-minute slots: Direct, WIDE1-1, Direct, WIDE1-1,WIDE2-1, then repeat |
 
 More hops mean more copies on a busy frequency. Use the fewest that reach an iGate. The path doesn't apply to
 positions sent over DMR.
 
 The path is also in the codeplug's first APRS configuration, which qdmr edits. A change on the radio is written
 there too, and a codeplug written with a different path changes the radio's. Whichever changed last is used.
+
+Proportional is available in builds with beacon pathing. It is saved on the radio; the codeplug keeps its literal
+path. A newly changed codeplug path replaces Proportional too. Manual beacons go direct without advancing the cycle;
+messages and status use two hops. With Decay on, unchanged position and comment stretch the slots up to 30 minutes.
+SmartBeaconing keeps the path cycle but chooses timing by movement.
 
 ## Receiving
 
@@ -107,6 +114,13 @@ works whatever the receive setting. **Stations heard** shows the station and whe
 Automatic beacons go out at the interval, or with SmartBeaconing by speed and turns. Never more often than every
 30 seconds. The radio waits for a clear APRS frequency before it sends, and gives up after 10 seconds. Pressing PTT
 always wins: an APRS transmission in progress stops and your channel comes back.
+
+With **Decay** on and SmartBeaconing off, the first beacon uses the base interval; each beacon doubles the next
+wait, up to 30 minutes. Changing your position or comment resets the wait to the base interval. Interval Off stays
+off. Proportional uses a one-minute base instead of the saved interval.
+
+With **SmartBeaconing** on, Interval and Decay say **Smart on** and are dimmed. Selecting them explains why; their
+saved values stay unchanged. Without a known speed, SmartBeaconing uses its 30-minute slow rate.
 
 ## Position
 

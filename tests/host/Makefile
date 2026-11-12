@@ -118,10 +118,14 @@ TESTS   += aprsTest
 NMEALIB := $(CORE)/position/nmea.c $(CORE)/position/nmea_sky.c
 POSLIB  := $(CORE)/position/position.c $(NMEALIB)
 APRSLIB := $(CORE)/aprs/ax25.c $(CORE)/aprs/hdlc.c $(CORE)/aprs/afsk.c $(CORE)/aprs/kiss.c $(CORE)/aprs/aprs_fmt.c \
-           $(CORE)/aprs/aprs_beacon.c $(CORE)/aprs/aprs_igate.c
+           $(CORE)/aprs/aprs_beacon.c $(CORE)/aprs/aprs_pathing.c $(CORE)/aprs/aprs_igate.c
+
+TESTS += aprsPathingTest
+aprsPathingTest: aprsPathingTest.c $(APRSLIB) $(wildcard $(CORE)/aprs/*.h)
+	$(CC) $(CFLAGS) -I$(ROOT)/hal -o $@ aprsPathingTest.c $(APRSLIB) -lm
 
 aprsTest: aprsTest.c $(APRSLIB) $(NMEALIB) $(wildcard $(CORE)/aprs/*.h)
-	$(CC) $(CFLAGS) -o $@ aprsTest.c $(APRSLIB) $(NMEALIB) -lm
+	$(CC) $(CFLAGS) -I$(ROOT)/hal -o $@ aprsTest.c $(APRSLIB) $(NMEALIB) -lm
 
 run: $(TESTS)
 	./dmrFecTest
@@ -142,6 +146,7 @@ run: $(TESTS)
 	./ipGatewayTestAir440
 	./sfrTest
 	./aprsTest
+	./aprsPathingTest
 ifneq ($(TSHARK),)
 	@# Independent check of the frames the gateway sent: no malformed packets or bad checksums
 	@for f in ipGatewayTest.pcap ipGatewayTest16.pcap ipGatewayTest31.pcap ipGatewayTestShared.pcap ipGatewayTestAir440.pcap; do "$(TSHARK)" -r $$f -o ip.check_checksum:TRUE -o udp.check_checksum:TRUE -z expert,note -q; done > ipGatewayTest.expert
@@ -203,7 +208,7 @@ radioCoreTestAprs: $(RCAPRS) $(wildcard $(CORE)/radio/*.h) $(wildcard $(CORE)/dm
 # The same with APRS over DMR only (CONFIG_APRS_AFSK=0): the engine and the DMR backend, nothing of AX.25 compiled
 TESTS   += radioCoreTestAprsDmr
 RCAPRSD := $(RCORE) $(CORE)/aprs/aprs.c $(CORE)/aprs/aprs_dmr.c $(CORE)/aprs/aprs_host.c $(CORE)/aprs/aprs_fmt.c \
-           $(CORE)/aprs/aprs_beacon.c
+           $(CORE)/aprs/aprs_beacon.c $(CORE)/aprs/aprs_pathing.c
 radioCoreTestAprsDmr: $(RCAPRSD) $(wildcard $(CORE)/radio/*.h) $(wildcard $(CORE)/dmr/call/*.h) $(CORE)/dmr/dmrDataService.h \
                       $(CORE)/ui/ui_svc.h $(wildcard $(CORE)/aprs/*.h)
 	$(CC) $(CFLAGS) $(CORE_HAL) -I. -DDMR_RX_TRACE=0 -DCONFIG_DMR_IP_GATEWAY=0 -DCONFIG_SFR=1 -DCONFIG_APRS_AFSK=0 -o $@ $(RCAPRSD) -lm

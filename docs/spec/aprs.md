@@ -269,7 +269,33 @@ Triggers (`aprs_beacon.c`), all under the hard minimum:
 | Manual | | "Send position now" (UI, debug link) |
 | Boot | off | the first position after power-up |
 
-Without a known speed SmartBeaconing falls back to the interval. The defaults are an open decision (section 14).
+SmartBeaconing always replaces the fixed interval and decay. Without speed it uses the slow rate (30 min),
+with no turn trigger. Interval and Decay are dimmed with “Smart on”; selecting them explains that SmartBeaconing
+sets timing. Stored values remain available when SmartBeaconing is turned off.
+
+### 7.1 Decay and proportional pathing
+
+`CONFIG_APRS_PATHING` adds `aprs_pathing.c`; its state is in main RAM. Decay defaults off. With SmartBeaconing off,
+each accepted beacon doubles the next interval, capped at the 30-minute net cycle. An exact change to our latitude,
+longitude or codeplug comment resets the interval to its base. The first beacon uses the base interval. Interval Off
+stays off. A timing-policy change resets decay; re-enabling automatic beacons also starts the interval from now.
+The minimum interval, position prerequisite and RF busy checks still apply. Acceptance means handed to the existing
+transmit queue, as for the other triggers; a failed enqueue does not advance decay or the path sequence.
+
+Path adds **Proportional**, after WIDE2-2. Its base interval is one minute, shown by a dimmed Interval row with
+“Path: 1 min”. Automatic beacons cycle Direct, WIDE1-1, Direct, WIDE1-1,WIDE2-1: one packet per slot, not an
+additional packet for each path. Decay stretches those slots when enabled; SmartBeaconing replaces their timing
+while retaining the path cycle. Manual beacons use Direct and do not advance that cycle. Messages and status use
+the two-hop path. The cycle resets on a policy change or restart, without catch-up bursts.
+
+This follows the mobile sequence in [APRS proportional pathing guidance](https://www.aprs.org/fix14439.html).
+The 30-minute cap and unchanged position/comment criterion are RadioFoundry's decay policy. The engine and its
+view use the same effective interval, tested with a simulated clock including millisecond wrap.
+
+Decay uses `SETTINGS_APRS2_DECAY` in the existing flags byte; proportional is an appended path enum value, so old
+settings retain their meaning. A proportional policy is saved only in radio settings: codeplug paths remain literal.
+A newly changed codeplug path still replaces the local choice. Builds without this feature keep stored choices but
+use the ordinary interval and the two-hop path; they show no Decay row or selectable Proportional option.
 
 ## 8. Positions over DMR
 
@@ -353,7 +379,7 @@ Tools > APRS (`ui_aprs.c`): the body shows the callsign and frequency, why nothi
 frequency, not amateur, no AFSK), the position and its source, the next beacon and the count sent. Rows: Send
 position now, Automatic beacons, Frequency (region: N America 144.390, Europe 144.800, Australia 145.175, New Zealand
 144.575, Japan 144.660, China 144.640, Custom), Power (As channel, then each of the board's levels), Path (the
-digipeater path of RF packets: None, WIDE1-1, WIDE1-1,WIDE2-1, WIDE2-1, WIDE2-2; OK steps to the next and WIDE2-2
+digipeater path of RF packets: None, WIDE1-1, WIDE1-1,WIDE2-1, WIDE2-1, WIDE2-2; OK steps to the next and the last choice
 wraps to None), Interval (Off, 1, 2, 5, 10, 30 min), SmartBeaconing, Send via (AFSK, DMR, Both), KISS on USB, Stations
 heard (RX builds: the list, most recent first, dimmed when heard through a digipeater; a station with a position shows
 its distance and compass point from ours, `position_now` as DMR GPS Info uses it, "14.5 km NE" by `sb_range`,
