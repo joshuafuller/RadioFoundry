@@ -45,7 +45,7 @@ Open **0 Settings** for the policy controls below. Transmit settings open a revi
 | SmartBeaconing | More often when you move fast, at once after a turn, rarely when you stand still |
 | Send via | AFSK (on FM), DMR, or both |
 | My beacon | Preview and edit symbol, comment, automatic beacons, pace and reach (when built) |
-| Listen on voice channels | Off by default. With APRS RX and dual watch built, alternate the idle voice receiver with APRS. Home says Listening: time share. Packets may be missed; voice cannot be heard while the receiver is away. PTT returns immediately to voice. This setting never enables transmit |
+| Listen on voice channels | Off by default. With APRS RX and dual watch built, alternate 750 ms on idle voice with at least one second on APRS (longer while carrier is detected). Home says Listening: time share. Packets may be missed; voice cannot be heard while the receiver is away. PTT returns immediately to voice. This setting never enables transmit |
 | KISS on USB | The radio works as a KISS TNC for APRS programs on the computer |
 | Objects | Named objects and items; OK opens position, owner, comment and advertised frequency |
 | Bulletins | Announcements and group bulletins; OK opens the complete text |

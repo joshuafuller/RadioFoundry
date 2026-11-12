@@ -1436,11 +1436,11 @@ static void test_voice_listen(void)
 	aprs_stop_tx(true); // stopping transmissions must not disable receive-only sharing
 	run(25); // scheduler's origin
 	unsigned dwell = 0;
-	for (unsigned i = 0; i < 80; i++) {
+	for (unsigned i = 0; i < 140; i++) {
 		run(25);
 		if (hw.rx_hz == APRS_HZ) dwell++;
 	}
-	CHECK(dwell == 20); // 250 ms in each 1000 ms cycle
+	CHECK(dwell == 80); // 1000 ms in each 1750 ms cycle
 	CHECK(!hw.tx_calls && sm.view.ch.rx_hz == CH_HZ);
 	aprs_home_t h;
 	aprs_home_get(&h);
@@ -1452,12 +1452,17 @@ static void test_voice_listen(void)
 	hw.noise_on_voice = 120;
 	for (unsigned i = 0; i < 100 && hw.rx_hz != APRS_HZ; i++) run(25);
 	CHECK(hw.rx_hz == APRS_HZ && aprs_rx_listening());
-	// A real AFSK packet starts during the dwell and finishes beyond its normal end.
+	// Decodable audio need not open voice squelch. A brief early carrier must not shorten the visit.
+	hw.noise_on_aprs = 30;
+	run(50);
+	hw.noise_on_aprs = 120;
+	run(50);
+	// A real AFSK packet starts after settling and exceeds the old 250 ms dwell.
 	static uint8_t tones[256];
 	static int16_t audio[24000];
 	ax25_frame_t f;
 	uint8_t raw[AX25_FRAME_MAX];
-	const char *line = "Q1ABC-9>APRS:!4903.50N/07201.75W-Held to completion";
+	const char *line = "Q1ABC-9>APRS:>Clean packet";
 	CHECK(ax25_from_tnc2(line, strlen(line), &f));
 	size_t n = ax25_encode(&f, raw, sizeof raw);
 	hdlc_enc_t e;
@@ -1468,13 +1473,14 @@ static void test_voice_listen(void)
 	memset(audio, 0, sizeof audio);
 	size_t samples = afsk_mod(&m, tones, e.nbits, 8000, audio + 800, 22400);
 	CHECK(samples > 2000);
-	hw.noise_on_aprs = 30;
 	for (size_t i = 0; i + AUDIO_BLOCK_SAMPLES <= samples + 1600; i += AUDIO_BLOCK_SAMPLES) {
 		feed(audio + i);
 		CHECK(hw.rx_hz == APRS_HZ);
 	}
 	CHECK(aprs_station_count() == 1);
-	// Short noise gaps do not cut off a packet.
+	// Carrier can extend the minimum visit; short noise gaps do not cut off a packet.
+	hw.noise_on_aprs = 30;
+	run(1000);
 	hw.noise_on_aprs = 120;
 	run(100);
 	CHECK(hw.rx_hz == APRS_HZ);

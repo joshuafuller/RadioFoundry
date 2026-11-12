@@ -825,9 +825,9 @@ The selected FM or DMR voice channel and PTT target remain unchanged.
 
 | State | Receiver behavior |
 |---|---|
-| Idle voice channel | 750 ms on voice, then 250 ms on the configured APRS frequency in FM |
+| Idle voice channel | 750 ms on voice, then at least 1000 ms on the configured APRS frequency in FM |
 | Retune | The scan engine ignores carrier readings for 50 ms while the receiver settles |
-| APRS carrier | Hold until carrier ends; bridge noise gaps up to 100 ms, then return within two 25 ms polls |
+| APRS carrier | Extend the minimum visit until carrier ends; bridge noise gaps up to 100 ms, then return within two 25 ms polls |
 | Observed voice activity | Stay on voice; start a fresh 750 ms interval after the radio is idle |
 | PTT | Restore voice in the PTT request before normal keying; no dwell, carrier or timer wait |
 | User scan/dual watch, monitor, hotspot, other radio work | Suspend APRS time sharing |
@@ -840,16 +840,36 @@ sharing never calls the transmitter; the existing amateur-band transmit block is
 
 #### Expected packet loss (model, not an RF measurement)
 
-With no traffic or holds, the tuning duty cycle is 250/1000 = 25%. Subtracting 50 ms of settling gives at most
-200/1000 = 20% of the cycle for catching packet starts. For independent uniformly timed starts, negligible
-preamble acquisition time and a perfect RF path, expect about **80% missed starts**, plus demodulator acquisition,
-poll-boundary and RF losses. A preamble that overlaps a dwell can improve this, but no particular improvement is
-promised. Voice activity reduces the available duty cycle further. Repeated packets are not independent if their
-periods align with this one-second cycle.
+The old 250 ms visit relied entirely on voice squelch to hold a packet. The FM sample tap can deliver
+decodable AFSK without that squelch reporting carrier. A 450 ms frame then cannot finish before the retune
+stops the sample feed and resets the demodulator on the next visit. A brief carrier followed by noise could
+also move the scan engine through hold/resume and return even before the nominal dwell ended. The scheduler
+now enforces the minimum visit in every scan phase. Carrier can extend it, but is not required to decode a
+packet that fits. The selected channel's speaker mute does not gate the dedicated FM receive tap.
 
-At 1200 baud, 60, 120 and 250 bytes take 0.40, 0.80 and 1.67 seconds respectively, before preamble, flags and bit
-stuffing (worst-case stuffing adds 20%). All exceed the 200 ms settled window. Without carrier hold, none could
-fit wholly in a dwell; with hold, a captured start can complete regardless of those lengths. Hearing only a
-frame's tail is not successful reception. Host tests model the 25% idle tuning duty, voice priority, PTT at each
-25 ms point, a real AFSK frame held beyond the dwell, and short noise gaps. Hardware loss and retune latency
-remain unmeasured.
+Timing budget for the reported 450 ms frames: 50 ms existing scan settling allowance + 450 ms on air +
+32 ms maximum wait for a receive audio half + 25 ms maximum wait for a radio poll = 557 ms. The 32 ms
+half-buffer interval is measured in [modem-hrc7000.md](modem-hrc7000.md#85-fm-receive-audio-to-the-cpu).
+A 1000 ms visit leaves 443 ms for such a packet to start after the settling allowance. The carrier detect
+window runs from 50 ms through the end of the visit; there is no separate early exit on absent carrier.
+The 50 ms allowance is not a measured RF PLL/audio settling bound. If actual settling exceeds it, subtract
+that excess from the usable start window. One flag takes 8/1200 = 6.67 ms; preamble acquisition and any
+preamble outside the quoted frame duration reduce that window too.
+
+With no traffic or holds, the cycle is 750 + 1000 = 1750 ms and tuning duty is 57.1%. Without carrier
+extension, uniformly timed 450 ms frames have a conservative complete-frame start window of
+443/1750 = 25.3%, or about **75% expected loss**, before additional acquisition and RF losses. This is a
+timing model, not measured reception performance. Reliable carrier hold increases the available start
+window toward (1000 - 50)/1750 = 54.3% (about 46% missed starts, before acquisition). Preambles overlapping
+a visit can help. Repeated packets need not have independent start phases. Voice traffic reduces APRS time.
+
+At 1200 baud, 60, 120 and 250 bytes take 0.40, 0.80 and 1.67 seconds respectively, before preamble, flags and
+bit stuffing (worst-case stuffing adds 20%). Long frames still require carrier hold; this change does not
+promise reception of arbitrary packet lengths without it. Voice is absent for at least one second per idle
+cycle and longer with carrier hold; PTT and cancellation still restore voice immediately.
+
+Host tests exercise the minimum visit despite missing carrier and an early hold/resume transition, decode
+real AFSK audio across the old dwell boundary, and cover duty cycle, voice priority, PTT and carrier extension.
+The dedicated sample ring is started on entry and stopped on exit; the demodulator intentionally resets at
+each entry so separate visits cannot splice packet fragments. The reported hardware failure is consistent
+with squelch-dependent truncation, but post-fix RF reception and actual retune latency remain unmeasured.
