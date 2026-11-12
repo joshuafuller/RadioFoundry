@@ -114,7 +114,7 @@ static const struct { const char *name, *script; } gallery[] = {
 	{ "aprs_home_tx", "aprs:home aprs:txon" },
 	{ "aprs_weather_missing", "aprs:wxunknown ok 6 8 4 down ok" },
 	{ "aprs_incoming", "aprs:incoming" },
-	{ "aprs_thread_received", "aprs:message ok 2 ok" },
+	{ "aprs_thread_received", "aprs:message ok 2 ok down down down down down down down down down down down down" },
 	{ "aprs_thread_queued", "aprsthread:queued ok 2 ok down down down down down down down down down down down down" },
 	{ "aprs_thread_sending", "aprsthread:sending ok 2 ok down down down down down down down down down down down down" },
 	{ "aprs_thread_delivered", "aprsthread:delivered ok 2 ok down down down down down down down down down down down down" },

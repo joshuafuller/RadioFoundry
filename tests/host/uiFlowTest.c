@@ -735,6 +735,7 @@ static const flow_t flows[] = {
 	{ "A new APRS message appears independently of DMR format", "", "ok 2", "shows=New_APRS_message", 2, false },
 	{ "A new APRS message opens its composer", "ok 2", "ok", "screen=compose shows=To_callsign", 1, false },
 	{ "A new APRS message needs our callsign", "aprs:nocall ok 2", "", "hides=New_APRS_message", 0, false },
+	{ "A received APRS message explains suppressed ACK", "aprs:message ok 2", "ok down down down down down down down down down down down down", "screen=aprs-thread shows=off", 13, false },
 	{ "A received APRS message opens in Messages", "aprs:message ok 2", "ok", "screen=aprs-thread shows=Hello_APRS", 1, false },
 	{ "A received APRS message replies over APRS", "aprs:message ok 2 ok", "ok down ok ok ok", "sent=1 aprs_to=Q4WAB-9 text=OK screen=aprs-thread", 5, false },
 	{ "A received APRS message opens a typed reply", "aprs:message ok 2 ok", "ctx",

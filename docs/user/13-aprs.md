@@ -189,7 +189,10 @@ On radios that can receive APRS, the radio decodes packets while you listen on t
 the frequency shown in **Frequency** on the APRS page (your region's, 144.390 MHz in North America) in FM, or tune
 the VFO there, and leave the radio on it. If the packets are sent on another frequency, set **Frequency** to Custom
 and enter it first. Heard
-stations go into **Stations heard**, messages to your callsign appear in **Messages** and are acknowledged, and the digipeater (if you
+stations go into **Stations heard**, messages to your callsign appear in **Messages**. With APRS transmit off, they are still stored and shown, but
+the radio sends no acknowledgment or rejection. Numbered messages show **Not acknowledged: APRS TX off**.
+Turning transmit on does not acknowledge old messages automatically; a received retry can be acknowledged.
+With transmit on, numbered messages are acknowledged as before. The digipeater (if you
 turned it on) passes packets on.
 
 - It listens only on the APRS frequency, in FM, and the tuned frequency must equal the APRS **Frequency** exactly.

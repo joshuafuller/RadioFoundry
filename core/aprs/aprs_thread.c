@@ -144,6 +144,7 @@ uint8_t aprs_thread(const char *call, aprs_thread_msg_t out[APRS_THREAD_MAX], bo
 		memcpy(out[n].call, m->from, sizeof m->from);
 		memcpy(out[n].text, m->text, sizeof m->text);
 		out[n].ms = m->ms;
+		out[n].ack_tx_off = m->ack_tx_off;
 		out[n++].read = m->read;
 	}
 	for (uint8_t i = 0; i < count; i++) {

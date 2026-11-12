@@ -200,6 +200,7 @@ typedef struct {
 	char msgno[6];
 	uint32_t ms;
 	bool read;
+	bool ack_tx_off;	// numbered incoming message received while APRS TX was off
 } aprs_msg_t;
 
 #if CONFIG_APRS_RX
@@ -218,6 +219,7 @@ typedef struct {
 	uint32_t ms, done_ms, next_ms;
 	uint8_t state, tries;
 	bool read;
+	bool ack_tx_off;	// numbered incoming message received while APRS TX was off
 } aprs_thread_msg_t;
 // Snapshot in time order, optionally marking this callsign's incoming messages read. NULL call: all messages.
 uint8_t aprs_thread(const char *call, aprs_thread_msg_t out[APRS_THREAD_MAX], bool read);

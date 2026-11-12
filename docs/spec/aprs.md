@@ -159,6 +159,11 @@ No ack means no matching ACK was observed, not proof of nonreceipt. A message se
 Sent, no ack requested after the RF job succeeds. ACK and rejection retain the completed record and release the
 next queued message after outstanding RF frames finish. The existing retry intervals are unchanged.
 
+With APRS transmit off, numbered messages addressed to us are stored and shown without sending ACK or REJ.
+The received thread record shows **Not acknowledged: APRS TX off**. Turning transmit on does not send a deferred
+ACK; a later retry can be acknowledged and clears that notice. With transmit on, normal ACK and duplicate handling
+are unchanged, including the amateur-band block.
+
 Received addressed-message banners show the sender callsign and inbox text; # opens that conversation.
 Routine arrivals show the packet source and event kind. Bulletin and object prose wraps at spaces to the
 class body width; all retained text remains reachable by scrolling. A token wider than a line is split

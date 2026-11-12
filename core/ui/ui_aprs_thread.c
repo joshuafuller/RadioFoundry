@@ -132,7 +132,10 @@ static void thread_draw(void)
 		sb_chr(&b, '\n');
 		sb_str(&b, m->text);
 		sb_chr(&b, '\n');
-		if (m->state != APRS_MSG_INCOMING) {
+		if (m->state == APRS_MSG_INCOMING && m->ack_tx_off) {
+			sb_str(&b, TR("Not acknowledged: APRS TX off"));
+			sb_chr(&b, '\n');
+		} else if (m->state != APRS_MSG_INCOMING) {
 			message_state(&b, m);
 			sb_chr(&b, '\n');
 		}

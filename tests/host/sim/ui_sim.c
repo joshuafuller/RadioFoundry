@@ -731,6 +731,7 @@ bool ui_svc_aprs_msg(uint8_t i, aprs_msg_t *out, bool read)
 	memset(out, 0, sizeof *out);
 	strcpy(out->from, "Q4WAB-9");
 	strcpy(out->text, "Hello APRS");
+	out->ack_tx_off = true;
 	out->ms = aprs_sim.message_ms;
 	out->read = aprs_sim.message_read;
 	if (read)
@@ -758,6 +759,7 @@ uint8_t ui_svc_aprs_thread(const char *call, aprs_thread_msg_t out[APRS_THREAD_M
 		memset(&out[n], 0, sizeof out[n]);
 		strcpy(out[n].call, m.from);
 		strcpy(out[n].text, m.text);
+		out[n].ack_tx_off = m.ack_tx_off;
 		out[n].ms = m.ms;
 		if (read)
 			aprs_sim.message_read = true;

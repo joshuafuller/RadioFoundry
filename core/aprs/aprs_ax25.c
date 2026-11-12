@@ -822,10 +822,12 @@ static void message_in(const ax25_frame_t *f, const aprs_parsed_t *p)
 		return;
 	}
 	bool dup = false;
+	aprs_msg_t *received = NULL;
 	for (uint8_t i = 0; i < aprs_s.nmsg; i++) {
 		if (strcmp(aprs_s.msgs[i].from, from) == 0 && p->msgno[0] != '\0' && strcmp(aprs_s.msgs[i].msgno, p->msgno) == 0 &&
 		    aprs_s.now - aprs_s.msgs[i].ms < MSG_DUP_MS * 20u) {
-			dup = true;	// a retry: acked again, not stored again
+			dup = true;	// a retry: acked again when TX is on, not stored again
+			received = &aprs_s.msgs[i];
 		}
 	}
 	if (!dup) {
@@ -840,12 +842,15 @@ static void message_in(const ax25_frame_t *f, const aprs_parsed_t *p)
 		memcpy(m->text, p->text, k);
 		memcpy(m->msgno, p->msgno, sizeof(m->msgno));
 		m->ms = aprs_s.now;
+		m->ack_tx_off = p->msgno[0] != '\0' && !aprs_s.cfg.tx_on;
+		received = m;
 		aprs_changed();
 	}
-	if (p->msgno[0] != '\0' && aprs_s.block == APRS_OK) {
+	if (p->msgno[0] != '\0' && aprs_s.cfg.tx_on && aprs_s.block == APRS_OK) {
 		size_t n = aprs_build_ack(from, p->msgno, false, aprs_s.info, sizeof(aprs_s.info));
-		if (n != 0) {
-			queue_frame(K_ACK, aprs_path_text(aprs_s.cfg.path), aprs_s.info, n);
+		if (n != 0 && queue_frame(K_ACK, aprs_path_text(aprs_s.cfg.path), aprs_s.info, n)) {
+			received->ack_tx_off = false;
+			aprs_changed();
 		}
 	}
 }
