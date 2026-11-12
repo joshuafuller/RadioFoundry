@@ -620,7 +620,7 @@ msgstr " (enviando)"
 msgid "No position"
 msgstr "Sin posición"
 
-#: core/ui/ui_aprs.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_thread.c
 msgid "Next in "
 msgstr "Próx. en "
 
@@ -763,6 +763,58 @@ msgstr "Paquetes"
 #: core/ui/ui_aprs.c
 msgid "OK choose  Back"
 msgstr "OK elegir  Atrás"
+
+#: core/ui/ui_aprs_thread.c
+msgid "Queued"
+msgstr "En cola"
+
+#: core/ui/ui_aprs_thread.c core/ui/ui_menus.c
+msgid "Sending"
+msgstr "Enviando"
+
+#: core/ui/ui_aprs_thread.c
+msgid "Try "
+msgstr "Intento "
+
+#: core/ui/ui_aprs_thread.c core/ui/ui_gps.c core/ui/ui_menus.c core/ui/ui_screens.c
+msgid " of "
+msgstr " de "
+
+#: core/ui/ui_aprs_thread.c
+msgid " s"
+msgstr " s"
+
+#: core/ui/ui_aprs_thread.c
+msgid "Delivered (acked)"
+msgstr "Entregado (confirmado)"
+
+#: core/ui/ui_aprs_thread.c
+msgid "No ack after "
+msgstr "Sin confirmar tras "
+
+#: core/ui/ui_aprs_thread.c
+msgid " tries"
+msgstr " intentos"
+
+#: core/ui/ui_aprs_thread.c
+msgid "Rejected"
+msgstr "Rechazado"
+
+#: core/ui/ui_aprs_thread.c
+msgid "Sent, no ack requested"
+msgstr "Enviado sin pedir confirmación"
+
+#: core/ui/ui_aprs_thread.c core/ui/ui_menus.c
+msgid "From "
+msgstr "De "
+
+#: core/ui/ui_aprs_thread.c core/ui/ui_menus.c
+msgid "To "
+msgstr "A "
+
+#: core/ui/ui_aprs_thread.c
+msgid "OK reply  Back"
+msgstr "OK responder  Atrás"
 
 #: core/ui/ui_dual.c core/ui/ui_screens.c
 msgid "No tone"
@@ -1088,10 +1140,6 @@ msgstr "Aún sin posiciones"
 msgid "No satellites yet"
 msgstr "Aún sin satélites"
 
-#: core/ui/ui_gps.c core/ui/ui_menus.c core/ui/ui_screens.c
-msgid " of "
-msgstr " de "
-
 #: core/ui/ui_gps.c
 msgid " in the fix"
 msgstr " en la fijación"
@@ -1253,6 +1301,10 @@ msgid "Couldn't send: try again"
 msgstr "No se envió: reintenta"
 
 #: core/ui/ui_menus.c
+msgid "Queued for "
+msgstr "En cola para "
+
+#: core/ui/ui_menus.c
 msgid "Sending to "
 msgstr "Enviando a "
 
@@ -1327,14 +1379,6 @@ msgstr "Mensaje borrado"
 #: core/ui/ui_menus.c
 msgid "Couldn't delete: try again"
 msgstr "No se pudo borrar: reintenta"
-
-#: core/ui/ui_menus.c
-msgid "From "
-msgstr "De "
-
-#: core/ui/ui_menus.c
-msgid "To "
-msgstr "A "
 
 #: core/ui/ui_menus.c
 msgid "OK choose  # more  Back"
@@ -1439,10 +1483,6 @@ msgstr " por "
 #: core/ui/ui_menus.c
 msgid "Sending "
 msgstr "Enviando "
-
-#: core/ui/ui_menus.c
-msgid "Sending"
-msgstr "Enviando"
 
 #: core/ui/ui_menus.c
 msgid "Share To"

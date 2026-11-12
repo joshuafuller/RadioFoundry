@@ -441,7 +441,11 @@ static void station_select(uint16_t i, bool hold)
 	if (i == 0) {
 		aprs_station_t s;
 		bool found = ui_svc_aprs_station_find(station_call, &s);
-		ui_aprs_compose(found ? s.call : station_call);
+		const char *call = found ? s.call : station_call;
+		if (ui_aprs_thread_exists(call))
+			ui_aprs_thread_open(call);
+		else
+			ui_aprs_compose(call);
 	}
 }
 #else

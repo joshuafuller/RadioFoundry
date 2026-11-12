@@ -25,6 +25,17 @@
 #endif
 
 typedef struct {
+	bool active;
+	char to[AX25_CALL_LEN + 4];
+	char text[APRS_MSG_TEXT_MAX + 1];
+	char msgno[APRS_MSGNO_MAX + 1];
+	uint8_t tries;
+	uint32_t next_ms;
+	bool acked;
+	bool want_ack;
+} aprs_pending_t;
+
+typedef struct {
 	uint16_t len;
 	uint8_t kind;
 	uint8_t tries;
@@ -52,16 +63,7 @@ typedef struct {
 	uint8_t taken;		// frames in the transmission under way
 	uint32_t rf_next_ms;	// no transmission before
 	uint8_t tones[TONES_BYTES];
-	struct {
-		bool active;
-		char to[AX25_CALL_LEN + 4];
-		char text[APRS_MSG_TEXT_MAX + 1];
-		char msgno[APRS_MSGNO_MAX + 1];
-		uint8_t tries;
-		uint32_t next_ms;
-		bool acked;
-		bool want_ack;
-	} out;
+	aprs_pending_t out;
 	uint16_t msg_seq;
 	uint8_t ring[OUT_RING];
 	uint16_t r_head, r_len;

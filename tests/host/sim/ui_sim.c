@@ -71,6 +71,7 @@
 #include "hotspot/hotspot.h"
 #include "stubentry/stub_entry.h"
 #include "ui/ui_svc_aprs.h"
+#include "ui/fmt.h"
 
 #define TICK_MS		50
 #define PRESS_MS	150
@@ -422,6 +423,9 @@ static struct {
 	bool no_call;		// "aprs:nocall": no callsign anywhere
 	bool message;		// "aprs:message": an unread APRS message
 	bool message_read;
+#if CONFIG_APRS_RX
+	aprs_thread_msg_t outgoing;
+#endif
 	uint32_t message_ms;
 	bool evicted;
 	bool no_speed;
@@ -522,6 +526,25 @@ bool ui_svc_aprs_msg(uint8_t i, aprs_msg_t *out, bool read)
 		aprs_sim.message_read = true;
 	return true;
 }
+#if CONFIG_APRS_RX
+uint8_t ui_svc_aprs_thread(const char *call, aprs_thread_msg_t out[APRS_THREAD_MAX], bool read)
+{
+	uint8_t n = 0;
+	aprs_msg_t m;
+	if (ui_svc_aprs_msg(0, &m, false) && (call == NULL || strcmp(call, m.from) == 0)) {
+		memset(&out[n], 0, sizeof out[n]);
+		strcpy(out[n].call, m.from);
+		strcpy(out[n].text, m.text);
+		out[n].ms = m.ms;
+		if (read)
+			aprs_sim.message_read = true;
+		out[n++].read = aprs_sim.message_read;
+	}
+	if (aprs_sim.outgoing.call[0] && (call == NULL || strcmp(call, aprs_sim.outgoing.call) == 0))
+		out[n++] = aprs_sim.outgoing;
+	return n;
+}
+#endif
 bool ui_svc_aprs_msg_delete(uint8_t i)
 {
 	if (i != 0 || !aprs_sim.message)
@@ -1933,6 +1956,13 @@ bool ui_svc_aprs_send_message(const char *to, const char *text, uint8_t flags)
 {
 	if (to[0] == '\0')
 		return false;
+#if CONFIG_APRS_RX
+	str_copy(aprs_sim.outgoing.call, sizeof aprs_sim.outgoing.call, to);
+	str_copy(aprs_sim.outgoing.text, sizeof aprs_sim.outgoing.text, text);
+	aprs_sim.outgoing.ms = now_ms;
+	aprs_sim.outgoing.state = APRS_MSG_QUEUED;
+	aprs_sim.outgoing.read = true;
+#endif
 	sim_rec.messages_sent++;
 	strncpy(sim_rec.last_aprs_to, to, sizeof(sim_rec.last_aprs_to) - 1);
 	strncpy(sim_rec.last_text, text, sizeof(sim_rec.last_text) - 1);
@@ -2825,6 +2855,26 @@ static bool run_token(char *t, char *err, size_t len)
 		advance(200);
 		return true;
 	}
+#if CONFIG_APRS_RX
+	if (strcmp(t, "aprsthread") == 0 && arg != NULL) {
+		aprs_sim.message = true;
+		aprs_sim.message_ms = now_ms - 2000u;
+		aprs_thread_msg_t *m = &aprs_sim.outgoing;
+		memset(m, 0, sizeof *m);
+		strcpy(m->call, "Q4WAB-9");
+		strcpy(m->text, "Bring the spare battery to the north gate and wait by the red truck.");
+		m->ms = now_ms - 1000u;
+		m->done_ms = now_ms;
+		m->next_ms = now_ms + 30000u;
+		m->tries = 3;
+		m->read = true;
+		m->state = strcmp(arg, "sending") == 0 ? APRS_MSG_SENDING :
+			strcmp(arg, "delivered") == 0 ? APRS_MSG_DELIVERED :
+			strcmp(arg, "noack") == 0 ? APRS_MSG_NO_ACK :
+			strcmp(arg, "rejected") == 0 ? APRS_MSG_REJECTED : APRS_MSG_QUEUED;
+		return true;
+	}
+#endif
 	if (strcmp(t, "aprs") == 0 && arg != NULL) {	// aprs:off (not built), aprs:nocall, aprs:nopos, aprs:custom (a custom frequency set)
 		aprs_sim.off = strcmp(arg, "off") == 0;
 		aprs_sim.no_call = strcmp(arg, "nocall") == 0;

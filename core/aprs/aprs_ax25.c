@@ -8,6 +8,7 @@
 #if CONFIG_APRS_AFSK
 #include <string.h>
 #include "aprs/aprs_int.h"
+#include "aprs/aprs_thread.h"
 #include "aprs/hdlc.h"
 #include "aprs/kiss.h"
 #include "board.h"
@@ -457,6 +458,9 @@ void aprs_ax25_view(aprs_view_t *v)
 
 void aprs_ax25_init(uint32_t now_ms)
 {
+#if CONFIG_APRS_RX
+	aprs_thread_init();
+#endif
 	aprs_s.host_tokens = HOST_BURST;
 	aprs_s.host_refill_ms = now_ms;
 	aprs_s.msg_seq = (uint16_t)(now_ms % 900u);
@@ -499,6 +503,14 @@ void aprs_ax25_tick(uint32_t now_ms)
 
 void aprs_ax25_service(void)
 {
+#if CONFIG_APRS_RX
+	// Finish the previous RF job before another message can own its result.
+	bool message_frame = false;
+	for (uint8_t i = 0; i < aprs_s.qn; i++)
+		message_frame |= aprs_s.q[i].kind == K_MSG;
+	if (!message_frame)
+		aprs_thread_advance();
+#endif
 	// This half's view fields first: the returns below leave them set
 	aprs_s.v.freq_hz = aprs_cfg_freq(&aprs_s.cfg);
 	aprs_s.v.block = aprs_s.block;
@@ -510,16 +522,27 @@ void aprs_ax25_service(void)
 	}
 	if (aprs_s.out.acked || aprs_s.out.tries >= APRS_MSG_TRIES) {
 		aprs_s.out.active = false;
+#if CONFIG_APRS_RX
+		aprs_thread_update(aprs_s.out.acked ? APRS_MSG_DELIVERED : APRS_MSG_NO_ACK);
+#endif
 		aprs_changed();
 		return;
 	}
+#if CONFIG_APRS_RX
+	if (message_frame)
+		return;
+#endif
 	size_t n = aprs_build_message(aprs_s.out.to, aprs_s.out.text, aprs_s.out.msgno, aprs_s.info, sizeof(aprs_s.info));
 	if (n != 0 && queue_frame(K_MSG, aprs_path_text(aprs_s.cfg.path), aprs_s.info, n)) {
 		own_to_is(aprs_s.info, n);
 		aprs_s.out.tries++;
 		aprs_s.out.next_ms = aprs_s.now + (MSG_RETRY_MS << (aprs_s.out.tries - 1u));
+#if CONFIG_APRS_RX
+		aprs_thread_update(APRS_MSG_SENDING);
+#else
 		if (!aprs_s.out.want_ack)
 			aprs_s.out.active = false;
+#endif
 		aprs_changed();
 	}
 }
@@ -680,10 +703,8 @@ static void message_in(const ax25_frame_t *f, const aprs_parsed_t *p)
 	if (p->ack || p->rej) {
 		if (aprs_s.out.active && strcmp(aprs_s.out.to, from) == 0 && strcmp(aprs_s.out.msgno, p->msgno) == 0) {
 			aprs_s.out.acked = p->ack;
-			if (p->rej)
-				aprs_s.out.active = false;
-			else
-				aprs_s.out.next_ms = aprs_s.now;
+			aprs_s.out.active = false;
+			aprs_thread_update(p->ack ? APRS_MSG_DELIVERED : APRS_MSG_REJECTED);
 			aprs_changed();
 		}
 		return;
@@ -932,6 +953,14 @@ void aprs_rf_done(aprs_rf_result_t r, uint32_t now_ms)
 	LOCK();
 	aprs_s.now = now_ms;
 	if (r == APRS_RF_SENT) {
+#if CONFIG_APRS_RX
+		for (uint8_t i = 0; i < aprs_s.taken; i++) {
+			if (aprs_s.q[i].kind == K_MSG && !aprs_s.out.want_ack) {
+				aprs_s.out.active = false;
+				aprs_thread_update(APRS_MSG_SENT);
+			}
+		}
+#endif
 		queue_drop(aprs_s.taken);
 		aprs_s.v.rf_sent++;
 	} else {
@@ -1037,12 +1066,18 @@ bool aprs_send_message_opts(const char *to, const char *text, uint8_t flags)
 		UNLOCK();
 		return false;
 	}
-	memset(&aprs_s.out, 0, sizeof(aprs_s.out));
-	aprs_s.out.active = true;
-	aprs_s.out.want_ack = (flags & APRS_MSG_ACK) != 0;
-	ax25_addr_format(&x, false, aprs_s.out.to);
-	memcpy(aprs_s.out.text, text, xl + 1u);
-	if (aprs_s.out.want_ack) {
+#if !CONFIG_APRS_RX
+	if (aprs_s.out.active) {
+		UNLOCK();
+		return false;
+	}
+#endif
+	aprs_pending_t pending = {0};
+	pending.active = true;
+	pending.want_ack = (flags & APRS_MSG_ACK) != 0;
+	ax25_addr_format(&x, false, pending.to);
+	memcpy(pending.text, text, xl + 1u);
+	if (pending.want_ack) {
 		aprs_s.msg_seq = (uint16_t)(aprs_s.msg_seq % 999u + 1u);
 		uint16_t s = aprs_s.msg_seq;
 		char d[4];
@@ -1052,14 +1087,21 @@ bool aprs_send_message_opts(const char *to, const char *text, uint8_t flags)
 			s = (uint16_t)(s / 10u);
 		} while (s != 0);
 		for (uint8_t i = 0; i < k; i++) {
-			aprs_s.out.msgno[i] = d[k - 1u - i];
+			pending.msgno[i] = d[k - 1u - i];
 		}
-		aprs_s.out.msgno[k] = '\0';
+		pending.msgno[k] = '\0';
 	}
-	aprs_s.out.next_ms = aprs_s.now;
+	pending.next_ms = aprs_s.now;
+#if CONFIG_APRS_RX
+	bool accepted = aprs_thread_enqueue(&pending);
+	UNLOCK();
+	return accepted;
+#else
+	aprs_s.out = pending;
 	aprs_changed();
 	UNLOCK();
 	return true;
+#endif
 }
 
 bool aprs_send_message(const char *to, const char *text)

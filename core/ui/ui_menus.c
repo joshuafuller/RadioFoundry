@@ -39,6 +39,9 @@
 #endif
 
 extern const ui_scr_def_t ui_find_screen;
+#if CONFIG_APRS_RX
+extern const ui_scr_def_t ui_aprs_thread_screen;
+#endif
 extern const ui_scr_def_t ui_aprs_screen, ui_aprs_heard_screen, ui_aprs_station_screen;	// ui_aprs.c
 #if CONFIG_POSITION
 extern const ui_scr_def_t ui_fixed_pos_screen;	// ui_position.c
@@ -416,7 +419,11 @@ static void send_text(const char *text, bool aprs)
 	}
 	sbuf_t b;
 	sb_init(&b, msg, sizeof msg);
+#if CONFIG_APRS_RX
+	sb_str(&b, aprs ? TR("Queued for ") : TR("Sending to "));
+#else
 	sb_str(&b, TR("Sending to "));
+#endif
 	sb_str(&b, name);
 	ui_go_home();
 	ui_toast(msg);
@@ -671,16 +678,34 @@ static bool aprs_new_available(void)
 #endif
 }
 
+static uint8_t messages_aprs_count(void)
+{
+#if CONFIG_APRS_RX
+	return ui_aprs_conversation_count();
+#else
+	return ui_svc_aprs_msg_count();
+#endif
+}
+
+static bool messages_aprs_get(uint8_t i, aprs_msg_t *out)
+{
+#if CONFIG_APRS_RX
+	return ui_aprs_conversation(i, out);
+#else
+	return ui_svc_aprs_msg(i, out, false);
+#endif
+}
+
 static uint16_t msgs_count(void)
 {
-	return ui_svc_msg_count() + ui_svc_aprs_msg_count() + (aprs_new_available() ? 1u : 0u);
+	return ui_svc_msg_count() + messages_aprs_count() + (aprs_new_available() ? 1u : 0u);
 }
 
 // Both inboxes are newest first. Merge their small RAM lists by age for the shared Messages screen.
 static bool msg_row(uint16_t row, bool *aprs, uint16_t *index)
 {
 	uint16_t d = 0, a = 0;
-	uint16_t nd = ui_svc_msg_count(), na = ui_svc_aprs_msg_count();
+	uint16_t nd = ui_svc_msg_count(), na = messages_aprs_count();
 	if (row >= nd + na)
 		return false;
 	for (uint16_t n = 0; n <= row; n++) {
@@ -695,7 +720,7 @@ static bool msg_row(uint16_t row, bool *aprs, uint16_t *index)
 				dmr_age = dm.age_ms;
 			}
 			aprs_msg_t am;
-			if (!ui_svc_aprs_msg((uint8_t)a, &am, false))
+			if (!messages_aprs_get((uint8_t)a, &am))
 				return false;
 			take_aprs = ui_st.now_ms - am.ms < dmr_age;
 		}
@@ -708,7 +733,7 @@ static bool msg_row(uint16_t row, bool *aprs, uint16_t *index)
 static void msgs_item(uint16_t i, ui_item_t *it)
 {
 	uint16_t dmr_count = ui_svc_msg_count();
-	uint16_t aprs_count = ui_svc_aprs_msg_count();
+	uint16_t aprs_count = messages_aprs_count();
 	if (aprs_new_available() && i == dmr_count + aprs_count) {
 		str_copy(it->label, sizeof it->label, TR("New APRS message"));
 		return;
@@ -719,7 +744,7 @@ static void msgs_item(uint16_t i, ui_item_t *it)
 		return;
 	if (aprs) {
 		aprs_msg_t m;
-		if (!ui_svc_aprs_msg((uint8_t)index, &m, false))
+		if (!messages_aprs_get((uint8_t)index, &m))
 			return;
 		sbuf_t b;
 		sb_init(&b, it->label, sizeof it->label);
@@ -754,13 +779,22 @@ static void msgs_item(uint16_t i, ui_item_t *it)
 static void msgs_select(uint16_t i, bool hold)
 {
 	(void)hold;
-	if (aprs_new_available() && i == ui_svc_msg_count() + ui_svc_aprs_msg_count())
+	if (aprs_new_available() && i == ui_svc_msg_count() + messages_aprs_count())
 		ui_aprs_compose("");
 	else {
 		bool aprs;
 		uint16_t index;
-		if (msg_row(i, &aprs, &index))
+		if (msg_row(i, &aprs, &index)) {
+#if CONFIG_APRS_RX
+			if (aprs) {
+				aprs_msg_t m;
+				if (messages_aprs_get((uint8_t)index, &m))
+					ui_aprs_thread_open(m.from);
+				return;
+			}
+#endif
 			ui_push(SCR_MESSAGE, aprs ? (uint16_t)(MSG_APRS_ARG | index) : index);
+		}
 	}
 }
 
@@ -783,7 +817,7 @@ static void msgs_context(uint16_t i)
 		return;
 	if (aprs) {
 		aprs_msg_t m;
-		if (ui_svc_aprs_msg((uint8_t)index, &m, false))
+		if (messages_aprs_get((uint8_t)index, &m))
 			ui_aprs_compose(m.from);
 		return;
 	}
@@ -6350,6 +6384,9 @@ const ui_scr_def_t *const ui_scr[SCR_COUNT] = {
 	[SCR_DIAG] = &diag_screen, [SCR_EMERGENCY] = &emergency_screen, [SCR_SCAN] = &scan_screen,
 	[SCR_ROAM] = &roam_screen, [SCR_APRS] = &ui_aprs_screen, [SCR_APRS_HEARD] = &ui_aprs_heard_screen,
 	[SCR_APRS_STATION] = &ui_aprs_station_screen,
+#if CONFIG_APRS_RX
+	[SCR_APRS_THREAD] = &ui_aprs_thread_screen,
+#endif
 	[SCR_ABOUT] = &about_screen,
 #if CONFIG_POSITION
 	[SCR_FIXED_POS] = &ui_fixed_pos_screen,

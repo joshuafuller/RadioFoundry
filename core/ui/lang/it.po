@@ -620,7 +620,7 @@ msgstr " (invio)"
 msgid "No position"
 msgstr "Nessuna posizione"
 
-#: core/ui/ui_aprs.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_thread.c
 msgid "Next in "
 msgstr "Prossimo tra "
 
@@ -763,6 +763,58 @@ msgstr "Pacchetti"
 #: core/ui/ui_aprs.c
 msgid "OK choose  Back"
 msgstr "OK scegli  Indietro"
+
+#: core/ui/ui_aprs_thread.c
+msgid "Queued"
+msgstr "In coda"
+
+#: core/ui/ui_aprs_thread.c core/ui/ui_menus.c
+msgid "Sending"
+msgstr "Invio"
+
+#: core/ui/ui_aprs_thread.c
+msgid "Try "
+msgstr "Tentativo "
+
+#: core/ui/ui_aprs_thread.c core/ui/ui_gps.c core/ui/ui_menus.c core/ui/ui_screens.c
+msgid " of "
+msgstr " di "
+
+#: core/ui/ui_aprs_thread.c
+msgid " s"
+msgstr " s"
+
+#: core/ui/ui_aprs_thread.c
+msgid "Delivered (acked)"
+msgstr "Consegnato (confermato)"
+
+#: core/ui/ui_aprs_thread.c
+msgid "No ack after "
+msgstr "Nessuna conferma dopo "
+
+#: core/ui/ui_aprs_thread.c
+msgid " tries"
+msgstr " tentativi"
+
+#: core/ui/ui_aprs_thread.c
+msgid "Rejected"
+msgstr "Rifiutato"
+
+#: core/ui/ui_aprs_thread.c
+msgid "Sent, no ack requested"
+msgstr "Inviato senza richiedere conferma"
+
+#: core/ui/ui_aprs_thread.c core/ui/ui_menus.c
+msgid "From "
+msgstr "Da "
+
+#: core/ui/ui_aprs_thread.c core/ui/ui_menus.c
+msgid "To "
+msgstr "A "
+
+#: core/ui/ui_aprs_thread.c
+msgid "OK reply  Back"
+msgstr "OK rispondi  Indietro"
 
 #: core/ui/ui_dual.c core/ui/ui_screens.c
 msgid "No tone"
@@ -1088,10 +1140,6 @@ msgstr "Ancora nessuna posizione"
 msgid "No satellites yet"
 msgstr "Ancora nessun satellite"
 
-#: core/ui/ui_gps.c core/ui/ui_menus.c core/ui/ui_screens.c
-msgid " of "
-msgstr " di "
-
 #: core/ui/ui_gps.c
 msgid " in the fix"
 msgstr " nel fix"
@@ -1253,6 +1301,10 @@ msgid "Couldn't send: try again"
 msgstr "Invio non riuscito: riprova"
 
 #: core/ui/ui_menus.c
+msgid "Queued for "
+msgstr "In coda per "
+
+#: core/ui/ui_menus.c
 msgid "Sending to "
 msgstr "Invio a "
 
@@ -1327,14 +1379,6 @@ msgstr "Messaggio eliminato"
 #: core/ui/ui_menus.c
 msgid "Couldn't delete: try again"
 msgstr "Eliminazione non riuscita: riprova"
-
-#: core/ui/ui_menus.c
-msgid "From "
-msgstr "Da "
-
-#: core/ui/ui_menus.c
-msgid "To "
-msgstr "A "
 
 #: core/ui/ui_menus.c
 msgid "OK choose  # more  Back"
@@ -1439,10 +1483,6 @@ msgstr " via "
 #: core/ui/ui_menus.c
 msgid "Sending "
 msgstr "Invio di "
-
-#: core/ui/ui_menus.c
-msgid "Sending"
-msgstr "Invio"
 
 #: core/ui/ui_menus.c
 msgid "Share To"

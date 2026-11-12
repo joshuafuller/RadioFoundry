@@ -50,6 +50,10 @@ bool ui_svc_aprs_send_message(const char *to, const char *text, uint8_t flags)
 }
 
 #if CONFIG_APRS_RX
+uint8_t ui_svc_aprs_thread(const char *call, aprs_thread_msg_t out[APRS_THREAD_MAX], bool read)
+{
+	return aprs_thread(call, out, read);
+}
 uint8_t ui_svc_aprs_msg_count(void) { return aprs_msg_count(); }
 bool ui_svc_aprs_msg(uint8_t i, aprs_msg_t *out, bool read)
 {

@@ -728,12 +728,11 @@ static void test_messages(void)
 	CHECK(!aprs_send_message("Q1ABC-9", "Hello"));
 	aprs_set_cfg(&cfg, now);
 	CHECK(aprs_send_message("Q1ABC-9", "Hello"));
-	CHECK(aprs_send_message("Q1ABC-9", "Again"));	// newest message replaces the pending retry
 	CHECK(wait_start(1, 5000));
 	CHECK(nframes == 1);
 	char msgno[8] = "";
 	const char *brace = nframes > 0 ? strchr(frames[0], '{') : NULL;
-	CHECK(brace != NULL && strstr(frames[0], "::Q1ABC-9  :Again{") != NULL);
+	CHECK(brace != NULL && strstr(frames[0], "::Q1ABC-9  :Hello{") != NULL);
 	if (brace != NULL) {
 		strncpy(msgno, brace + 1, sizeof(msgno) - 1);
 	}
@@ -794,21 +793,72 @@ static void test_message_options(void)
 	CHECK(strstr(frames[1], "::K1ABC-9  :Ack me{") != NULL);
 }
 
-static void test_message_replaces_pending(void)
+static void test_message_queue(void)
 {
 	reset();
 	aprs_set_test_call("Q1TST");
 	configure(0, false);
 	CHECK(aprs_send_message("Q1ABC-9", "First"));
-	CHECK(wait_start(1, 5000));
-	wait_idle();
+#if CONFIG_APRS_RX
+	aprs_thread_msg_t thread[APRS_THREAD_MAX];
 	CHECK(aprs_send_message("K1ABC-9", "Second"));
+	CHECK(aprs_send_message("Q1ABC-9", "Third"));
+	CHECK(!aprs_send_message("Q1ABC-9", "Fourth"));
+	CHECK(aprs_thread(NULL, thread, false) == 3);
+	CHECK(thread[0].state == APRS_MSG_QUEUED && strcmp(thread[0].text, "First") == 0);
+	CHECK(thread[1].state == APRS_MSG_QUEUED && strcmp(thread[1].text, "Second") == 0);
+	CHECK(wait_start(1, 5000));
+	CHECK(strstr(frames[0], "::Q1ABC-9  :First{") != NULL);
+	CHECK(aprs_thread("Q1ABC-9", thread, false) == 2);
+	CHECK(thread[0].state == APRS_MSG_SENDING && thread[0].tries == 1 && thread[0].next_ms > now);
+	char ack[64];
+	const char *number = strchr(frames[0], '{');
+	snprintf(ack, sizeof ack, "K1ABC-9>APRS::Q1TST-7  :ack%s", number ? number + 1 : "");
+	wait_idle();
+	rx_line(ack); // wrong sender cannot complete the first message
+	CHECK(aprs_thread("Q1ABC-9", thread, false) == 2 && thread[0].state == APRS_MSG_SENDING);
+	ack[0] = 'Q';
+	rx_line(ack);
+	uint32_t ack_ms = now;
+	CHECK(aprs_thread("Q1ABC-9", thread, false) == 2 && thread[0].state == APRS_MSG_DELIVERED);
+	CHECK(thread[0].done_ms == ack_ms);
 	CHECK(wait_start(2, 5000));
 	CHECK(strstr(frames[1], "::K1ABC-9  :Second{") != NULL);
+	number = strchr(frames[1], '{');
+	snprintf(ack, sizeof ack, "K1ABC-9>APRS::Q1TST-7  :rej%s", number ? number + 1 : "");
 	wait_idle();
-	run(28u * 1000u);
-	CHECK(wait_start(3, 6000));
-	CHECK(strstr(frames[2], "::K1ABC-9  :Second{") != NULL);
+	rx_line(ack);
+	CHECK(aprs_thread("K1ABC-9", thread, false) == 1 && thread[0].state == APRS_MSG_REJECTED);
+	CHECK(wait_start(3, 5000));
+	CHECK(strstr(frames[2], "::Q1ABC-9  :Third{") != NULL);
+	wait_idle();
+	run(220000);
+	CHECK(aprs_thread("Q1ABC-9", thread, false) == 2);
+	CHECK(thread[1].state == APRS_MSG_NO_ACK && thread[1].tries == APRS_MSG_TRIES);
+	rx_line("Q1ABC-9>APRS::Q1TST-7  :Incoming{42");
+	rx_line("K1ABC-9>APRS::Q1TST-7  :Other{43");
+	aprs_view_t v;
+	aprs_get_view(&v);
+	CHECK(v.unread == 2);
+	CHECK(aprs_thread("Q1ABC-9", thread, true) == 3);
+	CHECK(strcmp(thread[0].text, "First") == 0 && strcmp(thread[1].text, "Third") == 0);
+	CHECK(thread[2].state == APRS_MSG_INCOMING && thread[2].read);
+	aprs_get_view(&v);
+	CHECK(v.unread == 1);
+	rx_line("Q1ABC-9>APRS::Q1TST-7  :Incoming{42");
+	aprs_get_view(&v);
+	CHECK(v.unread == 1); // a retry of the read message must not alert again
+	for (unsigned i = 0; i < 7; i++) {
+		CHECK(aprs_send_message_opts("Q1ABC-9", "No ack requested", 0));
+		run(10000);
+	}
+	CHECK(aprs_thread(NULL, thread, false) == APRS_OUTBOX + 2);
+	CHECK(thread[APRS_OUTBOX + 1].state == APRS_MSG_SENT);
+#else
+	CHECK(!aprs_send_message("K1ABC-9", "Second"));
+	CHECK(wait_start(1, 5000));
+	CHECK(strstr(frames[0], "::Q1ABC-9  :First{") != NULL);
+#endif
 }
 
 #if CONFIG_APRS_RX
@@ -1494,7 +1544,7 @@ int main(void)
 	test_host_kiss_nmea();
 	test_messages();
 	test_message_options();
-	test_message_replaces_pending();
+	test_message_queue();
 #if CONFIG_APRS_RX
 	test_message_rejection();
 #endif
