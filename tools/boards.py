@@ -439,6 +439,9 @@ def board_t_names(board_dir):
     """What board_t .name is set to in a board's sources: [(literal or None, macro or None)], one per board_t
     definition. The one parser of it (bringup.py uses it too): any whitespace, comments ignored; a macro is returned by
     name (such a board names its values in [[build_options]] board_name)."""
+    if isinstance(board_dir, list):
+        # An own descriptor overrides the shared implementation's descriptor.
+        return next((names for d in board_dir if (names := board_t_names(d))), [])
     out = []
     for _, text in _c_sources(board_dir):
         for m in re.finditer(r"\bboard_t\s+\w+\s*=\s*\{", text):
@@ -1672,6 +1675,13 @@ def self_test():
         f.write("#define PIN_A\t\t0x2D\t// note\n#define PIN_B 12u\n#define NOT_A_PIN (X + 1)\n")
     ok(board_t_names(tmpc) == [("Radio X", None), (None, "BOARD_NAME")],
        "board_t_names: only board_t, any whitespace, comments skipped, a macro %r" % board_t_names(tmpc))
+    with tempfile.TemporaryDirectory() as own:
+        ok(board_t_names([own, tmpc]) == board_t_names(tmpc), "board names: shared fallback")
+        with open(os.path.join(own, "board.c"), "w", encoding="utf-8") as f:
+            f.write('const board_t board = { .name = "Own" };\n')
+        ok(board_t_names([own, tmpc]) == [("Own", None)], "board names: own descriptor wins")
+        ok(board_t_names([tmpc, own]) == board_t_names(tmpc), "board names: directory order wins")
+        ok(board_t_names([]) == [], "board names: no directories")
     ok(pin_defines(os.path.join(tmpc, "pins.h")) == {"PIN_A": 0x2D, "PIN_B": 12}, "pin_defines: integer defines only")
     ok(gfx_defs("-DX=1 -DGFX_INDEXED=1 -DGFX_FB_BYTES=9600u -DGFX_MAX_ROWS=120u") ==
        {"GFX_FB_BYTES": 9600, "GFX_MAX_ROWS": 120, "GFX_INDEXED": 1} and gfx_defs(None) == GFX_DEFAULTS,

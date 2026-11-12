@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 The RadioFoundry Authors
+include boards/dm32/config.mk
+CONFIG_GPS ?= n
+BOARD_UNSUPPORTED += GPS # no GPS module in the photos or manual
+BOARD_NOT_WRITTEN += VIBRATE # motor drive pin unknown
+BOARD_UNSUPPORTED += GPS_SKY # no GPS receiver
+BOARD_UNSUPPORTED += NAND_STORAGE # data flash is SPI NOR
+BOARD_NOT_WRITTEN += VOX # inherited glue has no mic_level hook
+BOARD_NOT_WRITTEN += AUDIO_PROBE # inherited glue has no audio_tap hook

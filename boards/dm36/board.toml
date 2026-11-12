@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 The RadioFoundry Authors
+id = "dm36"
+name = "Baofeng DM-36"
+maker = "Baofeng"
+model = "DM-36"
+also = ["DM36UV", "DM36PRO", "DM36 PLUS", "DM36Ultra", "MD36UV", "AT36D", "GT36D"]
+kind = "handheld"
+order = 20
+
+[docs]
+hardware = "docs/spec/hardware-dm36.md"
+
+[hardware]
+bands = "136-174 / 400-470 MHz rated; build receive only"
+power = "4.4 W VHF / 4.1 W UHF (FCC); TX disabled in build"
+display = "2.0 inch color; controller and resolution unknown"
+# Placeholder for the inherited renderer, not a measured display geometry.
+gallery = "240x320i10x5"
+clock = { rtc = "backed", note = "RTC coin cell visible in the board photo; wiring unverified" }
+
+[status]
+level = "bring-up"
+summary = "Built, never run on a radio. Inherited wiring, display and memory layout are hypotheses; transmit disabled."
+release = "testing"
+
+# Schema placeholders only: no release, loader identity or supported codec source is known.
+[flash]
+family = "serial-loader"
+keep_codec = false
+stock_versions = []
+backup = { stock = "none", rfoundry = "none", spi_size = 0x1000000 }
+notice = "Build only. Do not flash: bootloader identity, APP_BASE and pins are unverified."
+
+[flash.bootloader]
+keys = "PTT + SK1 (reported)"
+steps = ["Build only: do not flash; the bootloader identity and application base are unverified."]
+id = "UNVERIFIED-DM36"
+
+[codec]
+tool = "hrc7000_codec"
+profile = "dm36-unverified"
+sources = []
+
+[frame]
+shape = "handheld-tall"
+body = "#22252a"
+accent = "#e0a526"
+lens = [24, 34]

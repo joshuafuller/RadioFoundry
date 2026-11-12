@@ -378,3 +378,6 @@ the check; don't add new code to it.
   derive it instead.
 - Run `tools/boards.py check` and `make registry`, and commit the regenerated `registry.json` with the change.
 - A new board: [Adding a radio](adding-a-radio.md).
+
+When source directories share an implementation, an own `board_t` descriptor takes precedence over descriptors
+in the other `BOARD_DIRS`. Without an own descriptor, the first shared directory with one supplies its names.

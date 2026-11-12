@@ -556,6 +556,93 @@
    "build_options": [],
    "cps_radio_types": []
   },
+  "dm36": {
+   "id": "dm36",
+   "name": "Baofeng DM-36",
+   "model": "DM-36",
+   "part_of": null,
+   "platform": "hrc7000",
+   "platform_stubs": [],
+   "family": "serial-loader",
+   "link": "serial-cable",
+   "release": "testing",
+   "debuglink_names": [
+    "Baofeng DM-36",
+    "dm36"
+   ],
+   "rom_base": 50331648,
+   "app_base": 50380800,
+   "flash_end": 51380224,
+   "app_region": [
+    50380800,
+    51281920
+   ],
+   "sectors": [
+    [
+     0,
+     50380800,
+     901120
+    ],
+    [
+     1,
+     51281920,
+     98304
+    ]
+   ],
+   "protected": [
+    [
+     50331648,
+     50380800
+    ]
+   ],
+   "protect": [],
+   "keep_codec_supported": false,
+   "first_stage": null,
+   "codec_tool": "hrc7000_codec",
+   "codec_stock": [],
+   "codec": {
+    "id": "dm36-unverified",
+    "windows": [
+     [
+      51281920,
+      98304
+     ]
+    ],
+    "installed": [],
+    "sources": []
+   },
+   "codec_code": 51281920,
+   "codec_slot": [
+    51281920,
+    51380224
+   ],
+   "codec_run": [
+    276992,
+    360448
+   ],
+   "codec_tables": [
+    402656840,
+    402669096
+   ],
+   "loader_id": "UNVERIFIED-DM36",
+   "loader_keys": "PTT + SK1 (reported)",
+   "loader_sign": "",
+   "bootloader_steps": [
+    "Build only: do not flash; the bootloader identity and application base are unverified."
+   ],
+   "stock_download": null,
+   "key_sha256": null,
+   "key_prefix": null,
+   "dfu_ids": null,
+   "dfu_string1": null,
+   "dfu_product": null,
+   "dfu_layout": null,
+   "original_version": null,
+   "original_backup": null,
+   "stub": null,
+   "build_options": [],
+   "cps_radio_types": []
+  },
   "md380": {
    "id": "md380",
    "name": "TYT MD-380",
