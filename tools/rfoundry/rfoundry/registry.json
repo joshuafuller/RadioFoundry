@@ -444,6 +444,7 @@
    "release": "stable",
    "debuglink_names": [
     "DM-32UV",
+    "DM-32UV knob mod",
     "DM-32",
     "dm32"
    ],
@@ -553,7 +554,27 @@
      7471104
     ]
    },
-   "build_options": [],
+   "build_options": [
+    {
+     "name": "KNOB",
+     "title": "Volume knob",
+     "help": "Stock radios: the knob is analog on the amplifier and the firmware can't read it. With the knob mod (the pot's wiper wired to ADC0_IN), the firmware reads it and shows the volume bar.",
+     "values": [
+      {
+       "id": "stock",
+       "title": "Stock",
+       "text": "Knob not read",
+       "board_name": "DM-32UV"
+      },
+      {
+       "id": "adc0",
+       "title": "Knob mod",
+       "text": "Knob read on ADC0",
+       "board_name": "DM-32UV knob mod"
+      }
+     ]
+    }
+   ],
    "cps_radio_types": []
   },
   "dm36": {

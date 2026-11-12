@@ -696,13 +696,16 @@ static void vol_apply(void)
 }
 
 // percent of the volume scale back to its step; FM: the default step and above keep the full nibble (the knob is the
-// ceiling), each step below takes 2 off; the line out: 0 dB at the default step, as on the DB25-D
+// ceiling), each step below takes 2 off; the line out: 0 dB at the default step, as on the other HR_C7000 boards
 static void volume(uint8_t percent)
 {
 	unsigned step = (percent * RADIO_VOLUME_MAX + 50u) / 100u;
 	if (step > RADIO_VOLUME_MAX) {
 		step = RADIO_VOLUME_MAX;
 	}
+#if RFOUNDRY_KNOB_ADC0
+	step = RADIO_VOLUME_DEFAULT;	// the knob already sets the amplifier: the chip stays at full gain under it
+#endif
 	vol_muted = step == 0;
 	unsigned down = step >= RADIO_VOLUME_DEFAULT ? 0u : (RADIO_VOLUME_DEFAULT - step) * 2u;
 	vol_nibble = (uint8_t)(down >= 15u ? 0u : 15u - down);

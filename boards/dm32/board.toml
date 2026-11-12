@@ -122,3 +122,12 @@ codec = ["049", "046"]
 dmrconf = "dm32uv"
 span = [0x1000, 0xC9000]
 pages = "block-id"
+
+[[build_options]]
+name = "KNOB"
+title = "Volume knob"
+help = "Stock radios: the knob is analog on the amplifier and the firmware can't read it. With the knob mod (the pot's wiper wired to ADC0_IN), the firmware reads it and shows the volume bar."
+values = [
+	{ id = "stock", title = "Stock", text = "Knob not read", board_name = "DM-32UV" },
+	{ id = "adc0", title = "Knob mod", text = "Knob read on ADC0", board_name = "DM-32UV knob mod" },
+]

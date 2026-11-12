@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 The RadioFoundry Authors
 // DM-32UV power latch and switch, battery on ADC channel C, status LEDs (docs/spec/hardware-dm32.md 3.7, 6.4, 6.5).
-// The volume knob isn't read by any firmware seen (it is on the audio amplifier), so volume() is -1.
+// The volume knob isn't read by any firmware seen (it is on the audio amplifier), so volume() is -1. With the knob mod
+// (KNOB=adc0: the pot's wiper, if it carries a DC level, through a series resistor to ADC0_IN / PTC15) it is
+// read on ADC channel A instead, and the core shows its volume bar as on the radios whose MCU reads the knob.
 #include "dm32.h"
 #include <pins.h>
 #include "platform.h"
@@ -15,12 +17,19 @@
 #define BAT_EMPTY_MV		6400u
 #define SWITCH_SAMPLES		3
 
+#define KNOB_ADC_CH		0u		// ADC0_IN, PTC15
+#define DIPLEX2_ADC0_GPIO	(1u << 19)	// IO_DIPLEX2: 1 = PTC15 a GPIO, 0 = ADC0_IN (hardware-dm32.md 3.7)
+#define KNOB_RAW_FULL		1000u		// raw at the top of the knob (10 bit, 3.3 V reference); measured after the mod
+
 static battery_avg_t bat;
 static uint8_t off_count;
 
 static void init(void)
 {
 	hrc_adc_init();
+#if RFOUNDRY_KNOB_ADC0
+	IO_DIPLEX2 &= ~DIPLEX2_ADC0_GPIO;
+#endif
 	hrc_pin_out(PIN_POWER_LATCH, true);
 	hrc_pin_in(PIN_POWER_SWITCH);
 	bat.valid = false;
@@ -49,7 +58,12 @@ static uint8_t battery_pct(void)
 
 static int8_t volume(void)
 {
+#if RFOUNDRY_KNOB_ADC0
+	unsigned raw = hrc_adc_read(KNOB_ADC_CH);
+	return (int8_t)(raw >= KNOB_RAW_FULL ? 100u : raw * 100u / KNOB_RAW_FULL);
+#else
 	return -1;
+#endif
 }
 
 // GPIO 0x10 reads 1 once the knob is turned off; three readings in a row before believing it

@@ -2,6 +2,9 @@
 # Copyright (c) 2026 The RadioFoundry Authors
 # Baofeng DM-32UV: HR_C7000 SoC (C-SKY CK803S + DMR modem) + FD6818 + ST7789 240x320 on i8080
 PLATFORM   := hrc7000
+# KNOB=adc0: the volume-knob mod (the pot's wiper to ADC0_IN / PTC15, power_dm32.c); C sees RFOUNDRY_KNOB_ADC0
+BUILD_OPTIONS := KNOB
+KNOB_VALUES   := stock adc0
 # Behind the Baofeng bootloader (hardware-dm32.md 2)
 APP_BASE   := 0x0300C000
 # The CPS-compatible codeplug image sits at +0x700000 in the 16 MB data flash, below it is all stock data
