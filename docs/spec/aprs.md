@@ -128,10 +128,31 @@ with the DMR backend alone.
   localized preset or typed text through `aprs_send_message`. Presets fold accented letters to printable ASCII; typed
   text holds at most 67 characters. The callsign editor holds at most nine characters (six for the call, a hyphen and
   up to two for the SSID). Received APRS messages appear in Messages; replies use APRS. DMR replies use DMR, and
-  Settings > Connections > Message format selects only a DMR encoding. A new outgoing APRS message replaces one still
-  awaiting acknowledgment. `aprs_send_message` refuses a message when the RF path is blocked.
+  Settings > Connections > Message format selects only a DMR encoding. Receive builds keep up to three unfinished outgoing messages in FIFO order; a full queue refuses the new send
+  without replacing accepted work. Builds without receive keep one slot and refuse a send while it is active.
+  `aprs_send_message` also refuses a message when the RF path is blocked.
 - Path: none, WIDE1-1, WIDE1-1,WIDE2-1 (the default), WIDE2-1, WIDE2-2. Set on the APRS page (section 10), over the
   debug link, or in the codeplug's APRS record (section 11).
+
+### Message threads (receive builds)
+
+`aprs_thread.c` keeps six outgoing records in main RAM, including at most three queued or active messages.
+When full, only the oldest completed record can be evicted. The existing four-entry incoming inbox is unchanged.
+Both stores are volatile. `CONFIG_APRS_RX=n` removes the thread storage, queue extension and screen.
+
+Messages shows one entry per callsign, newest conversation first, merged with the DMR inbox by age. Selecting an
+APRS entry opens `aprs-thread`. Station detail's Message action opens that thread when retained messages exist;
+otherwise it opens the composer. Up/Down scrolls each full message, then moves to the next or previous message in
+chronological order. OK or Context opens the existing composer addressed to the saved callsign. Opening or drawing the thread marks only that callsign's
+incoming messages read, without adding messages or issuing a new alert. Duplicate reception retains the read flag.
+
+Each outgoing record shows Queued, Sending with try count and next retry delay, Delivered (acked) with the ACK's
+age, No ack after the final try, or Rejected. Sending counts attempts submitted to the RF queue; channel access
+and lower-level RF retries may delay the next attempt beyond the displayed countdown. Delivered requires an ACK
+from the addressed callsign with the matching message number. It does not establish that a person read the text.
+No ack means no matching ACK was observed, not proof of nonreceipt. A message sent without requesting an ACK shows
+Sent, no ack requested after the RF job succeeds. ACK and rejection retain the completed record and release the
+next queued message after outstanding RF frames finish. The existing retry intervals are unchanged.
 
 ### 4.1.1 Arithmetic
 
@@ -487,7 +508,8 @@ keeps its original callsign. With no matches, the counts remain and the filter m
 Selecting a heard station opens `aprs-station`, a scrollable detail list. The UI retains its callsign in main RAM,
 not its row index, and resolves the current station through `ui_svc_aprs_station_find` on each draw. New packets
 can reorder the heard list without changing the open station or Message recipient. Message is the first row and
-opens the composer with that callsign. The remaining rows show distance and compass direction when both positions
+opens its thread if messages are retained, otherwise the composer. The remaining rows show distance and compass
+direction when both positions
 exist, heard age, Direct or Via digipeater, position age when different from heard age, speed in the selected units and course
 when the retained position has them, symbol table and code, the retained comment/status text, and packet count.
 Unknown speed and course have no row. Text is limited to the engine's 24-byte field; no digipeater identity or

@@ -69,7 +69,7 @@ If the selected station leaves the view, the list selects the first remaining st
 ## Station details
 
 Open **Stations heard**, select a callsign, and press **OK**. **Message** is first; press OK again to open a message
-addressed to that station. The selection stays on the same callsign when incoming packets reorder the heard list.
+addressed to that station, or its conversation when messages are retained. The selection stays on the same callsign when incoming packets reorder the heard list.
 
 Scroll with **Up / Down** to see distance and direction (when both positions are known), when the station was heard,
 **Direct** or **Via digipeater**, and the position's age if it differs from the last packet's age. Speed in km/h and
@@ -79,6 +79,30 @@ marker; longer comments are incomplete. No digipeater name is retained.
 
 If the station leaves the heard list, the page says **No longer in list**. You can still choose Message to address
 that callsign.
+
+## Message conversations
+
+In **Messages**, select an APRS callsign to read its conversation. Incoming and outgoing messages appear in time
+order. **Up / Down** scrolls each full message, then moves to the next or previous one. **OK** or **#** opens the existing
+reply composer for that callsign.
+Opening the conversation marks its incoming messages read. New traffic does not change the reply recipient.
+
+| Outgoing state | Meaning |
+|---|---|
+| Queued | Waiting behind another message or for its first attempt |
+| Sending | Attempt number, maximum attempts and seconds until the next retry is due |
+| Delivered (acked) | The addressed station acknowledged the message; the age is when that ACK arrived |
+| No ack after 3 tries | The retry limit was reached without a matching acknowledgment |
+| Rejected | The addressed station rejected the message |
+| Sent, no ack requested | The radio transmitted a message with acknowledgment turned off |
+
+Three outgoing messages can wait or retry at once. When full, a new send is refused and the composer stays open;
+the accepted messages are preserved. Six outgoing records are retained, replacing only completed records as needed.
+The incoming inbox retains four messages. These records and queued work are lost at power-off. Builds without APRS
+receive have one outgoing slot and refuse a second send while it is occupied.
+
+An acknowledgment comes from the station's software; it does not prove a person read the message. No acknowledgment
+does not prove the message was not received. A busy channel can delay a retry beyond its displayed countdown.
 
 ## Path
 

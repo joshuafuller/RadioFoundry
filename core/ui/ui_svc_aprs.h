@@ -42,4 +42,8 @@ bool ui_svc_aprs_can_receive(void);
 // it): false when the station or we have no position
 bool ui_svc_aprs_range(const aprs_station_t *s, uint32_t *m, uint16_t *deg);
 
+#if CONFIG_APRS_RX
+uint8_t ui_svc_aprs_thread(const char *call, aprs_thread_msg_t out[APRS_THREAD_MAX], bool read);
+#endif
+
 #endif

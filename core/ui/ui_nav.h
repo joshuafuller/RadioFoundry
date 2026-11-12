@@ -12,6 +12,7 @@
 #include "ui_screens.h"
 #include "ui_svc.h"
 #include "i18n.h"
+#include "aprs/aprs.h"
 
 typedef enum {
 	SCR_HOME, SCR_QUICK, SCR_HUB, SCR_FIND, SCR_ACTIONS, SCR_CONTACTS, SCR_MESSAGES, SCR_MESSAGE, SCR_COMPOSE,
@@ -50,6 +51,10 @@ typedef enum {
 	SCR_APRS_BEACON,
 #endif
 	SCR_MESSAGE_TEXT,		// message body editor
+
+#if CONFIG_APRS_RX
+	SCR_APRS_THREAD,
+#endif
 	SCR_COUNT
 } ui_scr_t;
 
@@ -130,6 +135,10 @@ void ui_aprs_list_reset(void);
 #if CONFIG_APRS_RX
 void ui_aprs_station_open(const char *call);
 const char *ui_aprs_kind(uint8_t type, bool to_us);
+void ui_aprs_thread_open(const char *call);
+bool ui_aprs_thread_exists(const char *call);
+uint8_t ui_aprs_conversation_count(void);
+bool ui_aprs_conversation(uint8_t i, aprs_msg_t *out);
 #endif
 #if CONFIG_CONTACT_EDIT
 // The contact editor on a new contact for t: its ID, type and name (a talkgroup or ID as its name when it has none)

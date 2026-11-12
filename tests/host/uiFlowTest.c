@@ -653,18 +653,24 @@ static const flow_t flows[] = {
 	{ "A new APRS message appears independently of DMR format", "", "ok 2", "shows=New_APRS_message", 2, false },
 	{ "A new APRS message opens its composer", "ok 2", "ok", "screen=compose shows=To_callsign", 1, false },
 	{ "A new APRS message needs our callsign", "aprs:nocall ok 2", "", "hides=New_APRS_message", 0, false },
-	{ "A received APRS message opens in Messages", "aprs:message ok 2", "ok", "screen=message shows=Hello_APRS", 1, false },
-	{ "A received APRS message replies over APRS", "aprs:message ok 2 ok", "ok", "sent=1 aprs_to=Q4WAB-9 text=OK", 1, false },
+	{ "A received APRS message opens in Messages", "aprs:message ok 2", "ok", "screen=aprs-thread shows=Hello_APRS", 1, false },
+	{ "A received APRS message replies over APRS", "aprs:message ok 2 ok", "ok down ok", "sent=1 aprs_to=Q4WAB-9 text=OK", 3, false },
 	{ "A received APRS message opens a typed reply", "aprs:message ok 2 ok", "ctx",
 	  "screen=compose shows=Q4WAB-9", 1, false },
 	{ "A DMR message context uses its sender", "msg:9991234,Hi wait:9000 ok 2 ok", "ctx 3 ok",
 	  "sent=1 txid=9991234 text=OK", 3, false },
 	{ "A newer APRS message sorts before DMR", "msg:9991234,Older wait:9000 aprs:message ok 2", "ok",
-	  "screen=message shows=Hello_APRS", 1, false },
+	  "screen=aprs-thread shows=Hello_APRS", 1, false },
 	{ "A newer DMR message sorts before APRS", "aprs:message wait:1100 msg:9991234,Newer wait:9000 ok 2", "ok",
 	  "screen=message shows=Newer", 1, false },
 	{ "A new DMR message does not change an open APRS reply", "aprs:message ok 2 ok msg:9991234,Newer wait:9000", "ok",
-	  "sent=1 aprs_to=Q4WAB-9 text=OK", 1, false },
+	  "screen=compose shows=Q4WAB-9", 1, false },
+	{ "A outgoing thread reachable from Messages", "ok 6 8 1 ok ok down ok", "ok 2 ok",
+	  "screen=aprs-thread shows=Queued", 3, false },
+	{ "A station Message opens existing thread", "ok 6 8 1 ok ok down ok", "ok 6 8 1 ok ok",
+	  "screen=aprs-thread shows=Queued", 7, false },
+	{ "A thread reply stays on its callsign", "ok 6 8 1 ok ok down ok ok 2 ok aprs:reorder", "ok",
+	  "screen=compose shows=Q4WABC-15", 1, false },
 	{ "A not in this build", "aprs:off", "ok 6 8 2", "toast=APRS:_not aprs_auto=0", 4, false },
 	// The crash log and its report (docs/spec/crash-log.md): Settings > Advanced > Crash log, after the restart
 	{ "C crash log from Advanced", "crash:on", "ok 7 up ok down down down down ok", "screen=crash shows=Fault_3 shows=Crash_Log crash_seen=1",
@@ -1553,6 +1559,47 @@ static void packet_checks(void)
 }
 
 
+static void thread_checks(void)
+{
+#if CONFIG_APRS_RX
+	static const struct { const char *state, *expect; } cases[] = {
+		{ "queued", "expect:shows=Queued" },
+		{ "sending", "expect:shows=Next_in" },
+		{ "delivered", "expect:shows=Delivered" },
+		{ "noack", "expect:shows=No_ack_after" },
+		{ "rejected", "expect:shows=Rejected" },
+	};
+	char script[200], err[300];
+	for (int g = 0; g < sim_geom_count; g++) {
+		for (size_t i = 0; i < sizeof cases / sizeof cases[0]; i++) {
+			sim_reset(&sim_geoms[g], SIM_MAP_K);
+			snprintf(script, sizeof script, "wait:3000 aprsthread:%s ok 2 expect:count=2 ok "
+				"expect:screen=aprs-thread expect:shows=Hello_APRS", cases[i].state);
+			bool ok = sim_run(script, err, sizeof err);
+			aprs_view_t v;
+			ui_svc_aprs_view(&v);
+			ok &= v.unread == 0;
+			uint32_t beeps = sim_rec.beeps;
+			ok &= sim_run("wait:2000", err, sizeof err) && sim_rec.beeps == beeps;
+			bool found = false, body_end = false;
+			for (unsigned line = 0; line < 24; line++) {
+				(void)sim_run("down", err, sizeof err);
+				found |= sim_run(cases[i].expect, err, sizeof err);
+				body_end |= sim_run("expect:shows=truck.", err, sizeof err);
+			}
+			ok &= found && body_end;
+			for (unsigned line = 0; line < 24; line++)
+				(void)sim_run("up", err, sizeof err);
+			ok &= sim_run("expect:shows=Hello_APRS ok expect:screen=compose expect:shows=Q4WAB-9", err, sizeof err);
+			if (!ok) {
+				printf("FAIL APRS thread %s [%s]: %s\n", cases[i].state, sim_geoms[g].name, err);
+				fails++;
+			}
+		}
+	}
+#endif
+}
+
 // A radio without a battery (CAP_NO_BATTERY), at every display class: no percentage in the status strip, no battery
 // warning, and no Battery page, Battery saver or Low battery warning in the lists (Tools keep their numbers, Battery
 // is the last one; in Settings the other rows move up). With a
@@ -1828,6 +1875,7 @@ int main(int argc, char **argv)
 	if (argc == 2 && strcmp(argv[1], "--aprs") == 0) {
 		heard_checks();
 		station_checks();
+	thread_checks();
 		station_list_checks();
 		printf("APRS UI: %s\n", fails ? "FAIL" : "PASS");
 		return fails ? 1 : 0;
@@ -1862,6 +1910,7 @@ int main(int argc, char **argv)
 	aprs_home_checks();
 	heard_checks();
 	station_checks();
+	thread_checks();
 	station_list_checks();
 	radar_checks();
 #if CONFIG_APRS_RX && CONFIG_UI_COLOR

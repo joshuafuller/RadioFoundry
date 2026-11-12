@@ -178,6 +178,25 @@ typedef struct {
 	bool read;
 } aprs_msg_t;
 
+#if CONFIG_APRS_RX
+#define APRS_OUTBOX 6
+#define APRS_OUT_QUEUE 3
+#define APRS_THREAD_MAX (APRS_MESSAGES + APRS_OUTBOX)
+typedef enum {
+	APRS_MSG_INCOMING, APRS_MSG_QUEUED, APRS_MSG_SENDING, APRS_MSG_DELIVERED,
+	APRS_MSG_NO_ACK, APRS_MSG_REJECTED, APRS_MSG_SENT,
+} aprs_msg_state_t;
+typedef struct {
+	char call[AX25_CALL_LEN + 4];
+	char text[68];
+	uint32_t ms, done_ms, next_ms;
+	uint8_t state, tries;
+	bool read;
+} aprs_thread_msg_t;
+// Snapshot in time order, optionally marking this callsign's incoming messages read. NULL call: all messages.
+uint8_t aprs_thread(const char *call, aprs_thread_msg_t out[APRS_THREAD_MAX], bool read);
+#endif
+
 // --- The radio task ---
 
 typedef struct {
@@ -277,7 +296,7 @@ bool aprs_can_receive(void);
 bool aprs_rx_listening(void);
 // A status packet (">text")
 bool aprs_send_status(const char *text);
-// A message with acks and retries; false when one is still waiting or the text is unusable
+// A message with acks and retries; false when the queue is full or the text is unusable
 bool aprs_send_message(const char *to, const char *text);
 bool aprs_send_message_opts(const char *to, const char *text, uint8_t flags);
 // RAM-only override for bench tests (debug link): the callsign ("" = back to the settings / codeplug)
