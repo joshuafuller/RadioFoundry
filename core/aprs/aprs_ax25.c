@@ -322,7 +322,7 @@ static uint8_t rf_block(void)
 // Queue an AX.25 UI frame from us (lock held); path: a comma list or "" / NULL
 static bool queue_frame(uint8_t kind, const char *path, const char *info, size_t n)
 {
-	if (aprs_s.qn >= QUEUE_LEN || !aprs_s.me_ok) {
+	if (aprs_s.tx_stopped || aprs_s.qn >= QUEUE_LEN || !aprs_s.me_ok) {
 		return false;
 	}
 	ax25_frame_t f;
@@ -350,6 +350,7 @@ static bool queue_frame(uint8_t kind, const char *path, const char *info, size_t
 		return false;
 	}
 	q->kind = kind;
+	q->manual = aprs_s.manual_build;
 	q->tries = 0;
 	aprs_s.qn++;
 	aprs_changed();
@@ -359,13 +360,14 @@ static bool queue_frame(uint8_t kind, const char *path, const char *info, size_t
 // Raw frame (digipeated, from the host) into the queue (lock held)
 static bool queue_raw(uint8_t kind, const uint8_t *frame, size_t n)
 {
-	if (aprs_s.qn >= QUEUE_LEN || n > AX25_FRAME_MAX) {
+	if (aprs_s.tx_stopped || aprs_s.qn >= QUEUE_LEN || n > AX25_FRAME_MAX) {
 		return false;
 	}
 	qframe_t *q = &aprs_s.q[aprs_s.qn++];
 	memcpy(q->data, frame, n);
 	q->len = (uint16_t)n;
 	q->kind = kind;
+	q->manual = false;
 	q->tries = 0;
 	aprs_changed();
 	return true;
@@ -438,7 +440,7 @@ static void host_is_line(const char *line, size_t n)
 // Our own packet straight to APRS-IS: "CALL>APZRDF,TCPIP*:info"
 static void own_to_is(const char *info, size_t n)
 {
-	if (!aprs_s.cfg.to_is || !aprs_s.cfg.kiss || !aprs_s.me_ok) {
+	if (aprs_s.tx_stopped || !aprs_s.cfg.to_is || !aprs_s.cfg.kiss || !aprs_s.me_ok) {
 		return;
 	}
 	char line[AX25_CALL_LEN + 4 + 20 + AX25_INFO_MAX];
@@ -476,6 +478,9 @@ static size_t build_beacon(const position_fix_t *f)
 		aprs_freq_comment(beacon_comment, comment, sizeof comment);
 		r.comment = comment;
 	}
+#endif
+#if CONFIG_APRS_BEACON
+	if (aprs_s.emergency) r.comment = "EMERGENCY";
 #endif
 	return aprs_build_position(&r, aprs_s.info, sizeof(aprs_s.info));
 }
@@ -611,7 +616,7 @@ void aprs_ax25_service(void)
 	aprs_s.v.msg_pending = aprs_s.out.active;
 	aprs_s.v.msg_tries = aprs_s.out.tries;
 	aprs_s.v.msg_acked = aprs_s.out.acked;
-	if (!aprs_s.out.active || aprs_s.block != APRS_OK || (int32_t)(aprs_s.now - aprs_s.out.next_ms) < 0) {
+	if (aprs_s.tx_stopped || !aprs_s.out.active || aprs_s.block != APRS_OK || (int32_t)(aprs_s.now - aprs_s.out.next_ms) < 0) {
 		return;
 	}
 	if (aprs_s.out.acked || aprs_s.out.tries >= APRS_MSG_TRIES) {
@@ -1057,7 +1062,7 @@ bool aprs_rx_listening(void)
 bool aprs_rf_pending(void)
 {
 	LOCK();
-	bool p = aprs_s.qn > 0 && aprs_s.taken == 0 && aprs_s.block == APRS_OK && (int32_t)(aprs_s.now - aprs_s.rf_next_ms) >= 0;
+	bool p = !aprs_s.tx_stopped && aprs_s.qn > 0 && aprs_s.taken == 0 && aprs_s.block == APRS_OK && (int32_t)(aprs_s.now - aprs_s.rf_next_ms) >= 0;
 	UNLOCK();
 	return p;
 }
@@ -1066,7 +1071,7 @@ bool aprs_rf_take(aprs_rf_job_t *job, uint32_t now_ms)
 {
 	LOCK();
 	aprs_s.now = now_ms;
-	if (aprs_s.qn == 0 || aprs_s.block != APRS_OK || aprs_s.taken != 0) {
+	if (aprs_s.tx_stopped || aprs_s.qn == 0 || aprs_s.block != APRS_OK || aprs_s.taken != 0) {
 		UNLOCK();
 		return false;
 	}
@@ -1119,6 +1124,8 @@ void aprs_rf_done(aprs_rf_result_t r, uint32_t now_ms)
 	aprs_s.now = now_ms;
 	if (r == APRS_RF_SENT) {
 		for (uint8_t i = 0; i < aprs_s.taken && i < aprs_s.qn; i++)
+			if (aprs_s.q[i].manual) aprs_s.v.manual_result = APRS_SEND_SENT;
+		for (uint8_t i = 0; i < aprs_s.taken && i < aprs_s.qn; i++)
 			aprs_home_sent(aprs_s.q[i].data, aprs_s.q[i].len, now_ms);
 #if CONFIG_APRS_RX
 		for (uint8_t i = 0; i < aprs_s.taken; i++) {
@@ -1143,9 +1150,9 @@ void aprs_rf_done(aprs_rf_result_t r, uint32_t now_ms)
 			if (aprs_s.q[i].kind == K_MSG && !aprs_s.out.active)
 				continue;
 #endif
-			if (++aprs_s.q[i].tries < RF_TRIES) {
+			if (!aprs_s.tx_stopped && ++aprs_s.q[i].tries < RF_TRIES) {
 				aprs_s.q[keep++] = aprs_s.q[i];
-			}
+			} else if (aprs_s.q[i].manual && !aprs_s.tx_stopped) aprs_s.v.manual_result = APRS_SEND_FAILED;
 		}
 		memmove(&aprs_s.q[keep], &aprs_s.q[aprs_s.taken], (size_t)(aprs_s.qn - aprs_s.taken) * sizeof(qframe_t));
 		aprs_s.qn = (uint8_t)(aprs_s.qn - aprs_s.taken + keep);
@@ -1233,7 +1240,7 @@ bool aprs_send_message_opts(const char *to, const char *text, uint8_t flags)
 		xl += cn;
 	}
 	LOCK();
-	if (rf_block() != APRS_OK) {
+	if (aprs_s.tx_stopped || rf_block() != APRS_OK) {
 		UNLOCK();
 		return false;
 	}

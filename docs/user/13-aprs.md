@@ -64,8 +64,8 @@ and comment for FM packets. DMR gateways use their own profile for symbol and co
 | Pace | Smart, or a fixed interval of 1, 2, 5, 10 or 30 minutes | Smart, with a 10-minute fallback |
 | Reach | Direct, Local relay, Local then wide, Wide one hop, Wide two hops or Proportional | Local then wide |
 
-In Comment, **OK** opens the review. **Back** deletes a character; when empty, Back cancels. To clear the saved comment,
-delete its text and press OK, then complete the review. Hold Back cancels and returns Home. A saved comment, including an empty one,
+In Comment, **OK** opens the review. **Back** deletes a character; when edited and empty, Back asks before discarding. To clear the saved comment,
+delete its text and press OK, then complete the review. Hold Back asks whether to discard unsaved text. A saved comment, including an empty one,
 overrides the codeplug comment and survives restart. Symbols outside the list show **Custom** until you replace them.
 
 Reach names correspond to None, WIDE1-1, WIDE1-1,WIDE2-1, WIDE2-1, WIDE2-2 and Proportional, respectively; see Path below.
@@ -408,3 +408,27 @@ its future retries; a frame already on air finishes. # Retry requeues a failed o
 its original recipient and text. A full queue leaves the failed message available to retry later.
 Received-message banners show the sender and a text preview; # opens the conversation.
 Bulletin and object text wraps to the display width and remains available by scrolling.
+
+## Send, stop and review
+
+**Send position now** opens a result you can keep on screen. **Sent** means local FM transmission completed;
+**Queued** on a DMR route means the DMR data service accepted the report. Neither proves a remote station received it.
+
+At the bottom of the APRS hub, choose **Stop all APRS TX**, then confirm. It stops beacons, message retries,
+acknowledgments and relays, including active APRS radio transmission on the next radio poll. Message text is kept.
+Open the same action again to resume; canceled messages require Retry. The stop lasts until you resume or restart.
+
+**My position** shows the source, coordinates and age. **OK** opens Location settings; **#** opens fixed coordinates.
+After editing a coordinate, press OK to review the complete pair and OK again to save. Saving does not enable TX.
+Update a fixed position when you move.
+
+In the message composer, choose a phrase to edit it before sending. **#** on a phrase edits the reusable value,
+up to 31 characters; these edits last until restart. The review keeps the recipient visible and shows the full
+message and character count. OK sends; Back edits. A failed send keeps your text. Held Back from an edited field
+asks whether to keep editing or discard.
+
+APRS **Settings > DMR** shows the existing gateway route. Configure that route through the existing
+codeplug/debug controls; **Send via** and **Automatic beacons** have their existing save reviews.
+**Settings > Emergency** warns before a separate OK confirmation sends one FM position with an EMERGENCY
+comment. It does not enable automatic reporting or change your normal comment. Back cancels. Use Stop all APRS TX
+to cancel queued work. This is a position comment, not a dispatch service or a promise of help.

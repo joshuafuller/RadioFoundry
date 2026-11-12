@@ -423,6 +423,7 @@ static bool usb_up;	// the computer has brought the network adapter up (hal_neti
 
 // APRS (Tools > APRS, core/ui/ui_aprs.c): a small stand-in for the engine's view and configuration
 static struct {
+	bool stopped;
 	bool off;		// "aprs:off": not in this build
 	bool no_call;		// "aprs:nocall": no callsign anywhere
 	bool message;		// "aprs:message": an unread APRS message
@@ -485,6 +486,7 @@ bool ui_svc_aprs_view(aprs_view_t *v)
 	v->lon = -841000000;
 	v->next_s = aprs_sim.cfg.tx_on ? 245 : 0xFFFFu;
 	v->rf_sent = aprs_sim.sent;
+	v->manual_result = aprs_sim.sent ? APRS_SEND_SENT : APRS_SEND_NONE;
 	v->rf_active = aprs_sim.rf_active;
 	v->stations = 2;
 #if CONFIG_APRS_RX
@@ -505,9 +507,20 @@ bool ui_svc_aprs_set_comment(const char *text)
 	return true;
 }
 #endif
+#if CONFIG_APRS_BEACON
+bool ui_svc_aprs_emergency(void) { return !aprs_sim.stopped && !aprs_sim.no_pos && ui_svc_aprs_send_now(); }
+void ui_svc_aprs_stop_tx(bool stop) {
+	aprs_sim.stopped = stop;
+#if CONFIG_APRS_RX
+	if (stop && aprs_sim.outgoing.call[0] && aprs_sim.outgoing.state <= APRS_MSG_SENDING)
+		aprs_sim.outgoing.state = APRS_MSG_CANCELED;
+#endif
+}
+bool ui_svc_aprs_tx_stopped(void) { return aprs_sim.stopped; }
+#endif
 bool ui_svc_aprs_send_now(void)
 {
-	if (aprs_sim.off || aprs_sim.no_call)
+	if (aprs_sim.stopped || aprs_sim.off || aprs_sim.no_call)
 		return false;
 	aprs_sim.sent++;
 	return true;
@@ -2176,7 +2189,7 @@ bool ui_svc_msg_send(uint32_t dst, bool group, const char *text)
 }
 bool ui_svc_aprs_send_message(const char *to, const char *text, uint8_t flags)
 {
-	if (to[0] == '\0')
+	if (aprs_sim.stopped || to[0] == '\0')
 		return false;
 #if CONFIG_APRS_RX
 	str_copy(aprs_sim.outgoing.call, sizeof aprs_sim.outgoing.call, to);
@@ -2730,6 +2743,7 @@ static bool check(const char *kv, char *err, size_t len)
 	else if (strcmp(key, "depth") == 0) snprintf(got, sizeof got, "%u", s.depth);
 	else if (strcmp(key, "hotspot") == 0) snprintf(got, sizeof got, "%u", hotspot_on);
 	else if (strcmp(key, "usbnet") == 0) snprintf(got, sizeof got, "%u", usb_net);
+	else if (strcmp(key, "aprs_stopped") == 0) snprintf(got, sizeof got, "%u", aprs_sim.stopped);
 	else if (strcmp(key, "aprs_sent") == 0) snprintf(got, sizeof got, "%u", (unsigned)aprs_sim.sent);
 	else if (strcmp(key, "zs_sends") == 0) snprintf(got, sizeof got, "%u", zs_sim.sends);
 	else if (strcmp(key, "zs_one") == 0) snprintf(got, sizeof got, "%u", zs_sim.sent_one);

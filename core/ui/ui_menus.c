@@ -372,10 +372,24 @@ static char aprs_compose_to[AX25_CALL_LEN + 4];
 static uint8_t aprs_message_flags;
 static bool aprs_composing;
 #if CONFIG_APRS_AFSK
+// Reusable phrases are short; a one-off message can still use all 67 characters.
+static char phrases[CANNED_N][32];
+static uint8_t phrase_set;
+static int8_t phrase_edit = -1;
+#endif
+static const char *phrase_text(uint16_t i)
+{
+#if CONFIG_APRS_AFSK
+	if (compose_aprs() && (phrase_set & (1u << i))) return phrases[i];
+#endif
+	return tr(canned[i]);
+}
+#if CONFIG_APRS_AFSK
 static void ui_text_open_to(char *target, uint8_t max);
 #endif
 #if CONFIG_DMR_SMS || CONFIG_APRS_AFSK
 static void ui_text_open_message(bool aprs);
+static void ui_text_open_phrase(const char *phrase);
 #endif
 static bool compose_aprs(void) { return aprs_composing; }
 
@@ -401,7 +415,7 @@ static void compose_item(uint16_t i, ui_item_t *it)
 		sbuf_t b;
 		sb_init(&b, it->label, sizeof it->label);
 		sb_chr(&b, '"');
-		sb_str(&b, tr(canned[i]));
+		sb_str(&b, phrase_text(i));
 		sb_chr(&b, '"');
 	} else if (i == CANNED_N) {
 		str_copy(it->label, sizeof it->label, TR("Write..."));
@@ -445,6 +459,13 @@ static void send_text(const char *text, bool aprs)
 	sb_str(&b, TR("Sending to "));
 #endif
 	sb_str(&b, name);
+#if CONFIG_APRS_RX
+	if (aprs) {
+		ui_pop();
+		ui_aprs_thread_open(aprs_to);
+		return;
+	}
+#endif
 	ui_go_home();
 	ui_toast(msg);
 }
@@ -463,7 +484,11 @@ static void compose_select(uint16_t i, bool hold)
 	}
 	if (i < CANNED_N) {
 		bool aprs = compose_aprs();
-		send_text(tr(canned[i]), aprs);
+#if CONFIG_APRS_AFSK
+		if (aprs) { phrase_edit = -1; ui_text_open_phrase(phrase_text(i)); }
+		else
+#endif
+			send_text(tr(canned[i]), aprs);
 	}
 	else if (i == CANNED_N) {
 #if CONFIG_DMR_SMS || CONFIG_APRS_AFSK
@@ -472,6 +497,18 @@ static void compose_select(uint16_t i, bool hold)
 	} else if (compose_aprs()) {
 		aprs_message_flags ^= i == CANNED_N + 1u ? APRS_MSG_ACK : APRS_MSG_POSITION;
 	}
+}
+
+static void compose_context(uint16_t i)
+{
+#if CONFIG_APRS_AFSK
+	if (compose_aprs() && i >= 1 && i <= CANNED_N) {
+		phrase_edit = (int8_t)(i - 1u);
+		ui_text_open_phrase(phrase_text(i - 1u));
+	}
+#else
+	(void)i;
+#endif
 }
 
 static const char *compose_title(void)
@@ -493,8 +530,8 @@ static void compose_enter(void)
 }
 
 static const ui_scr_def_t compose_screen = {
-	.name = "compose", .flags = SF_LIST | SF_FIELD, .prefix = TRN("To"), .hint = TRN("OK send  Back"),
-	.count = compose_count, .item = compose_item, .select = compose_select, .title = compose_title, .enter = compose_enter,
+	.name = "compose", .flags = SF_LIST | SF_FIELD, .prefix = TRN("To"), .hint = TRN("OK choose  Back"),
+	.count = compose_count, .item = compose_item, .select = compose_select, .title = compose_title, .enter = compose_enter, .context = compose_context,
 };
 
 // ======================= Contacts (type to find) =======================
@@ -724,6 +761,11 @@ static uint16_t msgs_count(void)
 // Both inboxes are newest first. Merge their small RAM lists by age for the shared Messages screen.
 static bool msg_row(uint16_t row, bool *aprs, uint16_t *index)
 {
+#if !CONFIG_APRS_RX
+	*aprs = false;
+	*index = row;
+	return row < ui_svc_msg_count();
+#else
 	uint16_t d = 0, a = 0;
 	uint16_t nd = ui_svc_msg_count(), na = messages_aprs_count();
 	if (row >= nd + na)
@@ -748,6 +790,7 @@ static bool msg_row(uint16_t row, bool *aprs, uint16_t *index)
 		*index = take_aprs ? a++ : d++;
 	}
 	return true;
+#endif
 }
 
 static void msgs_item(uint16_t i, ui_item_t *it)
@@ -856,7 +899,7 @@ static const ui_scr_def_t messages_screen = {
 
 enum { MV_REPLY_OK, MV_REPLY_WAY, MV_CALL, MV_DELETE, MV_COUNT };
 
-static bool message_aprs(void) { return (ui_frame()->arg & MSG_APRS_ARG) != 0; }
+static bool message_aprs(void) { return CONFIG_APRS_RX && (ui_frame()->arg & MSG_APRS_ARG) != 0; }
 static uint8_t message_aprs_index(void) { return (uint8_t)(ui_frame()->arg & ~MSG_APRS_ARG); }
 
 static void msg_enter(void)
@@ -1938,6 +1981,90 @@ static uint8_t text_idx;
 static uint32_t text_ms;
 enum { TEXT_UPPER, TEXT_DIGITS, TEXT_LOWER, TEXT_MODES };	// the order # cycles through
 static uint8_t text_mode;
+static bool text_changed;
+static uint16_t message_first, message_last;
+
+bool ui_text_exit(void)
+{
+	uint8_t scr = ui_frame()->scr;
+	if (scr == SCR_TEXT_EXIT) return true;
+#if CONFIG_APRS_BEACON && CONFIG_POSITION
+	if (scr == SCR_FIXED_POS && ui_position_dirty()) { ui_push(SCR_TEXT_EXIT, 0); return true; }
+#endif
+	if ((scr == SCR_TEXT || scr == SCR_MESSAGE_TEXT || scr == SCR_APRS_TO || scr == SCR_APRS_COMMENT || scr == SCR_MESSAGE_REVIEW) && text_changed) {
+		ui_push(SCR_TEXT_EXIT, 0);
+		return true;
+	}
+	return false;
+}
+static uint16_t text_exit_count(void) { return 2; }
+static void text_exit_item(uint16_t i, ui_item_t *it)
+{
+	str_copy(it->label, sizeof it->label, i ? TR("Yes, discard") : TR("No, keep editing"));
+}
+static void text_exit_select(uint16_t i, bool hold)
+{
+	(void)hold;
+	ui_pop();
+	if (i) { text_changed = false; ui_pop(); }
+}
+static const ui_scr_def_t text_exit_screen = {
+	.name = "text-exit", .flags = SF_LIST, .prefix = TRN("Unsaved Changes"),
+	.hint = TRN("OK choose  Back"), .count = text_exit_count, .item = text_exit_item, .select = text_exit_select,
+};
+
+#if CONFIG_DMR_SMS || CONFIG_APRS_AFSK
+static void message_review_draw(void)
+{
+	sbuf_t b;
+	sb_init(&b, ui_aprs_text, sizeof ui_aprs_text);
+	sb_u32(&b, strlen(message_buffer), 1);
+	sb_str(&b, " / ");
+#if CONFIG_APRS_AFSK
+	sb_u32(&b, phrase_edit >= 0 ? sizeof phrases[0] - 1u : APRS_MSG_TEXT_MAX, 1);
+#else
+	sb_u32(&b, APRS_MSG_TEXT_MAX, 1);
+#endif
+	sb_chr(&b, '\n');
+	sb_str(&b, message_buffer);
+	message_last = (uint16_t)ui_draw_text_page(ui_view(), &ui_st, aprs_to, ui_aprs_text, &message_first, true);
+	#if CONFIG_APRS_AFSK
+	ui_draw_hint(phrase_edit >= 0 ? TR("OK save  Back") : TR("OK send  Back"), false);
+#else
+	ui_draw_hint(TR("OK send  Back"), false);
+#endif
+}
+static bool message_review_key(const input_event_t *ev)
+{
+	if (ev->gesture != GESTURE_PRESS && ev->gesture != GESTURE_REPEAT && ev->action != ACT_ENC_STEP) return false;
+	if (ev->action == ACT_SELECT) {
+#if CONFIG_APRS_AFSK
+		if (phrase_edit >= 0) {
+			str_copy(phrases[phrase_edit], sizeof phrases[0], message_buffer);
+			phrase_set |= (uint8_t)(1u << phrase_edit);
+			phrase_edit = -1;
+			ui_pop();
+		} else
+#endif
+			send_text(message_buffer, true);
+		return true;
+	}
+	if (ev->action == ACT_BACK) {
+		ui_pop();
+		ui_text_open_phrase(message_buffer);
+		return true;
+	}
+	int dir = ev->action == ACT_NAV_DOWN ? 1 : ev->action == ACT_NAV_UP ? -1 : ev->action == ACT_ENC_STEP ? ev->value : 0;
+	if (!dir) return false;
+	int line = message_first + dir;
+	message_first = (uint16_t)(line < 0 ? 0 : line > message_last ? message_last : line);
+	ui_dirty();
+	return true;
+}
+static const ui_scr_def_t message_review_screen = {
+	.name = "message-review", .flags = SF_FIELD, .draw = message_review_draw, .key = message_review_key,
+};
+#endif
 
 static void text_open(char *target, uint8_t max, uint8_t screen)
 {
@@ -1957,12 +2084,31 @@ static void text_open(char *target, uint8_t max, uint8_t screen)
 #if CONFIG_DMR_SMS || CONFIG_APRS_AFSK
 static void message_text_kept(void)
 {
-	if (message_buffer[0] != '\0')
-		send_text(message_buffer, compose_aprs());
+	if (message_buffer[0] != '\0') {
+		if (compose_aprs()) {
+			message_first = 0;
+			ui_push(SCR_MESSAGE_REVIEW, 0);
+		} else send_text(message_buffer, false);
+	}
+}
+
+static void ui_text_open_phrase(const char *phrase)
+{
+	if (phrase != message_buffer) str_copy(message_buffer, APRS_MSG_TEXT_MAX + 1u, phrase);
+	text_open(message_buffer,
+#if CONFIG_APRS_AFSK
+		phrase_edit >= 0 ? sizeof phrases[0] - 1u :
+#endif
+		APRS_MSG_TEXT_MAX, SCR_MESSAGE_TEXT);
+	text_done = message_text_kept;
+	text_changed = true;
 }
 
 static void ui_text_open_message(bool aprs)
 {
+#if CONFIG_APRS_AFSK
+	phrase_edit = -1;
+#endif
 	message_buffer[0] = '\0';
 	text_open(message_buffer, aprs ? APRS_MSG_TEXT_MAX : UI_MSG_TEXT_MAX, SCR_MESSAGE_TEXT);
 	text_done = message_text_kept;
@@ -2003,6 +2149,7 @@ static void text_enter(void)
 	text_len = (uint8_t)strlen(text_buf);
 	text_key = -1;
 	text_mode = TEXT_UPPER;
+	text_changed = false;
 }
 
 static uint16_t text_count(void) { return 1; }
@@ -2045,6 +2192,7 @@ static void text_append(char c)
 		ui_toast(TR("That's the most it can hold"));
 		return;
 	}
+	text_changed = true;
 	text_buf[text_len++] = c;
 	text_buf[text_len] = 0;
 }
@@ -2064,6 +2212,7 @@ static bool text_key_fn(const input_event_t *ev)
 			text_key = -1;
 		} else if (k == text_key && text_len > 0 && now - text_ms < TEXT_MULTI_MS) {
 			text_idx = (uint8_t)((text_idx + 1u) % text_cycle_len(set));
+			text_changed = true;
 			text_buf[text_len - 1] = text_char(set, text_idx);
 			text_key = k;
 		} else {
@@ -2078,6 +2227,7 @@ static bool text_key_fn(const input_event_t *ev)
 	int dir = ev->action == ACT_NAV_UP ? 1 : ev->action == ACT_NAV_DOWN ? -1 :
 		ev->action == ACT_ENC_STEP ? (ev->value > 0 ? 1 : -1) : 0;
 	if (dir != 0 && ev->gesture != GESTURE_UP) {
+		text_changed = true;
 		// Step the last character through the printable ones (the way in without a keypad); down past the space
 		// deletes it
 		if (text_len == 0)
@@ -2097,13 +2247,15 @@ static bool text_key_fn(const input_event_t *ev)
 		return true;
 	}
 	if (ev->action == ACT_BACK && ev->gesture == GESTURE_PRESS && text_len == 0) {
-		ui_pop();	// an empty field: BACK leaves, the name as it was
+		if (!ui_text_exit()) ui_pop();	// keep an edited empty field until discard is confirmed
 		return true;
 	}
 	if (((ev->action == ACT_BACK || ev->action == ACT_NAV_LEFT) && ev->gesture == GESTURE_PRESS) ||
 			(ev->action == ACT_QUICK && press)) {	// a slow * deletes too (it doesn't lock here)
-		if (text_len > 0)
+		if (text_len > 0) {
+			text_changed = true;
 			text_buf[--text_len] = 0;
+		}
 		text_key = -1;
 		ui_dirty();
 		return true;
@@ -6436,6 +6588,9 @@ static const ui_scr_def_t cpf_screen = {
 };
 
 const ui_scr_def_t *const ui_scr[SCR_COUNT] = {
+#if CONFIG_CHANNEL_EDIT || CONFIG_APRS_AFSK || CONFIG_DMR_SMS
+	[SCR_TEXT_EXIT] = &text_exit_screen,
+#endif
 	[SCR_HOME] = &home_screen, [SCR_QUICK] = &quick_screen, [SCR_HUB] = &hub_screen,
 	[SCR_FIND] = &ui_find_screen, [SCR_ACTIONS] = &actions_screen, [SCR_CONTACTS] = &contacts_screen,
 	[SCR_MESSAGES] = &messages_screen, [SCR_MESSAGE] = &message_screen, [SCR_COMPOSE] = &compose_screen,
@@ -6447,12 +6602,13 @@ const ui_scr_def_t *const ui_scr[SCR_COUNT] = {
 	[SCR_APRS_FILTER] = &ui_aprs_filter_screen,
 #endif
 	[SCR_ROAM] = &roam_screen, [SCR_APRS] = &ui_aprs_screen,
-	[SCR_APRS_SETTINGS] = &ui_aprs_settings_screen, [SCR_APRS_REVIEW] = &ui_aprs_review_screen, [SCR_APRS_HEARD] = &ui_aprs_heard_screen,
+	[SCR_APRS_SETTINGS] = &ui_aprs_settings_screen, [SCR_APRS_REVIEW] = &ui_aprs_review_screen,
 #if CONFIG_APRS_RX
+	[SCR_APRS_HEARD] = &ui_aprs_heard_screen,
+	[SCR_APRS_STATION] = &ui_aprs_station_screen,
 	[SCR_APRS_PACKETS] = &ui_aprs_packets_screen,
 	[SCR_APRS_PACKET] = &ui_aprs_packet_screen,
 #endif
-	[SCR_APRS_STATION] = &ui_aprs_station_screen,
 #if CONFIG_APRS_RX && CONFIG_UI_COLOR
 	[SCR_APRS_RADAR] = &ui_aprs_radar_screen,
 #endif
@@ -6469,7 +6625,7 @@ const ui_scr_def_t *const ui_scr[SCR_COUNT] = {
 #if CONFIG_APRS_BEACON
 	[SCR_APRS_BEACON] = &ui_aprs_beacon_screen, [SCR_APRS_SYMBOL] = &ui_aprs_symbol_screen,
 	[SCR_APRS_PACE] = &ui_aprs_pace_screen, [SCR_APRS_REACH] = &ui_aprs_reach_screen,
-	[SCR_APRS_COMMENT] = &aprs_comment_screen,
+	[SCR_APRS_COMMENT] = &aprs_comment_screen, [SCR_APRS_TASK] = &ui_aprs_task_screen,
 #endif
 #if CONFIG_APRS_RX
 	[SCR_APRS_OBJECTS] = &ui_aprs_objects_screen, [SCR_APRS_OBJECT] = &ui_aprs_object_screen,
@@ -6492,7 +6648,7 @@ const ui_scr_def_t *const ui_scr[SCR_COUNT] = {
 	[SCR_APRS_TO] = &aprs_to_screen,
 #endif
 #if CONFIG_DMR_SMS || CONFIG_APRS_AFSK
-	[SCR_MESSAGE_TEXT] = &message_text_screen,
+	[SCR_MESSAGE_TEXT] = &message_text_screen, [SCR_MESSAGE_REVIEW] = &message_review_screen,
 #endif
 #if CONFIG_CHANNEL_LIST
 	[SCR_CHANNELS] = &chlist_screen, [SCR_CHANNEL] = &chinfo_screen,

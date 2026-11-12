@@ -20,7 +20,7 @@ enum { PP_LAT, PP_LON, PP_COUNT };
 #define POS_DEC		4u		// decimal places typed
 #define POS_DIGITS_MAX	7u
 
-static bool pos_editing;
+static bool pos_editing, pos_review;
 static uint8_t pos_n;			// digits typed (0 = showing the stored value)
 static char pos_digits[POS_DIGITS_MAX + 1];
 static uint32_t pos_stored;		// the stored value, 1e-4 degree
@@ -77,9 +77,9 @@ static void pos_item(uint16_t i, ui_item_t *it)
 	it->num = (char)('1' + i);
 	sbuf_t b;
 	sb_init(&b, it->value, sizeof it->value);
-	bool edit = pos_editing && i == ui_frame()->focus;
+	bool edit = (pos_editing || pos_review) && i == ui_frame()->focus;
 	if (edit) {
-		pos_text(&b, i, pos_n != 0 ? pos_typed(i) : pos_stored, pos_neg, true, pos_n != 0);
+		pos_text(&b, i, pos_n != 0 ? pos_typed(i) : pos_stored, pos_neg, !pos_review, pos_n != 0 && !pos_review);
 		it->flags |= UI_ITEM_EDIT;
 		return;
 	}
@@ -111,8 +111,12 @@ static void pos_save(uint16_t row)
 static void pos_select(uint16_t i, bool hold)
 {
 	(void)hold;
-	if (pos_editing) {
+	if (pos_review) {
 		pos_save(i);
+		pos_review = false;
+	} else if (pos_editing) {
+		pos_editing = false;
+		pos_review = true;
 	} else {
 		pos_open(i);
 	}
@@ -122,6 +126,12 @@ static void pos_select(uint16_t i, bool hold)
 static bool pos_key(const input_event_t *ev)
 {
 	uint16_t row = ui_frame()->focus;
+	if (pos_review && ev->action == ACT_BACK && ev->gesture == GESTURE_PRESS) {
+		pos_review = false;
+		pos_editing = true;
+		ui_dirty();
+		return true;
+	}
 	if (!pos_editing) {
 		return false;
 	}
@@ -161,11 +171,15 @@ static bool pos_key(const input_event_t *ev)
 	return false;	// OK: pos_select saves
 }
 
-static void pos_enter(void) { pos_editing = false; }
+#if CONFIG_APRS_BEACON
+bool ui_position_dirty(void) { return pos_review || (pos_editing && (pos_n || pos_neg != (ui_svc_setting_get(pos_id(ui_frame()->focus)) < 0))); }
+#endif
+static void pos_enter(void) { pos_editing = pos_review = false; }
+static const char *pos_body(void) { return pos_review ? TR("OK save  Back") : NULL; }
 
 const ui_scr_def_t ui_fixed_pos_screen = {
 	.name = "fixed-pos", .flags = SF_LIST | SF_NUMBERED | SF_FIELD, .prefix = TRN("Fixed position"),
 	.hint = TRN("OK change  Back"),
-	.count = pos_count, .item = pos_item, .select = pos_select, .key = pos_key, .enter = pos_enter,
+	.count = pos_count, .item = pos_item, .select = pos_select, .key = pos_key, .enter = pos_enter, .body = pos_body,
 };
 #endif

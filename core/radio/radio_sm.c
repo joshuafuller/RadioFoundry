@@ -7,6 +7,7 @@
 #include <string.h>
 #include "board.h"
 #include "radio/radio_sm.h"
+#include "aprs/aprs_dmr.h"
 #include "radio/tones.h"
 #include "settings/settings.h"
 #include "config.h"
@@ -3637,6 +3638,12 @@ static inline void aprs_rf_abort(radio_sm_t *sm, uint32_t now_ms) { (void)sm; (v
 // Every poll, before anything else: the engine, the "after PTT" trigger, a transmission to start
 static void aprs_poll(radio_sm_t *sm, uint32_t now_ms)
 {
+#if CONFIG_APRS_BEACON && CONFIG_APRS_AFSK
+	if (aprs_tx_stopped()) aprs_rf_abort(sm, now_ms);
+#endif
+#if CONFIG_APRS_BEACON && CONFIG_APRS_DMR
+	if (aprs_tx_stopped() && aprs_dmr_cancel()) { dmr_end(sm); tune(sm, now_ms); }
+#endif
 	bool tx_now = sm->view.state == RS_TX && !sm->tx_no_ptt;
 #if CONFIG_APRS_AFSK
 	tx_now = tx_now && sm->aprs_phase == APRS_RF_OFF;

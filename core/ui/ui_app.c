@@ -2093,6 +2093,9 @@ void ui_app_key(const input_event_t *ev)
 #endif
 	// Long BACK = Home from anywhere; long CONTEXT = the talk target picker (P3; as the keycap and the AnyTone radios)
 	if (ev->action == ACT_BACK && ev->gesture == GESTURE_LONG) {
+#if CONFIG_CHANNEL_EDIT || CONFIG_APRS_AFSK || CONFIG_DMR_SMS
+		if (ui_text_exit()) return;
+#endif
 		ui_go_home();
 		return;
 	}

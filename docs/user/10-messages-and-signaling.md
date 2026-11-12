@@ -75,7 +75,7 @@ delete. A DMR message can hold up to 143 characters. Messages you send aren't st
 3. Choose **Request acknowledgment** and **Include position** if needed, then pick a preset or **Write...** and press
    **OK** to send. Both choices apply only to this message. APRS messages hold up to 67 characters. Presets use the
    radio's language; accented letters are sent without accents to keep the AX.25 text printable. The radio queues
-   the APRS message on the configured FM frequency. "Sending to ..." means queued, not delivered.
+   the APRS message on the configured FM frequency. The outgoing thread shows the queued message and its later outcome; queued does not mean delivered.
 
 **Request acknowledgment** starts on. The radio retries while waiting for a reply. Turn it off for a one-shot message
 that needs no delivery confirmation. **Include position** starts off. When on, the radio adds the current GPS, computer

@@ -26,7 +26,7 @@ __attribute__((weak)) bool ui_svc_aprs_message_action(const aprs_thread_msg_t *m
 }
 
 static bool pending(uint8_t state) { return state == APRS_MSG_QUEUED || state == APRS_MSG_SENDING; }
-static bool failed(uint8_t state) { return state == APRS_MSG_NO_ACK || state == APRS_MSG_REJECTED; }
+static bool failed(uint8_t state) { return state == APRS_MSG_NO_ACK || state == APRS_MSG_REJECTED || state == APRS_MSG_CANCELED; }
 
 // One newest-first entry per callsign, with unread reflecting the whole conversation.
 static uint8_t conversations(void)
@@ -105,6 +105,7 @@ static void message_state(sbuf_t *b, const aprs_thread_msg_t *m)
 		sb_u32(b, m->tries, 1);
 		sb_str(b, TR(" tries"));
 		break;
+	case APRS_MSG_CANCELED: sb_str(b, TR("Canceled")); break;
 	case APRS_MSG_REJECTED: sb_str(b, TR("Rejected")); break;
 	case APRS_MSG_SENT: sb_str(b, TR("Sent, no ack requested")); break;
 	default: break;

@@ -296,7 +296,7 @@ static const flow_t flows[] = {
 	// Back deletes in text entry, and leaves once the field is empty (principles 4's one exception)
 	{ "21 Back deletes in text entry", "ok 5 ok ok 4 6", "back", "screen=text focus=COUNTY_DMRG", 1, false },
 	{ "21 Back on an empty name leaves", "ok 5 ok ok", "back back back back back back back back back back back",
-	  "screen=channel", 11, false },
+	  "screen=text-exit", 11, false },
 	// Text entry (ui.md 2.1): * deletes, multi-tap letters move on with another key, # cycles ABC -> 123 -> abc
 	{ "21 * deletes the name", "ok 5 ok ok", "quick quick quick quick quick quick quick quick quick quick long:7", "focus=7 screen=text", 11, false },
 	{ "21 a name by multi-tap", "ok 5 ok ok quick quick quick quick quick quick quick quick quick quick", "9 2 2 2 7 7 7 2", "focus=WCRA", 8, false },
@@ -571,6 +571,21 @@ static const flow_t flows[] = {
 	{ "S message failed text", "", "", "screen=home", 0, false },
 	// APRS (docs/spec/aprs.md 10): Tools 9, one row each
 	{ "A hub Messages", "", "ok 6 8 2", "screen=messages", 4, false },
+	{ "A stop review", "", "ok 6 8 up ok", "screen=aprs-task aprs_stopped=0 shows=Stop_all", 6, false },
+	{ "A stop immediate", "ok 6 8 up ok", "ok", "aprs_stopped=1 shows=TX_off", 1, false },
+	{ "A stop repeated OK stays off", "ok 6 8 up ok ok", "ok", "aprs_stopped=1", 1, false },
+	{ "A stop resume", "ok 6 8 up ok ok back ok", "ok", "aprs_stopped=0 aprs_sent=0", 1, false },
+	{ "A emergency canceled", "ok 6 8 0 up up ok", "back", "screen=aprs-settings aprs_sent=0", 1, false },
+	{ "A emergency review", "", "ok 6 8 0 up up ok", "screen=aprs-task shows=Emergency aprs_sent=0", 7, false },
+	{ "A emergency confirm", "ok 6 8 0 up up ok", "ok", "screen=aprs-task shows=Sent aprs_sent=1", 1, false },
+	{ "A phrase inserts without sending", "aprs:message ok 2 ok ok", "down ok", "screen=message-text sent=0", 2, false },
+	{ "A phrase edit saves for reuse", "aprs:message ok 2 ok ok down ctx", "2 ok ok ok", "screen=message-text shows=OKA sent=0", 4, false },
+	{ "A phrase restore", "aprs:message ok 2 ok ok down ctx", "back ok ok", "screen=compose sent=0", 3, false },
+	{ "A phrase full review", "aprs:message ok 2 ok ok down ok", "ok", "screen=message-review shows=Q4WAB-9 shows=OK sent=0", 1, false },
+	{ "A phrase editor asks on exit", "aprs:message ok 2 ok ok down ctx", "2 long:back", "screen=text-exit sent=0", 2, false },
+	{ "A discard canceled", "aprs:message ok 2 ok ok down ok 2 long:back", "ok", "screen=message-text sent=0", 1, false },
+	{ "A fixed review does not save", "ok 7 5 down down ok", "1 4 5 ok", "screen=fixed-pos shows=OK_save pos_lat=0 aprs_sent=0", 4, false },
+	{ "A fixed exit asks", "ok 7 5 down down ok 1 4 5", "long:back", "screen=text-exit pos_lat=0", 1, false },
 	{ "A hub Weather", "", "ok 6 8 4", "screen=aprs-weather", 4, false },
 	{ "A My beacon review", "", "ok 6 8 6", "screen=aprs-beacon shows=Q0SIM-7", 4, false },
 	{ "A Home automatic listening", "ok 4 up ok 1 4 4 3 9 0 ok wait:5000 aprs:rxon", "", "shows=Listening_144.390 shows=APRS_TX_off", 0, false },
@@ -601,9 +616,9 @@ static const flow_t flows[] = {
 	{ "A reach cancel", "ok 6 8 6 5", "down back", "aprs_path=2 aprs_auto=0", 2, false },
 #endif
 	{ "A APRS page", "", "ok 6 8", "screen=aprs shows=Send_position_now shows=Q0SIM-7 shows=TX_off hides=SmartBeaconing", 3, false },
-	{ "A hub position", "", "ok 6 8 8", "screen=group shows=Location", 4, false },
-	{ "A send position now", "", "ok 6 8 ok", "aprs_sent=1 toast=Sending_position", 4, false },
-	{ "A send without a callsign", "aprs:nocall", "ok 6 8 ok", "aprs_sent=0 toast=Set_your_callsign", 4, false },
+	{ "A hub position", "", "ok 6 8 8", "screen=aprs-task shows=Fixed", 4, false },
+	{ "A send position now", "", "ok 6 8 ok", "aprs_sent=1 screen=aprs-task shows=Sent", 4, false },
+	{ "A send without a callsign", "aprs:nocall", "ok 6 8 ok", "aprs_sent=0 screen=aprs-task shows=Set_your_callsign", 4, false },
 	{ "A settings", "", "ok 6 8 0", "screen=aprs-settings", 4, false },
 	{ "A beacons review", "ok 6 8 0", "1", "screen=aprs-review aprs_auto=0 shows=Precision", 1, false },
 	{ "A beacons save", "ok 6 8 0 1", "ok ok ok ok ok", "screen=aprs-settings aprs_auto=1", 5, false },
@@ -633,14 +648,14 @@ static const flow_t flows[] = {
 	{ "L no fixed position yet", "ok 7 5 down down", "ok", "shows=Not_set", 1, false },
 	{ "L fixed position found by latitude", "", "5 2 8 4 8 8 3 3", "shows=Fixed_position", 8, false },
 	{ "L latitude while typed", "ok 7 5 down down ok", "1 3 3 7 4", "shows=33.74 pos_lat=0", 5, false },
-	{ "L fixed latitude", "ok 7 5 down down ok", "1 3 3 7 4 9 0 ok", "pos_lat=337490000", 8, false },
-	{ "L fixed longitude west", "ok 7 5 down down ok", "2 0 8 4 3 8 8 0 down ok", "pos_lon=-843880000", 10, false },
-	{ "L longitude's leading zero by itself", "ok 7 5 down down ok", "2 8 4 3 8 8 0 down ok", "pos_lon=-843880000", 9, false },
-	{ "L longitude of 100 or more", "ok 7 5 down down ok", "2 1 2 2 5 ok", "pos_lon=1225000000", 6, false },
-	{ "L latitude digits not typed are zeros", "ok 7 5 down down ok", "1 4 5 ok", "pos_lat=450000000", 4, false },
+	{ "L fixed latitude", "ok 7 5 down down ok", "1 3 3 7 4 9 0 ok ok", "pos_lat=337490000", 9, false },
+	{ "L fixed longitude west", "ok 7 5 down down ok", "2 0 8 4 3 8 8 0 down ok ok", "pos_lon=-843880000", 11, false },
+	{ "L longitude's leading zero by itself", "ok 7 5 down down ok", "2 8 4 3 8 8 0 down ok ok", "pos_lon=-843880000", 10, false },
+	{ "L longitude of 100 or more", "ok 7 5 down down ok", "2 1 2 2 5 ok ok", "pos_lon=1225000000", 7, false },
+	{ "L latitude digits not typed are zeros", "ok 7 5 down down ok", "1 4 5 ok ok", "pos_lat=450000000", 5, false },
 	{ "L latitude past 90 refused", "ok 7 5 down down ok", "1 9 5", "toast=Up_to_90", 3, false },
-	{ "L latitude after a refused digit", "ok 7 5 down down ok", "1 9 5 ok", "pos_lat=900000000", 4, false },
-	{ "L latitude BACK takes a digit back", "ok 7 5 down down ok", "1 3 9 back 3 ok", "pos_lat=330000000", 6, false },
+	{ "L latitude after a refused digit", "ok 7 5 down down ok", "1 9 5 ok ok", "pos_lat=900000000", 5, false },
+	{ "L latitude BACK takes a digit back", "ok 7 5 down down ok", "1 3 9 back 3 ok ok", "pos_lat=330000000", 7, false },
 	{ "L latitude BACK leaves unchanged", "ok 7 5 down down ok", "1 1 back back", "pos_lat=0 screen=fixed-pos", 4, false },
 	// Tools > Position's pages (CONFIG_GPS_SKY, ui_gps.c): Up / Down or the digits turn them
 	{ "G GPS status page", "", "ok 6 2", "shows=3D_Fix", 3, false },
@@ -713,7 +728,7 @@ static const flow_t flows[] = {
 	{ "A new APRS message opens its composer", "ok 2", "ok", "screen=compose shows=To_callsign", 1, false },
 	{ "A new APRS message needs our callsign", "aprs:nocall ok 2", "", "hides=New_APRS_message", 0, false },
 	{ "A received APRS message opens in Messages", "aprs:message ok 2", "ok", "screen=aprs-thread shows=Hello_APRS", 1, false },
-	{ "A received APRS message replies over APRS", "aprs:message ok 2 ok", "ok down ok", "sent=1 aprs_to=Q4WAB-9 text=OK", 3, false },
+	{ "A received APRS message replies over APRS", "aprs:message ok 2 ok", "ok down ok ok ok", "sent=1 aprs_to=Q4WAB-9 text=OK screen=aprs-thread", 5, false },
 	{ "A received APRS message opens a typed reply", "aprs:message ok 2 ok", "ctx",
 	  "screen=compose shows=Q4WAB-9", 1, false },
 	{ "A DMR message context uses its sender", "msg:9991234,Hi wait:9000 ok 2 ok", "ctx 3 ok",
@@ -724,11 +739,11 @@ static const flow_t flows[] = {
 	  "screen=message shows=Newer", 1, false },
 	{ "A new DMR message does not change an open APRS reply", "aprs:message ok 2 ok msg:9991234,Newer wait:9000", "ok",
 	  "screen=compose shows=Q4WAB-9", 1, false },
-	{ "A outgoing thread reachable from Messages", "ok 6 8 1 ok ok down ok", "ok 2 ok",
+	{ "A outgoing thread reachable from Messages", "ok 6 8 1 ok ok down ok ok ok long:back", "ok 2 ok",
 	  "screen=aprs-thread shows=Queued", 3, false },
-	{ "A station Message opens existing thread", "ok 6 8 1 ok ok down ok", "ok 6 8 1 ok ok",
+	{ "A station Message opens existing thread", "ok 6 8 1 ok ok down ok ok ok long:back", "ok 6 8 1 ok ok",
 	  "screen=aprs-thread shows=Queued", 7, false },
-	{ "A thread reply stays on its callsign", "ok 6 8 1 ok ok down ok ok 2 ok aprs:reorder", "ok",
+	{ "A thread reply stays on its callsign", "ok 6 8 1 ok ok down ok ok ok aprs:reorder", "ok",
 	  "screen=compose shows=Q4WABC-15", 1, false },
 	{ "A not in this build", "aprs:off", "ok 6 8 2", "toast=APRS:_not aprs_auto=0", 4, false },
 	// The crash log and its report (docs/spec/crash-log.md): Settings > Advanced > Crash log, after the restart
@@ -1728,7 +1743,7 @@ static void beacon_comment_checks(void)
 		}
 		strcat(script, "expect:shows=0_remaining ok expect:screen=aprs-review ok ok ok ok ok expect:screen=aprs-beacon expect:aprs_auto=0 "
 		       "expect:aprs_comment=1111111111111111111111111111111111111111111 2 back long:back "
-		       "expect:screen=home expect:aprs_comment=1111111111111111111111111111111111111111111");
+		       "expect:screen=text-exit down ok long:back expect:screen=home expect:aprs_comment=1111111111111111111111111111111111111111111");
 		if (!sim_run(script, err, sizeof err)) {
 			printf("FAIL beacon comment [%s]: %s\n", sim_geoms[g].name, err);
 			fails++;

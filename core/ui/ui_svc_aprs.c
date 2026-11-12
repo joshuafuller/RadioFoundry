@@ -48,6 +48,12 @@ void ui_svc_aprs_comment(char out[APRS_COMMENT_MAX + 1]) { aprs_get_comment(out)
 bool ui_svc_aprs_set_comment(const char *text) { return aprs_set_comment(text, hal_millis()); }
 #endif
 
+#if CONFIG_APRS_BEACON
+bool ui_svc_aprs_emergency(void) { return aprs_send_emergency(); }
+void ui_svc_aprs_stop_tx(bool stop) { aprs_stop_tx(stop); }
+bool ui_svc_aprs_tx_stopped(void) { return aprs_tx_stopped(); }
+#endif
+
 bool ui_svc_aprs_send_now(void)
 {
 	return aprs_send_now();
