@@ -774,3 +774,23 @@ def test_factory_reset(home):
     assert as_int(s.get("settings.failures"), 0) == 0, s
     # The channel position goes back to the default (another zone), so the zone count says the codeplug stayed
     assert r.core().get("zone_count") == zones, "the codeplug changed"
+
+
+@pytest.mark.feature("aprs_radar")
+@pytest.mark.needs_switch("APRS_RX")
+@pytest.mark.needs_switch("UI_COLOR")
+def test_aprs_radar_navigation(home, shots):
+    """Open the color radar without sending a packet or changing a setting."""
+    r = home
+    info, _ = r.shot_until(lambda d: True, what="display depth")
+    if info["bpp"] == 1:
+        skip("no_hw", "radar needs a color display")
+    for key in ("ok", "6", "8"):
+        r.press(key)
+    wait_screen(r, "aprs")
+    r.press("context")
+    wait_screen(r, "aprs-radar")
+    info, data = r.shot_until(lambda d: True, what="radar drawn")
+    r.save_screenshot(f"{shots}/aprs_radar.png", data=data, info=info)
+    r.press("back")
+    wait_screen(r, "aprs")

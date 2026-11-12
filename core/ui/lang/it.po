@@ -548,15 +548,15 @@ msgstr "Proporzionale"
 msgid "Both"
 msgstr "Entrambi"
 
-#: core/ui/ui_aprs.c core/ui/ui_menus.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_radar.c core/ui/ui_menus.c
 msgid "Auto"
 msgstr "Auto"
 
-#: core/ui/ui_aprs.c core/ui/ui_menus.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_radar.c core/ui/ui_menus.c
 msgid "Computer"
 msgstr "Computer"
 
-#: core/ui/ui_aprs.c core/ui/ui_menus.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_radar.c core/ui/ui_menus.c
 msgid "Fixed"
 msgstr "Fisso"
 
@@ -607,6 +607,10 @@ msgstr "Niente toni APRS su questa radio; le posizioni DMR funzionano."
 #: core/ui/ui_aprs.c
 msgid "APRS: not in this build"
 msgstr "APRS: non in questa build"
+
+#: core/ui/ui_aprs.c
+msgid "# radar"
+msgstr "# radar"
 
 #: core/ui/ui_aprs.c
 msgid "No callsign"
@@ -736,7 +740,7 @@ msgstr "0-9 scegli  Indietro"
 msgid "Heard"
 msgstr "Sentite"
 
-#: core/ui/ui_aprs.c core/ui/ui_menus.c core/ui/ui_screens.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_radar.c core/ui/ui_menus.c core/ui/ui_screens.c
 msgid "Back"
 msgstr "Indietro"
 
@@ -748,7 +752,7 @@ msgstr "Ancora niente sentito"
 msgid "Message"
 msgstr "Messaggio"
 
-#: core/ui/ui_aprs.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_radar.c
 msgid "No longer in list"
 msgstr "Non più in elenco"
 
@@ -851,6 +855,25 @@ msgstr "* ordina  # filtra  OK apri  Indietro"
 #: core/ui/ui_aprs_list.c
 msgid "Filter"
 msgstr "Filtro"
+#: core/ui/ui_aprs_radar.c
+msgid "Radar"
+msgstr "Radar"
+
+#: core/ui/ui_aprs_radar.c
+msgid "Set your position to see the radar"
+msgstr "Imposta la tua posizione per vedere il radar"
+
+#: core/ui/ui_aprs_radar.c core/ui/ui_gps.c
+msgid "Settings > Location"
+msgstr "Impostazioni > Posizione"
+
+#: core/ui/ui_aprs_radar.c core/ui/ui_gps.c
+msgid "No positions yet"
+msgstr "Ancora nessuna posizione"
+
+#: core/ui/ui_aprs_radar.c
+msgid "OK open  Back"
+msgstr "OK apri  Indietro"
 
 #: core/ui/ui_dual.c core/ui/ui_screens.c
 msgid "No tone"
@@ -1165,10 +1188,6 @@ msgid "Alt"
 msgstr "Alt"
 
 #: core/ui/ui_gps.c
-msgid "No positions yet"
-msgstr "Ancora nessuna posizione"
-
-#: core/ui/ui_gps.c
 msgid "No satellites yet"
 msgstr "Ancora nessun satellite"
 
@@ -1183,10 +1202,6 @@ msgstr "Ancora nessun fix"
 #: core/ui/ui_gps.c
 msgid "No GPS, or it is off"
 msgstr "Niente GPS, o spento"
-
-#: core/ui/ui_gps.c
-msgid "Settings > Location"
-msgstr "Impostazioni > Posizione"
 
 #: core/ui/ui_gps.c
 msgid "Up Down page  Back"

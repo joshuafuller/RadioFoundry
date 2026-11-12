@@ -108,6 +108,12 @@ static const char *aprs_body(void)
 		sb_str(&b, TR("APRS: not in this build"));
 		return t;
 	}
+	#if CONFIG_APRS_RX && CONFIG_UI_COLOR
+	if (gfx_bpp() != 1) {
+		sb_str(&b, TR("# radar"));
+		sb_chr(&b, '\n');
+	}
+#endif
 	if (CONFIG_APRS_AFSK) {		// who and where on RF: the AX.25 backend's
 		sb_str(&b, v.call[0] != '\0' ? v.call : TR("No callsign"));
 		sb_str(&b, TR(" on "));
@@ -310,7 +316,19 @@ static void aprs_select(uint16_t i, bool hold)
 	ui_dirty();
 }
 
+#if CONFIG_APRS_RX && CONFIG_UI_COLOR
+static void aprs_context(uint16_t i)
+{
+	(void)i;
+	if (gfx_bpp() != 1)
+		ui_push(SCR_APRS_RADAR, 0);
+}
+#endif
+
 const ui_scr_def_t ui_aprs_screen = {
+#if CONFIG_APRS_RX && CONFIG_UI_COLOR
+	.context = aprs_context,
+#endif
 	.name = "aprs", .flags = SF_LIST | SF_NUMBERED | SF_FIELD, .prefix = "APRS", .hint = TRN("0-9 pick  Back"),
 	.count = aprs_count, .item = aprs_item, .select = aprs_select, .body = aprs_body,
 };
@@ -319,6 +337,12 @@ const ui_scr_def_t ui_aprs_screen = {
 
 #if CONFIG_APRS_RX
 static char station_call[AX25_CALL_LEN + 4];
+
+void ui_aprs_open_station(const char *call)
+{
+	str_copy(station_call, sizeof station_call, call);
+	ui_push(SCR_APRS_STATION, 0);
+}
 #endif
 
 #if CONFIG_APRS_RX
@@ -336,8 +360,7 @@ static void heard_select(uint16_t i, bool hold)
 #if CONFIG_APRS_RX
 	aprs_station_t s;
 	if (ui_svc_aprs_station((uint8_t)i, &s)) {
-		str_copy(station_call, sizeof station_call, s.call);
-		ui_push(SCR_APRS_STATION, 0);
+		ui_aprs_open_station(s.call);
 	}
 #else
 	ui_push(SCR_APRS_STATION, i);

@@ -424,6 +424,7 @@ static struct {
 	bool message;		// "aprs:message": an unread APRS message
 	bool message_read;
 	uint32_t message_ms;
+	bool radar;
 	bool evicted;
 	bool no_speed;
 	bool other_pos;
@@ -471,14 +472,23 @@ bool ui_svc_aprs_send_now(void)
 	aprs_sim.sent++;
 	return true;
 }
-uint8_t ui_svc_aprs_station_count(void) { return aprs_sim.off || aprs_sim.evicted ? 0 : 2; }
+uint8_t ui_svc_aprs_station_count(void) { return aprs_sim.off || aprs_sim.evicted ? 0 : aprs_sim.radar ? 4 : 2; }
 bool ui_svc_aprs_station(uint8_t i, aprs_station_t *out)
 {
 	static const char *const calls[] = { "Q4WABC-15", "QJ4XYZ" };	// the longest call there is, and one without a position
-	if (aprs_sim.off || aprs_sim.evicted || i >= 2)
+	if (aprs_sim.off || aprs_sim.evicted || i >= ui_svc_aprs_station_count())
 		return false;
 	memset(out, 0, sizeof *out);
 	i ^= aprs_sim.reordered ? 1u : 0u;
+	if (aprs_sim.radar) {
+		static const char *const radar_calls[] = { "NORTH", "EAST", "SOUTH", "WEST" };
+		strcpy(out->call, radar_calls[i]);
+		out->has_pos = true;
+		out->sym_table = '/';
+		out->sym_code = '>';
+		out->course = i * 90;
+		return true;
+	}
 	strcpy(out->call, calls[i]);
 	out->heard_ms = now_ms > 60000u * (i + 1u) ? now_ms - 60000u * (i + 1u) : 0;
 	if (aprs_sim.reordered && i == 1)
@@ -518,6 +528,12 @@ bool ui_svc_aprs_range(const aprs_station_t *s, uint32_t *m, uint16_t *deg)
 	if (aprs_sim.off || aprs_sim.no_call || aprs_sim.no_pos || !s->has_pos)
 		return false;
 	*m = strcmp(s->call, "QJ4XYZ") == 0 ? 100 : 14461;
+	if (aprs_sim.radar) {
+		*m = 10000;
+		*deg = s->course;
+		return true;
+	}
+	*m = 14461;
 	*deg = 40;
 	return true;
 }
@@ -2846,6 +2862,7 @@ static bool run_token(char *t, char *err, size_t len)
 		aprs_sim.message = strcmp(arg, "message") == 0;
 		if (aprs_sim.message)
 			aprs_sim.message_ms = now_ms;
+		aprs_sim.radar = aprs_sim.radar || strcmp(arg, "radar") == 0;
 		aprs_sim.no_pos = strcmp(arg, "nopos") == 0;
 		aprs_sim.reordered = strcmp(arg, "reorder") == 0;
 		aprs_sim.evicted = strcmp(arg, "evict") == 0;
