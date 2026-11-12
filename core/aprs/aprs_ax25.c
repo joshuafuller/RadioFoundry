@@ -580,6 +580,19 @@ void aprs_ax25_tick(uint32_t now_ms)
 	}
 }
 
+#if CONFIG_APRS_RX
+void aprs_ax25_cancel_message(void)
+{
+	aprs_s.out.active = false;
+	// An on-air frame finishes; only frames not handed to the radio can be withdrawn.
+	uint8_t keep = aprs_s.taken;
+	for (uint8_t i = aprs_s.taken; i < aprs_s.qn; i++)
+		if (aprs_s.q[i].kind != K_MSG)
+			aprs_s.q[keep++] = aprs_s.q[i];
+	aprs_s.qn = keep;
+}
+#endif
+
 void aprs_ax25_service(void)
 {
 #if CONFIG_APRS_RX
@@ -1119,6 +1132,10 @@ void aprs_rf_done(aprs_rf_result_t r, uint32_t now_ms)
 		}
 		uint8_t keep = 0;
 		for (uint8_t i = 0; i < aprs_s.taken && i < aprs_s.qn; i++) {
+			#if CONFIG_APRS_RX
+			if (aprs_s.q[i].kind == K_MSG && !aprs_s.out.active)
+				continue;
+#endif
 			if (++aprs_s.q[i].tries < RF_TRIES) {
 				aprs_s.q[keep++] = aprs_s.q[i];
 			}

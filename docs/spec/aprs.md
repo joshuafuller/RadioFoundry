@@ -144,7 +144,11 @@ Both stores are volatile. `CONFIG_APRS_RX=n` removes the thread storage, queue e
 Messages shows one entry per callsign, newest conversation first, merged with the DMR inbox by age. Selecting an
 APRS entry opens `aprs-thread`. Station detail's Message action opens that thread when retained messages exist;
 otherwise it opens the composer. Up/Down scrolls each full message, then moves to the next or previous message in
-chronological order. OK or Context opens the existing composer addressed to the saved callsign. Opening or drawing the thread marks only that callsign's
+chronological order. The reader uses the display class body font with a persistent callsign title.
+OK opens the existing composer addressed to the saved callsign. Context (#) cancels a queued or sending
+message, or retries a No ack or Rejected message with the retained recipient and text. Cancel removes the
+outgoing record and prevents further retries; an RF frame already on air finishes. Retry resets the attempt
+count and requires a free outgoing queue slot. Stale action snapshots are refused. Opening or drawing the thread marks only that callsign's
 incoming messages read, without adding messages or issuing a new alert. Duplicate reception retains the read flag.
 
 Each outgoing record shows Queued, Sending with try count and next retry delay, Delivered (acked) with the ACK's
@@ -154,6 +158,11 @@ from the addressed callsign with the matching message number. It does not establ
 No ack means no matching ACK was observed, not proof of nonreceipt. A message sent without requesting an ACK shows
 Sent, no ack requested after the RF job succeeds. ACK and rejection retain the completed record and release the
 next queued message after outstanding RF frames finish. The existing retry intervals are unchanged.
+
+Received addressed-message banners show the sender callsign and inbox text; # opens that conversation.
+Routine arrivals show the packet source and event kind. Bulletin and object prose wraps at spaces to the
+class body width; all retained text remains reachable by scrolling. A token wider than a line is split
+without dropping bytes.
 
 ### 4.1.1 Arithmetic
 

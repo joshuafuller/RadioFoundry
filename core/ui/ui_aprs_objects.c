@@ -67,14 +67,14 @@ const ui_scr_def_t ui_aprs_objects_screen = {
 	.count = objects_count, .item = objects_item, .select = objects_select,
 };
 
-// Short text rows keep all retained text reachable on the narrowest display.
-#define TEXT_ROW 16u
+// Wrap to the class body width; scrolling keeps every retained word reachable.
+#define TEXT_ROW (sizeof ((ui_item_t *)0)->label - 1u)
 static uint16_t text_row(ui_item_t *it, const char *text, uint16_t row)
 {
 	char line[TEXT_ROW + 1u];
 	uint16_t count = 0;
 	while (*text) {
-		text = ui_wrap_line(ui_layout.small, text, INT16_MAX, line, sizeof line);
+		text = ui_wrap_line(ui_layout.small, text, gfx_width() - 12, line, sizeof line);
 		if (it && count == row) {
 			str_copy(it->label, sizeof it->label, line);
 			break;

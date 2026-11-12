@@ -4602,7 +4602,7 @@ static void about_enter(void)
 
 static void about_draw(void)
 {
-	about_max = (uint16_t)ui_draw_text_page(ui_view(), &ui_st, TR("About"), about_text(), &about_first);
+	about_max = (uint16_t)ui_draw_text_page(ui_view(), &ui_st, TR("About"), about_text(), &about_first, false);
 }
 
 // Up / Down and the knob scroll a line (the knob's forward = down, as in lists); BACK leaves

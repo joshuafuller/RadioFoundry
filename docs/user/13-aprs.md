@@ -373,3 +373,12 @@ This APRS setting is **Off** by default. Turn it on to put your current voice fr
 position beacon comments. Changing channels updates the next beacon; it does not send one immediately. Your
 existing comment follows if it fits. Digital channels and inverted DCS do not advertise an FM frequency.
 These controls require a build with `CONFIG_APRS_TUNE`.
+
+### Reading and managing messages
+
+The message reader keeps the other station's callsign in the title. Up/Down scrolls the complete text,
+then moves between retained messages. OK replies. # Cancel removes a queued or sending message and stops
+its future retries; a frame already on air finishes. # Retry requeues a failed or rejected message with
+its original recipient and text. A full queue leaves the failed message available to retry later.
+Received-message banners show the sender and a text preview; # opens the conversation.
+Bulletin and object text wraps to the display width and remains available by scrolling.
