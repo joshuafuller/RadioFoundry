@@ -19,6 +19,7 @@
 #include "storage/storage.h"
 #if CONFIG_APRS
 #include "aprs/aprs.h"
+#include "aprs/aprs_home.h"
 #endif
 #if CONFIG_NET_USRP
 #include "usbaudio/usrp_net.h"
@@ -584,6 +585,14 @@ void debuglink_view_section(uint8_t section, const radio_view_t *v, dl_text_t *t
 		// The level an APRS RF transmission keys at (its own setting, else the radio's current one; HIL tests check
 		// it before keying)
 		dl_text(t, "aprs.tx_power=%u\n", aprs_tx_power(v->power));
+#if CONFIG_APRS_HOME
+		aprs_home_t home;
+		aprs_home_get(&home);
+		dl_text(t, "aprs.home_built=1\naprs.sent=%u\naprs.sent_ms=%u\naprs.listening_state=%u\n",
+			home.sent, (unsigned)home.sent_ms, home.listening);
+		dl_text(t, "aprs.repeat_call=%s\naprs.repeat_ms=%u\naprs.repeat_serial=%u\n",
+			home.digi, (unsigned)home.repeated_ms, (unsigned)home.repeat_serial);
+#endif
 #endif
 		debuglink_view_position(0, t);
 		break;

@@ -1556,6 +1556,16 @@ static void draw_activity(const radio_view_t *v, const ui_state_t *s)
 	sbuf_t b;
 	sb_init(&b, buf, sizeof buf);
 
+#if CONFIG_APRS_HOME
+	// Voice activity and banners take priority; never move the channel or target rows.
+	if (v->state == RS_IDLE && !v->monitor && s->aprs_lines[0][0] && s->banner.kind == UI_BANNER_NONE) {
+		for (unsigned i = 0; i < 2 && y + sm->h <= L->hint_y; i++, y += sm->h) {
+			gfx_text_fit(sm, s->aprs_lines[i], w, fit, sizeof fit);
+			gfx_text(sm, 0, y, fit, ui_col.dim);
+		}
+		return;
+	}
+#endif
 	// The monitor open on a quiet channel shows the meter too: what the receiver hears with nothing to open the squelch
 	bool meter = v->state == RS_RX || (v->state == RS_IDLE && v->monitor && v->ch.mode != RADIO_MODE_DMR);
 	switch (meter ? RS_RX : v->state) {

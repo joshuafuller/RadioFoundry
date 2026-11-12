@@ -43,12 +43,19 @@ enum { AP_SEND, AP_AUTO, AP_FREQ, AP_POWER, AP_PATH, AP_INTERVAL, AP_SMART, AP_V
 #if CONFIG_APRS_RX
 	AP_RECENT,
 #endif
+#if CONFIG_APRS_HOME
+	AP_MESSAGES, AP_WEATHER, AP_BEACON,
+#endif
 	AP_COUNT };
 
 // The rows this build shows, in order: the packet rows only with the AX.25 backend (CONFIG_APRS_AFSK), "Send via"
 // only when there is a choice (both backends built)
 static const uint8_t rows[] = {
+#if CONFIG_APRS_HOME
+	AP_HEARD, AP_MESSAGES, AP_WEATHER, AP_SEND, AP_BEACON, AP_AUTO,
+#else
 	AP_SEND, AP_AUTO,
+#endif
 #if CONFIG_APRS_AFSK
 	AP_FREQ, AP_POWER, AP_PATH,
 #endif
@@ -60,10 +67,10 @@ static const uint8_t rows[] = {
 	AP_DECAY,
 #endif
 	AP_KISS,
-#if CONFIG_APRS_AFSK
-#if CONFIG_APRS_RX
+#if CONFIG_APRS_AFSK && CONFIG_APRS_RX
 	AP_RECENT,
 #endif
+#if !CONFIG_APRS_HOME && CONFIG_APRS_AFSK
 	AP_HEARD,
 #endif
 
@@ -106,7 +113,7 @@ static const char *why_text(uint8_t block)
 	}
 }
 
-static const char *aprs_body(void)
+static const char *beacon_body(void)
 {
 	static char t[160];
 	sbuf_t b;
@@ -116,7 +123,7 @@ static const char *aprs_body(void)
 		sb_str(&b, TR("APRS: not in this build"));
 		return t;
 	}
-	#if CONFIG_APRS_RX && CONFIG_UI_COLOR
+#if !CONFIG_APRS_HOME && CONFIG_APRS_RX && CONFIG_UI_COLOR
 	if (gfx_bpp() != 1) {
 		sb_str(&b, TR("# radar"));
 		sb_chr(&b, '\n');
@@ -169,13 +176,57 @@ static uint8_t interval_index(uint16_t s)
 	return (uint8_t)(N_INTERVALS - 1u);
 }
 
+#if CONFIG_APRS_HOME
+// Remember identities viewed in Stations; new packets from a viewed station are not new stations.
+#if CONFIG_APRS_RX
+static char seen_calls[APRS_STATIONS][AX25_CALL_LEN + 4];
+#endif
+static uint8_t stations_new(void)
+{
+	uint8_t n = 0;
+#if CONFIG_APRS_RX
+	for (uint8_t i = 0; i < ui_svc_aprs_station_count(); i++) {
+		aprs_station_t st;
+		if (!ui_svc_aprs_station(i, &st))
+			continue;
+		bool seen = false;
+		for (unsigned j = 0; j < APRS_STATIONS; j++)
+			seen |= strcmp(st.call, seen_calls[j]) == 0;
+		n += !seen;
+	}
+#endif
+	return n;
+}
+static void stations_seen(void)
+{
+#if CONFIG_APRS_RX
+	memset(seen_calls, 0, sizeof seen_calls);
+	for (uint8_t i = 0; i < APRS_STATIONS; i++) {
+		aprs_station_t st;
+		if (ui_svc_aprs_station(i, &st))
+			str_copy(seen_calls[i], sizeof seen_calls[i], st.call);
+	}
+#endif
+}
+
+#endif
+
 static void aprs_item(uint16_t i, ui_item_t *it)
 {
 	static const char *const names[] = { TRN("Send position now"), TRN("Automatic beacons"), TRN("Frequency"),
 					     TRN("Power"), TRN("Path"), TRN("Interval"), TRN("SmartBeaconing"),
-					     TRN("Send via"), TRN("KISS on USB"), TRN("Stations heard"), TRN("Decay")
+		TRN("Send via"), TRN("KISS on USB"),
+#if CONFIG_APRS_HOME
+		TRN("Stations"),
+#else
+		TRN("Stations heard"),
+#endif
+		TRN("Decay"),
 #if CONFIG_APRS_RX
-					     , TRN("Recent packets")
+		TRN("Recent packets"),
+#endif
+#if CONFIG_APRS_HOME
+		TRN("Messages"), TRN("Weather"), TRN("My beacon")
 #endif
 	};
 	aprs_view_t v;
@@ -196,6 +247,12 @@ static void aprs_item(uint16_t i, ui_item_t *it)
 		return;
 	}
 	switch (i) {
+#if CONFIG_APRS_HOME
+	case AP_MESSAGES:
+		sb_u32(&b, v.unread, 1);
+		sb_str(&b, TR(" unread"));
+		break;
+#endif
 	case AP_SEND:
 		if (v.block != APRS_OK && rf_only(&c)) {
 			it->flags |= UI_ITEM_DIM;
@@ -250,6 +307,11 @@ static void aprs_item(uint16_t i, ui_item_t *it)
 			it->flags |= UI_ITEM_DIM;
 		} else {
 			sb_u32(&b, v.stations, 1);
+#if CONFIG_APRS_HOME
+			sb_str(&b, ", ");
+			sb_u32(&b, stations_new(), 1);
+			sb_str(&b, TR(" new"));
+#endif
 		}
 		break;
 	default: break;
@@ -267,6 +329,16 @@ static void aprs_select(uint16_t i, bool hold)
 	}
 	ui_svc_aprs_cfg(&c);
 	switch (i < N_ROWS ? rows[i] : AP_COUNT) {
+#if CONFIG_APRS_HOME
+	case AP_MESSAGES:
+		ui_push(SCR_MESSAGES, 0);
+		return;
+	case AP_WEATHER:
+		return;
+	case AP_BEACON:
+		ui_push(SCR_APRS_BEACON, 0);
+		return;
+#endif
 	case AP_SEND:
 		if (ui_svc_aprs_send_now()) {
 			ui_toast(TR("Sending position"));
@@ -325,6 +397,9 @@ static void aprs_select(uint16_t i, bool hold)
 		if (!CONFIG_APRS_RX) {
 			ui_toast(TR("This radio can't receive APRS"));
 		} else {
+#if CONFIG_APRS_HOME
+			stations_seen();
+#endif
 			ui_push(SCR_APRS_HEARD, 0);
 		}
 		return;
@@ -343,6 +418,48 @@ static void aprs_context(uint16_t i)
 }
 #endif
 
+
+static const char *aprs_body(void)
+{
+#if CONFIG_APRS_HOME
+	static char body[192];
+	char line[96];
+	ui_aprs_status(body, sizeof body, false);
+	ui_aprs_status(line, sizeof line, true);
+	sbuf_t b;
+	sb_init(&b, body + strlen(body), sizeof body - strlen(body));
+	sb_chr(&b, '\n');
+	sb_str(&b, line);
+#if CONFIG_APRS_RX && CONFIG_UI_COLOR
+	if (gfx_bpp() != 1) {
+		sb_chr(&b, '\n');
+		sb_str(&b, TR("# radar"));
+	}
+#endif
+	return body;
+#else
+	return beacon_body();
+#endif
+}
+
+#if CONFIG_APRS_HOME
+static uint16_t beacon_count(void) { return 1; }
+static void beacon_item(uint16_t i, ui_item_t *it)
+{
+	(void)i;
+	aprs_cfg_t c;
+	ui_svc_aprs_cfg(&c);
+	str_copy(it->label, sizeof it->label, TR("Symbol"));
+	it->value[0] = c.sym_table;
+	it->value[1] = c.sym_code;
+	it->value[2] = 0;
+}
+const ui_scr_def_t ui_aprs_beacon_screen = {
+	.name = "aprs-beacon", .flags = SF_LIST | SF_FIELD, .prefix = TRN("My beacon"), .hint = TRN("Back"),
+	.body = beacon_body, .count = beacon_count, .item = beacon_item,
+};
+
+#endif
 const ui_scr_def_t ui_aprs_screen = {
 #if CONFIG_APRS_RX && CONFIG_UI_COLOR
 	.context = aprs_context,

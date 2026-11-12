@@ -231,6 +231,11 @@ spec = "docs/spec/aprs.md"
 switch = "APRS_DMR"
 spec = "docs/spec/aprs.md"
 
+[feature.aprs_home]
+switch = "APRS_HOME"
+spec = "docs/spec/aprs.md"
+source = ["core/aprs/aprs_home.c", "core/ui/ui_aprs_home.c"]
+
 [feature.aprs_rx]
 switch = "APRS_RX"
 hardware = "FM receive audio sampled by the processor (the AFSK input path)"

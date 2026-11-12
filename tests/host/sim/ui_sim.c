@@ -431,7 +431,8 @@ static struct {
 	uint8_t category;
 	bool reordered;		// a packet moves the second station to the front
 	aprs_packet_t packet;
-	bool listening;
+	uint8_t listening;
+	bool repeat;
 	bool no_pos;		// "aprs:nopos": no position of our own (no GPS fix, no fixed position)
 	aprs_cfg_t cfg;
 	uint32_t sent;
@@ -439,12 +440,21 @@ static struct {
 static void aprs_sim_reset(void)
 {
 	memset(&aprs_sim, 0, sizeof aprs_sim);
+	ui_svc_setting_set(UI_SET_APRS_LINE, 0);
+	aprs_sim.listening = APRS_LISTEN_ON;
 	aprs_sim.cfg.region = APRS_REGION_NA;
 	aprs_sim.cfg.ssid = 7;
 	aprs_sim.cfg.path = APRS_PATH_WIDE1_WIDE2;
 	aprs_sim.cfg.level = 50;
 	aprs_sim.cfg.rx_on = true;
-	aprs_sim.listening = true;
+}
+void ui_svc_aprs_home(aprs_home_t *h)
+{
+	memset(h, 0, sizeof *h);
+	h->listening = aprs_sim.listening;
+	h->sent = aprs_sim.sent != 0 || aprs_sim.repeat;
+	if (aprs_sim.repeat)
+		strcpy(h->digi, "Q4DIG-1");
 }
 bool ui_svc_aprs_view(aprs_view_t *v)
 {
@@ -484,7 +494,7 @@ bool ui_svc_aprs_packet(uint8_t i, aprs_packet_t *out)
 	*out = aprs_sim.packet;
 	return true;
 }
-bool ui_svc_aprs_listening(void) { return aprs_sim.listening; }
+bool ui_svc_aprs_listening(void) { return aprs_sim.listening == APRS_LISTEN_ON; }
 bool ui_svc_aprs_can_receive(void) { return true; }
 uint8_t ui_svc_aprs_station_count(void) { return aprs_sim.off || aprs_sim.evicted ? 0 : aprs_sim.radar ? 4 : 2; }
 bool ui_svc_aprs_station(uint8_t i, aprs_station_t *out)
@@ -2886,7 +2896,7 @@ static bool run_token(char *t, char *err, size_t len)
 			return true;
 		}
 		if (strcmp(arg, "notlistening") == 0) {
-			aprs_sim.listening = false;
+			aprs_sim.listening = APRS_LISTEN_OFF;
 			return true;
 		}
 		aprs_sim.off = strcmp(arg, "off") == 0;
@@ -2896,6 +2906,13 @@ static bool run_token(char *t, char *err, size_t len)
 			aprs_sim.message_ms = now_ms;
 		aprs_sim.radar = aprs_sim.radar || strcmp(arg, "radar") == 0;
 		aprs_sim.no_pos = strcmp(arg, "nopos") == 0;
+		aprs_sim.repeat = strcmp(arg, "repeat") == 0;
+		if (strncmp(arg, "listen", 6) == 0)
+			aprs_sim.listening = (uint8_t)atoi(arg + 6);
+		if (aprs_sim.no_pos)
+			aprs_sim.cfg.tx_on = true;
+		if (strcmp(arg, "home") == 0)
+			ui_svc_setting_set(UI_SET_APRS_LINE, 1);
 		aprs_sim.reordered = strcmp(arg, "reorder") == 0;
 		aprs_sim.evicted = strcmp(arg, "evict") == 0;
 		aprs_sim.no_speed = strcmp(arg, "nospeed") == 0;
@@ -2911,6 +2928,8 @@ static bool run_token(char *t, char *err, size_t len)
 		}
 		if (strcmp(arg, "custom") == 0)
 			aprs_sim.cfg.freq_hz = 144930000;
+		ui_dirty();
+		advance(200);
 		return true;
 	}
 	if (strcmp(t, "crash") == 0 && arg != NULL) {	// crash:on, crash:ask, crash:auto (see crash_sim)

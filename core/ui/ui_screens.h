@@ -94,6 +94,9 @@ typedef struct {
 // What the screens show besides the radio view; owned by the UI (ui_app.c)
 typedef struct {
 	uint32_t now_ms;
+#if CONFIG_APRS_HOME
+	char aprs_lines[2][96];
+#endif
 	uint8_t battery_pct;
 	bool no_battery;		// the radio has no battery: no icon, percentage or battery pages (board_has_battery)
 	bool dmr_off;			// the DMR channel's modem has been off a while (ui_app.c), not just a moment

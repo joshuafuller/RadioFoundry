@@ -43,6 +43,10 @@ typedef enum {
 	SCR_APRS_STATION,		// a heard station's actions
 	SCR_APRS_FILTER,		// station display filter
 	SCR_APRS_RADAR,
+
+#if CONFIG_APRS_HOME
+	SCR_APRS_BEACON,
+#endif
 	SCR_MESSAGE_TEXT,		// message body editor
 	SCR_COUNT
 } ui_scr_t;

@@ -328,6 +328,7 @@ static inline void settings_set_crash_contact(settings_t *s, uint16_t num)
 }
 
 // settings_t.knob_flags
+#define SETTINGS_APRS_LINE		0x02u	// show APRS status below Home channel controls
 #define SETTINGS_KNOB_LOCK		0x01u	// the volume knob does nothing while the keys are locked (Settings > Key lock > Knob when locked Off)
 
 // settings_t.ui_flags (defaults: hints, message tone, talker alias, PTT when locked and vibrate on)

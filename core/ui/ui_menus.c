@@ -47,6 +47,9 @@ extern const ui_scr_def_t ui_aprs_filter_screen;
 extern const ui_scr_def_t ui_aprs_radar_screen;
 #endif
 extern const ui_scr_def_t ui_aprs_screen, ui_aprs_heard_screen, ui_aprs_station_screen;	// ui_aprs.c
+#if CONFIG_APRS_HOME
+extern const ui_scr_def_t ui_aprs_beacon_screen;
+#endif
 #if CONFIG_POSITION
 extern const ui_scr_def_t ui_fixed_pos_screen;	// ui_position.c
 #endif
@@ -5412,6 +5415,9 @@ static const set_item_t s_display[] = {
 	// Last, so the rows above keep their places; its search words are "language" in other languages, for a user who
 	// can't read the English
 	ACTION(TRN("Language"), "idioma langue sprache lingua taal jezyk", SA_LANGUAGE),
+#if CONFIG_APRS_HOME
+	TOGGLE(TRN("APRS line"), "home beacon", UI_SET_APRS_LINE),
+#endif
 };
 static const set_item_t s_talk[] = {
 	NUMBER(TRN("Reply window"), NULL, UI_SET_REPLY_S, 0, 30, 1, " s"),
@@ -6372,6 +6378,9 @@ const ui_scr_def_t *const ui_scr[SCR_COUNT] = {
 	[SCR_APRS_STATION] = &ui_aprs_station_screen,
 #if CONFIG_APRS_RX && CONFIG_UI_COLOR
 	[SCR_APRS_RADAR] = &ui_aprs_radar_screen,
+#endif
+#if CONFIG_APRS_HOME
+	[SCR_APRS_BEACON] = &ui_aprs_beacon_screen,
 #endif
 	[SCR_ABOUT] = &about_screen,
 #if CONFIG_POSITION

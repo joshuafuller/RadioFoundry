@@ -252,6 +252,7 @@ clock`; ? = not known yet). No driver reads the clock yet ([radio-features.md](s
 | `APRS` | ● | ● | ● | ● | ● | ● | ● |
 | `APRS_AFSK` | ● | ● | ● | ● | ● | ● | ● |
 | `APRS_DMR` | ● | ● | ● | ● | ● | ● | ● |
+| `APRS_HOME` | ● | ● | ● | ○ | ○ | ● | ● |
 | `APRS_RX` | ● | ● | ● | … | … | ● | ● |
 | `APRS_IGATE` | ● | ○ | ● | … | … | ○ | ● |
 | `GPS_SKY` | ● | ● | ✕ | ● | ● | ● | ● |

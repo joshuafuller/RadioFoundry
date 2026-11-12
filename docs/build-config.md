@@ -101,6 +101,7 @@ below are for an STM32F4 radio.
 | `CONFIG_APRS_PATHING` | = APRS (n where flash is short) | Stationary decay and proportional beacon paths. Needs APRS. Off, no pathing state or algorithm is built |
 | `CONFIG_APRS_AFSK` | = APRS and FM | APRS on FM: position, status and message packets as AX.25 / Bell 202 AFSK through `board.afsk`, a KISS TNC on the host port. Off, APRS goes over DMR only and nothing of AX.25 is built |
 | `CONFIG_APRS_DMR` | = APRS and DMR | APRS over DMR: positions as LRRP or UDT reports to a gateway ID. It builds the DMR data core. Off, APRS is FM only |
+| `CONFIG_APRS_HOME` | = APRS_RX | Home APRS status, repeat evidence and task hub. Needs APRS; off keeps the compact page and allocates no feature state |
 | `CONFIG_APRS_RX` | = APRS_AFSK (n where no receive audio is written) | APRS receive: the AFSK demodulator on the board's received audio, station list, messages to us with acks, the digipeater. Useful only where the board can sample received audio: its own AFSK receive path, or FM receive audio on the PCM stream (`docs/spec/aprs.md` 5.3). About 6 KB RAM more |
 | `CONFIG_UNITS` | y | Radio-wide US/Metric display preference. Off: metric formatting, no setting. See [APRS](spec/aprs.md#display-units) |
 | `CONFIG_GPS_SKY` | = GPS | the GPS screen under Tools > Position: satellites on a sky plot and signal bars, fix quality, grid locator (`core/position/nmea_sky.c`, `core/ui/ui_gps.c`; `docs/spec/ui.md` 2.3). Off, that page is text |

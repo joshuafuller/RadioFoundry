@@ -384,6 +384,30 @@ in the radio's own APRS-IS client (`CONFIG_NET_APRSIS`, `tcp-services.md` 7), wh
 
 ## 10. UI
 
+With `CONFIG_APRS_HOME` (defaults to `CONFIG_APRS_RX`), Tools > APRS is a task hub. Its header shows
+local send age and the next timed beacon, or the current blocked/listening state. The second line shows
+"Repeated by <callsign>" for a matching repeat, otherwise the heard count and nearest known distance in the selected display units.
+No nearest distance is shown without positions on both sides. The numbered rows are Stations (count and new
+identities since the last visit), Messages (unread, opens the shared inbox), Weather (plain placeholder),
+Send position now, My beacon (identity, frequency, position/source and symbol review), then the existing settings.
+Digits 1-9 and 0 select the first ten rows; later rows use Up / Down and OK. A new packet from a station already
+viewed is not a new station. The bounded viewed-call list is volatile.
+
+Settings > Display > APRS line enables the same status on Home (default off, stored in `knob_flags` bit 1).
+It occupies up to two existing activity rows below the channel and voice controls, never moving them. Voice
+activity, monitor and banners take priority. A short screen keeps only the first line; large-text mode and dual
+watch keep their existing layouts. The hub always provides the full status. Listening reflects the actual receive
+path: off, unavailable receiver, another channel, busy radio, or failed/busy receiver; position is not required.
+
+`aprs_home.c` retains the last successfully transmitted packet's source, destination and complete information
+field in main RAM. A received own-source frame never enters the station table. A matching frame within ten
+minutes, with a used digipeater callsign (not a WIDE/TRACE alias), publishes a retained repeat event: callsign,
+receipt time and incrementing serial. The last used path address identifies the digipeater. A new successful
+transmission clears the previous repeat. This is evidence of an RF repeat, not internet or recipient delivery.
+The feature and its RAM compile out with `CONFIG_APRS_HOME=n`; builds without receive default to the compact page.
+
+The compact page and My beacon review retain the existing status details described below.
+
 Tools > APRS (`ui_aprs.c`): the body shows the callsign and frequency, why nothing can be sent (no callsign, no
 frequency, not amateur, no AFSK), the position and its source, the next beacon and the count sent. Rows: Send
 position now, Automatic beacons, Frequency (region: N America 144.390, Europe 144.800, Australia 145.175, New Zealand

@@ -13,6 +13,7 @@
 #include "sim/ui_sim.h"
 #include "ui/ui_app.h"
 #include "ui/ui_nav.h"
+#include "ui/ui_svc_aprs.h"
 #include "ui/ui_screens.h"
 #include "config.h"
 
@@ -63,7 +64,7 @@ static const flow_t flows[] = {
 	{ "6 custom message sends typed text", "", "5 6 3 ctx 3 down down down down ok 4 4 wait:1100 4 4 4 ok",
 	  "sent=1 text=HI screen=home", 16, false },
 #if CONFIG_LANG_ES
-	{ "6 preset sends in selected language", "ok 7 2 up ok down ok long:back", "5 6 3 ctx 3 down ok",
+	{ "6 preset sends in selected language", "ok 7 2 up up ok down ok long:back", "5 6 3 ctx 3 down ok",
 	  "sent=1 text=En_camino", 7, false },
 #endif
 	{ "7 read message, banner up", "msg:9991234,Meet_at_the_north_lot", "ctx", "screen=message", 1, false },
@@ -132,21 +133,21 @@ static const flow_t flows[] = {
 	{ "S freq trim: OK leaves", "trim ok 7 up ok up ok", "ok", "screen=group shows=Freq_trim", 1, false },
 	{ "S no freq trim without the hook", "", "ok 7 up ok", "hides=Freq_trim", 4, false },
 #if CONFIG_UNITS
-	{ "S units default and select Metric", "", "ok 7 2 up up ok", "shows=Metric", 6, false },
-	{ "S units return to US", "ok 7 2 up up ok", "ok", "shows=US", 1, false },
+	{ "S units default and select Metric", "", "ok 7 2 up up up ok", "shows=Metric", 7, false },
+	{ "S units return to US", "ok 7 2 up up up ok", "ok", "shows=US", 1, false },
 #endif
 	// Settings > Display > Language, the last row (i18n.h; set78 = UI_SET_LANGUAGE, 'e' << 8 | 's' = 25971 Spanish,
 	// 'e' << 8 | 'n' = 25966 English picked; 0 never picked)
-	{ "S language list", "", "ok 7 2 up ok", "screen=language shows=English", 5, false },
+	{ "S language list", "", "ok 7 2 up up ok", "screen=language shows=English", 6, false },
 #if CONFIG_LANG_ES
-	{ "S language: Spanish", "", "ok 7 2 up ok down ok", "set78=25971 screen=group shows=Idioma", 7, false },
+	{ "S language: Spanish", "", "ok 7 2 up up ok down ok", "set78=25971 screen=group shows=Idioma", 8, false },
 	// A long banner title breaks before the station's name, also at a name that holds the word (" de ")
-	{ "S language: a banner keeps the name whole", "ok 7 2 up ok down ok back back back", "privcall:9991500,Maria_de_la_Cruz",
+	{ "S language: a banner keeps the name whole", "ok 7 2 up up ok down ok back back back", "privcall:9991500,Maria_de_la_Cruz",
 	  "shows=Llamada_privada shows=Maria_de_la_Cruz", 0, false },
-	{ "S language: back to English", "ok 7 2 up ok down ok", "ok up ok", "set78=25966 shows=Language", 3, false },
+	{ "S language: back to English", "ok 7 2 up up ok down ok", "ok up ok", "set78=25966 shows=Language", 3, false },
 #else
-	{ "S language not in this build: dimmed", "", "ok 7 2 up ok down ok",
-	  "set78=0 toast=Not_in_this_build screen=language", 7, false },
+	{ "S language not in this build: dimmed", "", "ok 7 2 up up ok down ok",
+	  "set78=0 toast=Not_in_this_build screen=language", 8, false },
 #endif
 	{ "S FM broadcast step on a radio with the receiver", "bcast", "ok 7 3 down down down down", "shows=FM_broadcast_step",
 	  7, false },
@@ -569,27 +570,36 @@ static const flow_t flows[] = {
 	{ "S USB network off", "ok 6 4 ok", "ok 6 4 ok", "usbnet=0 toast=USB_is_a_serial", 4, false },
 	{ "S message failed text", "", "", "screen=home", 0, false },
 	// APRS (docs/spec/aprs.md 10): Tools 9, one row each
+	{ "A hub Messages", "", "ok 6 8 2", "screen=messages", 4, false },
+	{ "A hub Weather placeholder", "", "ok 6 8 3", "screen=aprs focus=Weather", 4, false },
+	{ "A My beacon review", "", "ok 6 8 5", "screen=aprs-beacon shows=Q0SIM-7", 4, false },
+	{ "A Home line off", "", "", "hides=APRS_listening", 0, false },
+	{ "A Stations visit clears new", "ok 6 8 1", "back", "shows=0_new", 1, false },
+	{ "A Home listening", "aprs:home", "", "shows=APRS_listening", 0, false },
+	{ "A Home no position", "aprs:home aprs:nopos", "", "shows=Not_sending", 0, false },
+	{ "A Home repeat", "aprs:home aprs:repeat", "", "shows=APRS_sent", 0, false },
 	{ "A APRS page", "", "ok 6 8", "screen=aprs", 3, false },
-	{ "A send position now", "", "ok 6 8 1", "aprs_sent=1 toast=Sending_position", 4, false },
-	{ "A send without a callsign", "aprs:nocall", "ok 6 8 1", "aprs_sent=0 toast=Set_your_callsign", 4, false },
-	{ "A beacons on", "", "ok 6 8 2", "aprs_auto=1 toast=Beacons_on", 4, false },
-	{ "A beacons off again", "ok 6 8 2", "2", "aprs_auto=0 toast=Beacons_off", 1, false },
-	{ "A next region", "", "ok 6 8 3", "aprs_region=1", 4, false },
-	{ "A regions skip an unset custom", "ok 6 8 3 3 3 3 3", "3", "aprs_region=0", 1, false },
-	{ "A regions with a custom frequency", "aprs:custom ok 6 8 3 3 3 3 3", "3", "aprs_region=6", 1, false },
-	{ "A power as the channel", "ok 6 8", "down down down", "shows=As_channel aprs_power=0", 3, false },
-	{ "A power of its own", "", "ok 6 8 4", "aprs_power=1", 4, false },
-	{ "A path shows the default", "ok 6 8", "down down down down", "shows=WIDE1-1,WIDE2-1 aprs_path=2", 4, false },
-	{ "A path: the next choice", "", "ok 6 8 5", "aprs_path=3 shows=WIDE2-1", 4, false },
-	{ "A proportional path", "ok 6 8 5 5", "5", "aprs_path=5 shows=Proportional", 1, false },
-	{ "A path wraps to WIDE1-1", "ok 6 8 5 5 5 5", "5", "aprs_path=1", 1, false },
-	{ "A interval", "", "ok 6 8 6", "aprs_interval=60", 4, false },
-	{ "A SmartBeaconing", "", "ok 6 8 7", "aprs_smart=1", 4, false },
-	{ "A decay on", "ok 6 8", "9", "aprs_decay=1", 1, false },
-	{ "A Smart disables interval", "ok 6 8 7", "6", "aprs_interval=0 toast=SmartBeaconing_sets_timing", 1, false },
-	{ "A Smart disables decay", "ok 6 8 9 7", "9", "aprs_decay=1 toast=SmartBeaconing_sets_timing", 1, false },
-	{ "A proportional interval", "ok 6 8 5 5 5", "6", "aprs_interval=0 toast=Path_uses_one-minute_slots", 1, false },
-	{ "A send via DMR", "", "ok 6 8 8", "aprs_via=1", 4, false },
+	{ "A send position now", "", "ok 6 8 4", "aprs_sent=1 toast=Sending_position", 4, false },
+	{ "A send without a callsign", "aprs:nocall", "ok 6 8 4", "aprs_sent=0 toast=Set_your_callsign", 4, false },
+	{ "A beacons on", "", "ok 6 8 6", "aprs_auto=1 toast=Beacons_on", 4, false },
+	{ "A beacons off again", "ok 6 8 6", "6", "aprs_auto=0 toast=Beacons_off", 1, false },
+	{ "A next region", "", "ok 6 8 7", "aprs_region=1", 4, false },
+	{ "A regions skip an unset custom", "ok 6 8 7 7 7 7 7", "7", "aprs_region=0", 1, false },
+	{ "A regions with a custom frequency", "aprs:custom ok 6 8 7 7 7 7 7", "7", "aprs_region=6", 1, false },
+	{ "A power as the channel", "ok 6 8", "down down down down down down down", "shows=As_channel aprs_power=0", 7, false },
+	{ "A power of its own", "", "ok 6 8 8", "aprs_power=1", 4, false },
+	{ "A path shows the default", "ok 6 8", "down down down down down down down down", "shows=WIDE1-1,WIDE2-1 aprs_path=2", 8, false },
+	{ "A path: the next choice", "", "ok 6 8 9", "aprs_path=3 shows=WIDE2-1", 4, false },
+	{ "A proportional path", "ok 6 8 9 9", "9", "aprs_path=5 shows=Proportional", 1, false },
+	{ "A path: WIDE2-2 then none", "ok 6 8 9 9", "9 9", "aprs_path=0 shows=None", 2, false },
+	{ "A path wraps to WIDE1-1", "ok 6 8 9 9 9 9", "9", "aprs_path=1", 1, false },
+	{ "A interval", "", "ok 6 8 0", "aprs_interval=60", 4, false },
+	{ "A SmartBeaconing", "", "ok 6 8 up up up up up ok", "aprs_smart=1", 9, false },
+	{ "A decay on", "ok 6 8", "up up up ok", "aprs_decay=1", 4, false },
+	{ "A Smart disables interval", "ok 6 8 up up up up up ok", "0", "aprs_interval=0 toast=SmartBeaconing_sets_timing", 1, false },
+	{ "A Smart disables decay", "ok 6 8 up up up ok up up ok", "down down ok", "aprs_decay=1 toast=SmartBeaconing_sets_timing", 3, false },
+	{ "A proportional interval", "ok 6 8 9 9 9", "0", "aprs_interval=0 toast=Path_uses_one-minute_slots", 1, false },
+	{ "A send via DMR", "", "ok 6 8 up up up up ok", "aprs_via=1", 8, false },
 	// Settings > Location: what every position report sends (the position service; ui_position.c). The page opens on
 	// Answer GPS requests (no GPS here: the rows above are dimmed); the position rows follow it
 	{ "L position source", "ok 7 5 down", "ok", "pos_source=1 shows=GPS", 1, false },
@@ -614,7 +624,7 @@ static const flow_t flows[] = {
 	{ "G GPS signal page", "ok 6 2", "3", "shows=9_of_14_in_the_fix", 1, false },
 	{ "G GPS grid page", "ok 6 2", "4", "shows=FN42li", 1, false },
 	{ "G GPS pages wrap", "ok 6 2", "up down", "shows=Status", 2, false },
-	{ "A KISS on USB", "ok 6 8", "up up up ok", "aprs_kiss=1", 4, false },
+	{ "A KISS on USB", "ok 6 8", "up up ok", "aprs_kiss=1", 4, false },
 	{ "A arrival banner", "", "aprs:packet", "banner=Q4WABC-15 shows=status", 0, false },
 	{ "A arrival opens stable callsign", "aprs:packet aprs:reorder", "ctx",
 	  "screen=aprs-station shows=Q4WABC-15", 1, false },
@@ -628,18 +638,18 @@ static const flow_t flows[] = {
 	{ "A arrival during callsign entry", "ok 2 ok ok", "aprs:packet",
 	  "screen=aprs-to banner=none", 0, false },
 	{ "A addressed message has no traffic banner", "", "aprs:addressed", "banner=none", 0, false },
-	{ "A packet list empty", "", "ok 6 8 up up ok", "screen=aprs-packets shows=Nothing_heard_yet", 6, false },
-	{ "A packet list not listening", "aprs:notlistening", "ok 6 8 up up ok",
+	{ "A packet list empty", "", "ok 6 8 up ok", "screen=aprs-packets shows=Nothing_heard_yet", 6, false },
+	{ "A packet list not listening", "aprs:notlistening", "ok 6 8 up ok",
 	  "screen=aprs-packets shows=Not_listening", 6, false },
-	{ "A packet detail", "aprs:packet wait:8000 ok 6 8 up up ok", "ok",
+	{ "A packet detail", "aprs:packet wait:8000 ok 6 8 up ok", "ok",
 	  "screen=aprs-packet shows=Q4WABC-15", 1, false },
-	{ "A packet snapshot survives arrival", "aprs:packet wait:8000 ok 6 8 up up ok ok", "aprs:packet2 wait:8000",
+	{ "A packet snapshot survives arrival", "aprs:packet wait:8000 ok 6 8 up ok ok", "aprs:packet2 wait:8000",
 	  "screen=aprs-packet shows=Q4WABC-15", 0, false },
-	{ "A stations heard", "", "ok 6 8 up ok", "screen=aprs-heard count=3", 5, false },
-	{ "A station message survives a newer packet", "ok 6 8 up ok ok aprs:reorder", "ok",
+	{ "A stations heard", "", "ok 6 8 1", "screen=aprs-heard count=3", 5, false },
+	{ "A station message survives a newer packet", "ok 6 8 1 ok aprs:reorder", "ok",
 	  "screen=compose shows=Q4WABC-15", 1, false },
-	{ "A station opens its Message action", "ok 6 8 up ok", "ok", "screen=aprs-station shows=Message", 1, false },
-	{ "A station Message fills its callsign", "ok 6 8 up ok ok", "ok", "screen=compose shows=Q4WABC-15", 1, false },
+	{ "A station opens its Message action", "ok 6 8 1", "ok", "screen=aprs-station shows=Message", 1, false },
+	{ "A station Message fills its callsign", "ok 6 8 1 ok", "ok", "screen=compose shows=Q4WABC-15", 1, false },
 	{ "A new APRS message appears independently of DMR format", "", "ok 2", "shows=New_APRS_message", 2, false },
 	{ "A new APRS message opens its composer", "ok 2", "ok", "screen=compose shows=To_callsign", 1, false },
 	{ "A new APRS message needs our callsign", "aprs:nocall ok 2", "", "hides=New_APRS_message", 0, false },
@@ -1342,7 +1352,7 @@ static void heard_checks(void)
 	for (int g = 0; g < sim_geom_count; g++) {
 		for (size_t i = 0; i < sizeof cases / sizeof cases[0]; i++) {
 			sim_reset(&sim_geoms[g], SIM_MAP_K);
-			snprintf(buf, sizeof buf, "%sok 6 8 up ok expect:screen=aprs-heard expect:shows=Q4WABC-15 "
+			snprintf(buf, sizeof buf, "%sok 6 8 1 expect:screen=aprs-heard expect:shows=Q4WABC-15 "
 				 "expect:shows=QJ4XYZ expect:%s=9.0_mi_NE", cases[i].setup,
 				 cases[i].range ? "shows" : "hides");
 			if (!sim_run(buf, err, sizeof err)) {
@@ -1354,7 +1364,7 @@ static void heard_checks(void)
 	// Packets without a position since the last one: the row's age is the position's (10 min), not the last
 	// packet's (1 min), so it says how old the range is
 	sim_reset(&sim_geoms[0], SIM_MAP_K);
-	if (!sim_run("wait:600000 ok 6 8 up ok expect:shows=9.0_mi_NE expect:shows=10m expect:hides=1m", err,
+	if (!sim_run("wait:600000 ok 6 8 1 expect:shows=9.0_mi_NE expect:shows=10m expect:hides=1m", err,
 		     sizeof err)) {
 		printf("FAIL stations heard position age [%s]: %s\n", sim_geoms[0].name, err);
 		fails++;
@@ -1362,7 +1372,7 @@ static void heard_checks(void)
 	// BVA on the row's width: a display too narrow for the call, the range and the age gives up the range, never
 	// the call (96 px: under 20 cells, the call and the range alone are 20)
 	sim_reset(sim_geom_find("96x64m"), SIM_MAP_K);
-	if (!sim_run("ok 6 8 up ok expect:screen=aprs-heard expect:shows=Q4WABC-15 expect:hides=mi", err, sizeof err)) {
+	if (!sim_run("ok 6 8 1 expect:screen=aprs-heard expect:shows=Q4WABC-15 expect:hides=mi", err, sizeof err)) {
 		printf("FAIL stations heard narrow [96x64m]: %s\n", err);
 		fails++;
 	}
@@ -1372,18 +1382,18 @@ static void heard_checks(void)
 static void station_checks(void)
 {
 	static const struct { const char *name, *script; } cases[] = {
-		{ "metric units", "ok 7 2 up up ok long:back ok 6 8 up ok ok down expect:shows=14.5_km_NE "
+		{ "metric units", "ok 7 2 up up up ok long:back ok 6 8 1 ok down expect:shows=14.5_km_NE "
 		  "down down down expect:shows=19_km/h" },
-		{ "position", "wait:600000 ok 6 8 up ok ok expect:screen=aprs-station expect:count=10 "
+		{ "position", "wait:600000 ok 6 8 1 ok expect:screen=aprs-station expect:count=10 "
 		  "down expect:shows=9.0_mi_NE down expect:shows=1m down expect:shows=Direct "
 		  "down expect:shows=10m down expect:shows=12_mph down expect:shows=40 "
 		  "down expect:shows=/> down expect:shows=On_the_road down expect:shows=Packets "
 		  "ok expect:screen=aprs-station" },
-		{ "no local position", "aprs:nopos ok 6 8 up ok ok expect:count=8 down expect:shows=Heard" },
-		{ "no speed", "aprs:nospeed ok 6 8 up ok ok expect:count=7 down down down down expect:shows=/>" },
-		{ "no station position", "ok 6 8 up ok down ok expect:count=5 down down "
+		{ "no local position", "aprs:nopos ok 6 8 1 ok expect:count=8 down expect:shows=Heard" },
+		{ "no speed", "aprs:nospeed ok 6 8 1 ok expect:count=7 down down down down expect:shows=/>" },
+		{ "no station position", "ok 6 8 1 down ok expect:count=5 down down "
 		  "expect:shows=Via_digipeater down expect:shows=At_home down expect:shows=Packets" },
-		{ "evicted", "ok 6 8 up ok ok aprs:evict down expect:count=2 expect:shows=No_longer_in_list "
+		{ "evicted", "ok 6 8 1 ok aprs:evict down expect:count=2 expect:shows=No_longer_in_list "
 		  "up ok expect:screen=compose expect:shows=Q4WABC-15" },
 	};
 	char err[300];
@@ -1492,7 +1502,7 @@ static void packet_checks(void)
 	char err[300];
 	for (int g = 0; g < sim_geom_count; g++) {
 		sim_reset(&sim_geoms[g], SIM_MAP_K);
-		if (!sim_run("aprs:packet wait:8000 ok 6 8 up up ok expect:shows=status ok "
+		if (!sim_run("aprs:packet wait:8000 ok 6 8 up ok expect:shows=status ok "
 			"expect:screen=aprs-packet down down down expect:shows=Raw down expect:shows=>hi\\x01 "
 			"down expect:shows=[truncated]", err, sizeof err)) {
 			printf("FAIL packet detail [%s]: %s\n", sim_geoms[g].name, err);
@@ -1714,29 +1724,60 @@ static int check_name_is_id(void)
 	return bad;
 }
 
+static void aprs_home_checks(void)
+{
+	static const struct { const char *setup, *first, *second; } cases[] = {
+		{ "aprs:home", "APRS listening", "2 heard, nearest 9.0 mi" },
+		{ "ok 7 2 up up up ok long:back aprs:home", "APRS listening", "2 heard, nearest 14.5 km" },
+		{ "aprs:home aprs:nopos", "Not sending: no position", "2 heard" },
+		{ "aprs:home aprs:repeat", "APRS sent ", "Repeated by Q4DIG-1" },
+		{ "aprs:home aprs:listen0", "Not listening: off", "2 heard" },
+		{ "aprs:home aprs:listen1", "Not listening: no receiver", "2 heard" },
+		{ "aprs:home aprs:listen2", "Not listening: voice channel", "2 heard" },
+		{ "aprs:home aprs:listen3", "Not listening: radio busy", "2 heard" },
+		{ "aprs:home aprs:listen4", "Not listening: receiver busy", "2 heard" },
+	};
+	char err[300], line[96];
+	for (unsigned i = 0; i < sizeof cases / sizeof cases[0]; i++) {
+		sim_reset(sim_geom_find("160x128"), SIM_MAP_K);
+		if (!sim_run(cases[i].setup, err, sizeof err)) {
+			printf("FAIL APRS status setup: %s\n", err);
+			fails++;
+		}
+		for (unsigned j = 0; j < 2; j++) {
+			ui_aprs_status(line, sizeof line, j != 0);
+			const char *want = j ? cases[i].second : cases[i].first;
+			if (strncmp(line, want, strlen(want)) != 0) {
+				printf("FAIL APRS status: expected %s, got %s\n", want, line);
+				fails++;
+			}
+		}
+	}
+}
+
 static void station_list_checks(void)
 {
 	static const char *const scripts[] = {
-		"ok 6 8 up ok expect:shows=Nearest expect:focus=Q4WABC-15 quick expect:shows=Callsign "
+		"ok 6 8 1 expect:shows=Nearest expect:focus=Q4WABC-15 quick expect:shows=Callsign "
 		"quick expect:shows=Recent aprs:reorder expect:focus=Q4WABC-15 up expect:focus=QJ4XYZ "
 		"ok expect:screen=aprs-station back expect:focus=QJ4XYZ",
-		"aprs:nopos ok 6 8 up ok expect:shows=Recent quick expect:shows=Nearest quick expect:shows=Callsign "
+		"aprs:nopos ok 6 8 1 expect:shows=Recent quick expect:shows=Nearest quick expect:shows=Callsign "
 		"back ok expect:shows=Callsign",
-		"ok 6 8 up ok aprs:near expect:focus=Q4WABC-15 up expect:focus=QJ4XYZ",
-		"ok 6 8 up ok ctx expect:screen=aprs-filter 2 expect:count=1 expect:shows=2_hidden "
+		"ok 6 8 1 aprs:near expect:focus=Q4WABC-15 up expect:focus=QJ4XYZ",
+		"ok 6 8 1 ctx expect:screen=aprs-filter 2 expect:count=1 expect:shows=2_hidden "
 		"ctx 1 expect:count=3 expect:focus=Q4WABC-15",
-		"aprs:weather ok 6 8 up ok ctx 2 expect:focus=QJ4XYZ expect:shows=1_hidden "
+		"aprs:weather ok 6 8 1 ctx 2 expect:focus=QJ4XYZ expect:shows=1_hidden "
 		"ctx 1 expect:count=3 expect:focus=QJ4XYZ",
-		"aprs:weather-type ok 6 8 up ok ctx 2 expect:focus=QJ4XYZ",
-		"ok 6 8 up ok ctx 3 expect:focus=Q4WABC-15 expect:count=2",
-		"aprs:nospeed ok 6 8 up ok ctx 3 expect:count=1",
-		"aprs:object ok 6 8 up ok ctx 4 expect:focus=QJ4XYZ expect:count=2",
-		"aprs:item ok 6 8 up ok ctx 4 expect:focus=QJ4XYZ expect:count=2",
-		"aprs:digi ok 6 8 up ok ctx 5 expect:focus=QJ4XYZ expect:count=2",
-		"ok 6 8 up ok ctx 5 expect:count=1",
-		"ok 6 8 up ok down quick expect:focus=QJ4XYZ quick expect:focus=QJ4XYZ "
+		"aprs:weather-type ok 6 8 1 ctx 2 expect:focus=QJ4XYZ",
+		"ok 6 8 1 ctx 3 expect:focus=Q4WABC-15 expect:count=2",
+		"aprs:nospeed ok 6 8 1 ctx 3 expect:count=1",
+		"aprs:object ok 6 8 1 ctx 4 expect:focus=QJ4XYZ expect:count=2",
+		"aprs:item ok 6 8 1 ctx 4 expect:focus=QJ4XYZ expect:count=2",
+		"aprs:digi ok 6 8 1 ctx 5 expect:focus=QJ4XYZ expect:count=2",
+		"ok 6 8 1 ctx 5 expect:count=1",
+		"ok 6 8 1 down quick expect:focus=QJ4XYZ quick expect:focus=QJ4XYZ "
 		"quick expect:focus=QJ4XYZ ok ok expect:shows=QJ4XYZ",
-		"ok 6 8 up ok aprs:evict expect:count=1 ctx expect:screen=aprs-filter back expect:screen=aprs-heard",
+		"ok 6 8 1 aprs:evict expect:count=1 ctx expect:screen=aprs-filter back expect:screen=aprs-heard",
 	};
 	char err[300];
 	for (int g = 0; g < sim_geom_count; g++) {
@@ -1786,6 +1827,7 @@ int main(int argc, char **argv)
 	printf("# %d flows run\n", flows_run);
 	about_checks();
 	call_screen_checks();
+	aprs_home_checks();
 	heard_checks();
 	station_checks();
 	station_list_checks();

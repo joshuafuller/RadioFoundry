@@ -11,6 +11,10 @@
 #include "storage/storage.h"
 #include "hal_time.h"
 
+#if CONFIG_APRS_HOME
+void ui_svc_aprs_home(aprs_home_t *h) { aprs_home_get(h); }
+#endif
+
 bool ui_svc_aprs_view(aprs_view_t *v)
 {
 	aprs_get_view(v);

@@ -242,3 +242,25 @@ packets do not change. Builds without `CONFIG_UNITS` retain metric displays and 
 Distance uses one decimal below 100 mi/km and whole units above, switching to whole units when rounding
 would reach 100. Other values round to the nearest displayed unit; exact halves round away from zero.
 Weather formatters are shared helpers; this base does not yet display received weather fields.
+
+## Home status and the APRS hub
+
+On builds with the APRS Home feature, enable **Settings > Display > APRS line** (off by default).
+Below the channel controls, Home shows when APRS last sent and when the next timed beacon is due, or why it
+cannot send or listen. Receiving does not need your position. A second line, when there is room, shows
+**Repeated by** and the digipeater's callsign, or the station count and nearest known distance in the selected display units.
+A repeat means the radio heard its last packet repeated; it does not confirm delivery to the internet.
+Voice activity and notifications take priority. Large-text mode and dual watch keep their existing layouts.
+
+Open **Tools > APRS** for the hub:
+
+| Key | Row |
+|---|---|
+| 1 | Stations: count and new stations since your last visit |
+| 2 | Messages: unread count; opens the shared inbox |
+| 3 | Weather: reserved row |
+| 4 | Send position now |
+| 5 | My beacon: review identity, frequency, position and symbol |
+
+The existing beacon settings follow these rows. Keys 1-9 and 0 pick the first ten rows; use Up / Down and OK for
+later rows. Builds without this feature keep the compact APRS settings page.

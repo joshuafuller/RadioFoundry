@@ -6,6 +6,7 @@
 // storage mutex, so they happen outside LOCK().
 #include <string.h>
 #include "aprs/aprs_int.h"
+#include "aprs/aprs_home.h"
 #include "aprs/aprs_dmr.h"
 #include "aprs/aprs_pathing.h"
 #if CONFIG_APRS_PATHING
@@ -209,6 +210,8 @@ void aprs_init(uint32_t now_ms)
 #if CONFIG_APRS_PATHING
 	memset(&pathing, 0, sizeof(pathing));
 #endif
+
+	aprs_home_reset();
 	aprs_s.now = now_ms;
 	aprs_ax25_init(now_ms);
 	reload_cfg();
@@ -323,6 +326,7 @@ void aprs_tick(const aprs_radio_t *r, uint32_t now_ms)
 		LOCK();
 		if (ok) {
 			aprs_s.v.dmr_sent++;
+			aprs_home_sent(NULL, 0, now_ms);
 		} else {
 			aprs_s.v.dmr_failed++;
 		}
