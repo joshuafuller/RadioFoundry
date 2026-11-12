@@ -2004,6 +2004,43 @@ static void aprs_home_checks(void)
 
 }
 
+static void aprs_visual_checks(void)
+{
+	static const char *const scripts[] = {
+		"ok 6 8", "ok 6 8 1", "ok 6 8 1 ok", "aprs:message ok 2 ok",
+	};
+	char err[300], issues[SIM_LAYOUT_MAX][160];
+	for (int g = 0; g < sim_geom_count; g++) {
+		for (unsigned c = 0; c < sizeof scripts / sizeof scripts[0]; c++) {
+			sim_reset(&sim_geoms[g], SIM_MAP_K);
+			int hint = ui_layout.hint_y, row = ui_layout.row_h;
+			if (!sim_run(scripts[c], err, sizeof err)) {
+				printf("FAIL APRS visual route [%s]: %s\n", sim_geoms[g].name, err);
+				fails++;
+			}
+			int count = sim_layout_issues(issues, SIM_LAYOUT_MAX);
+			for (int i = 0; i < count; i++) {
+				printf("FAIL APRS visual %u [%s]: %s\n", c, sim_geoms[g].name, issues[i]);
+				fails++;
+			}
+			int bottom = hint - (gfx_bpp() == 1 ? 1 : 4);
+			if (gfx_get_pixel(0, bottom) != ui_col.line || gfx_get_pixel(0, bottom + 1) != ui_col.bg ||
+			    ui_layout.gutter || ui_layout.hint_y != hint || ui_layout.row_h != row) {
+				printf("FAIL APRS quiet chrome or layout restoration [%s]\n", sim_geoms[g].name);
+				fails++;
+			}
+		}
+		// A proportional thumb reaches both ends of its track, including on mono.
+		gfx_clear(ui_col.bg);
+		ui_draw_scroll(10, 40, 0, 2, 8);
+		int x = gfx_width() - 1;
+		if (gfx_get_pixel(x, 10) != ui_col.dim || gfx_get_pixel(x, 20) != ui_col.bg) fails++;
+		gfx_clear(ui_col.bg);
+		ui_draw_scroll(10, 40, 6, 2, 8);
+		if (gfx_get_pixel(x, 39) != ui_col.bg || gfx_get_pixel(x, 49) != ui_col.dim) fails++;
+	}
+}
+
 static void aprs_wrap_checks(void)
 {
 	static const struct { const char *setup; ui_scr_t screen; unsigned first; const char *text; } cases[] = {
@@ -2096,7 +2133,8 @@ int main(int argc, char **argv)
 		station_checks();
 		thread_checks();
 		station_list_checks();
-	aprs_wrap_checks();
+		aprs_visual_checks();
+		aprs_wrap_checks();
 		printf("APRS UI: %s\n", fails ? "FAIL" : "PASS");
 		return fails ? 1 : 0;
 	}
@@ -2132,6 +2170,7 @@ int main(int argc, char **argv)
 	station_checks();
 	thread_checks();
 	station_list_checks();
+	aprs_visual_checks();
 	aprs_wrap_checks();
 	radar_checks();
 #if CONFIG_APRS_RX && CONFIG_UI_COLOR

@@ -144,18 +144,21 @@ static void heard_draw(void)
 {
 	(void)heard_count();
 	const font_t *font = ui_layout.small;
-	int pitch = font->h + 1, w = gfx_width();
+	int pitch = ui_layout.row_h, w = gfx_width(), gutter = ui_layout.gutter;
+	int pad = ui_text_y(font, pitch);
 	char text[80], value[44];
 	sbuf_t b;
+	gfx_clear(ui_col.bg);
+	int y = ui_draw_top(ui_view(), &ui_st, NULL, filter ? tr(filters[filter]) : TR("Stations"));
+	aprs_view_t v;
+	ui_svc_aprs_view(&v);
 	sb_init(&b, text, sizeof text);
 	if (total != shown) {
 		sb_u32(&b, total - shown, 1);
 		sb_str(&b, TR(" hidden"));
 	} else sb_str(&b, tr(sorts[sort]));
-	gfx_clear(ui_col.bg);
-	int y = ui_draw_top(ui_view(), &ui_st, filter ? tr(filters[filter]) : TR("Stations"), text) + 1;
-	aprs_view_t v;
-	ui_svc_aprs_view(&v);
+	gfx_text(font, gutter, y + pad, text, ui_col.dim);
+	y += pitch;
 	sb_init(&b, text, sizeof text);
 	sb_u32(&b, total, 1);
 	sb_chr(&b, '/');
@@ -167,20 +170,24 @@ static void heard_draw(void)
 	} else {
 		sb_str(&b, v.pos_valid ? (v.pos_src == 1 ? "GPS" : v.pos_src == 2 ? TR("Computer") : TR("Fixed")) : TR("No own pos"));
 	}
-	gfx_text(font, 1, y, text, ui_col.fg);
+	gfx_text(font, gutter, y + pad, text, ui_col.dim);
 	y += pitch;
 	if (v.stations_dropped) {
-		gfx_text(font, 1, y, v.pos_valid ? (v.pos_src == 1 ? "GPS" : v.pos_src == 2 ? TR("Computer") : TR("Fixed")) : TR("No own pos"), ui_col.fg);
+		gfx_text(font, gutter, y + pad, v.pos_valid ? (v.pos_src == 1 ? "GPS" : v.pos_src == 2 ? TR("Computer") : TR("Fixed")) : TR("No own pos"), ui_col.dim);
 		y += pitch;
 	}
 	if (!shown) {
-		gfx_text(font, 1, y, total ? TR("No matches") : TR("Nothing heard yet"), ui_col.fg);
+		gfx_text(font, gutter, y + pad, total ? TR("No matches") : TR("Nothing heard yet"), ui_col.fg);
 	} else {
-		uint16_t focus = ui_frame()->focus ? ui_frame()->focus : 1;
-		for (uint16_t n = 0; n < shown && y + font->h <= ui_layout.hint_y; n++) {
-			uint16_t i = (focus - 1u + n) % shown;
+		uint16_t focus = ui_frame()->focus ? ui_frame()->focus - 1u : 0;
+		int detail = ui_layout.hint_y - 2 * pitch;
+		// On mono, the selected station and its range take priority over the preview.
+		if (detail < y + pitch) detail = y + pitch;
+		int visible = (detail - y) / pitch;
+		int top = focus < visible ? 0 : focus - visible + 1;
+		for (int n = top; n < shown && n < top + visible; n++) {
 			aprs_station_t station;
-			if (!ui_svc_aprs_station_find(rows[i].call, &station)) continue;
+			if (!ui_svc_aprs_station_find(rows[n].call, &station)) continue;
 			uint32_t age = ui_st.now_ms - (station.has_pos ? station.pos_ms : station.heard_ms);
 			ui_sb_age(value, sizeof value, age);
 			bool more;
@@ -192,27 +199,27 @@ static void heard_draw(void)
 				sb_chr(&b, ' ');
 				sb_str(&b, value);
 			}
-			if (!n) gfx_fill(0, y, w, pitch, ui_col.focus);
-			color_t fg = !n ? (gfx_bpp() == 1 ? ui_col.bg : ui_col.focus_fg) : ui_col.fg;
-			gfx_text(font, 1, y, station.call, fg);
-			gfx_text(font, w - 1 - gfx_text_width(font, text), y, text, fg);
-			y += pitch;
-			if (n) continue;
+			int ry = y + (n - top) * pitch;
+			bool selected = n == focus;
+			if (selected) gfx_fill(0, ry, w, pitch, ui_col.focus);
+			color_t fg = selected ? (gfx_bpp() == 1 ? ui_col.bg : ui_col.focus_fg) : ui_col.fg;
+			gfx_text(font, gutter, ry + pad, station.call, fg);
+			gfx_text(font, w - gutter - gfx_text_width(font, text), ry + pad, text, fg);
+			if (!selected) continue;
 			uint32_t m;
 			uint16_t deg;
 			sb_init(&b, text, sizeof text);
-						if (ui_svc_aprs_range(&station, &m, &deg)) sb_range(&b, m, deg);
+			if (ui_svc_aprs_range(&station, &m, &deg)) sb_range(&b, m, deg);
 			else sb_str(&b, station.has_pos ? TR("No own pos") : TR("No position"));
-			if (y + font->h <= ui_layout.hint_y) {
-				gfx_text(font, 1, y, text, ui_col.fg);
-				y += pitch;
-			}
-			if (station.text[0] && y + font->h <= ui_layout.hint_y) {
-				ui_wrap_line(font, station.text, w - 2, text, sizeof text);
-				gfx_text(font, 1, y, text, ui_col.fg);
-				y += pitch;
+			gfx_hline(0, detail, w, ui_col.line);
+			if (detail + pitch <= ui_layout.hint_y)
+				gfx_text(font, gutter, detail + pad, text, ui_col.dim);
+			if (station.text[0] && detail + 2 * pitch <= ui_layout.hint_y) {
+				ui_wrap_line(font, station.text, w - 2 * gutter, text, sizeof text);
+				gfx_text(font, gutter, detail + pitch + pad, text, ui_col.dim);
 			}
 		}
+		ui_draw_scroll(y, visible * pitch, top, visible, shown);
 	}
 	ui_draw_bottom(&ui_st, TR("OK open  # filter  Back"));
 }

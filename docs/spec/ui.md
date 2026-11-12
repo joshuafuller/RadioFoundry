@@ -48,6 +48,13 @@ row that opens a page can differ from its title: the Settings row "Talk & listen
 A page title is centered on the screen at every display class, moved only as far as it must to clear what shares its
 row (the state pill, the lock, the unread count).
 
+APRS screens use a quiet layout during their draw only: 2 px gutters on mono, 4 px on small color,
+and 6 px on wide color displays. Titles are left aligned in the existing medium font (body on mono),
+with a rule below. Hints use the screen background, a rule and key caps on color. List rows center
+capital ink and keep the same left edge regardless of focus. Scroll thumbs show the visible share.
+Received text keeps the class body font and wraps inside the gutters. Stations reserve a fixed area
+for the selected range and, where height permits, comment. Other screens retain their existing layout.
+
 The hint row is groups separated by two spaces (`"OK open  # more  Back"`). The group for the Back key (it starts with
 "Back") is drawn against the right edge, under the key; the other groups run from the left, and those that don't fit
 are left out whole from the right. A toast is one centered line instead. A banner or a two-line toast starts in a gap

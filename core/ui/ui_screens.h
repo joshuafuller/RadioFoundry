@@ -161,9 +161,12 @@ typedef struct {
 	int activity_y, activity_h;
 	int hint_y;
 	int row_h;		// list row height
+	uint8_t gutter;		// nonzero while drawing the quiet APRS layout
 } ui_layout_t;
 
 extern ui_layout_t ui_layout;
+int ui_text_y(const font_t *f, int height);
+void ui_draw_scroll(int y, int height, int first, int visible, int total);
 
 // ui_state_t.usb_net: USB is a serial port, a network adapter waiting for the computer ("IP"), or a network adapter
 // the computer has brought up, so IP over DMR can flow ("IP" and the up and down arrows, usb-network.md 1)

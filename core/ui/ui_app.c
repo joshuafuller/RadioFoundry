@@ -1836,6 +1836,7 @@ static void list_draw(const ui_scr_def_t *d)
 	memset(&l, 0, sizeof l);
 	l.prefix = tr(d->prefix);	// a screen definition's text is marked TRN: translated here
 	l.name = list_title_name(d);
+	if (ui_layout.gutter && l.name) l.prefix = NULL;
 	l.count = d->count();
 	l.focus = f->focus;
 	l.top = &f->top;
@@ -2581,7 +2582,21 @@ void ui_app_draw(void)
 #if CONFIG_VOLUME_BAR
 	uint32_t hints = ui_hint_draws;
 #endif
+#if CONFIG_APRS
+	const char *name = ui_scr[stack[sp].scr]->name;
+	ui_layout.gutter = strncmp(name, "aprs", 4) == 0 ? (gfx_bpp() == 1 ? 2 : gfx_width() >= 220 ? 6 : 4) : 0;
+	int hint = ui_layout.hint_y, row = ui_layout.row_h;
+	if (ui_layout.gutter) {
+		ui_layout.hint_y -= gfx_bpp() == 1 ? 1 : 4;
+		if (gfx_bpp() == 1) ui_layout.row_h++;
+	}
+#endif
 	draw_screen();
+#if CONFIG_APRS
+	ui_layout.hint_y = hint;
+	ui_layout.row_h = row;
+	ui_layout.gutter = 0;
+#endif
 #if CONFIG_VOLUME_BAR
 	volbar_top = ui_hint_draws == hints;
 	if (ui_st.volbar >= 0 && stack[sp].scr != SCR_VOLUME)

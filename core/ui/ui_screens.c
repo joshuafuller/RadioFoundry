@@ -206,6 +206,23 @@ void ui_layout_init(void)
 
 // --- shared pieces ---
 
+// Center capital ink, retaining the font cell and its descenders.
+int ui_text_y(const font_t *f, int height)
+{
+	int top, rows;
+	font_glyph(f, 'H', &top, &rows);
+	return (height - rows) / 2 - top;
+}
+
+void ui_draw_scroll(int y, int height, int first, int visible, int total)
+{
+	if (total <= visible) return;
+	int thumb = height * visible / total;
+	if (thumb < 2) thumb = 2;
+	int width = gfx_bpp() == 1 ? 1 : 2;
+	gfx_fill(gfx_width() - width, y + (height - thumb) * first / (total - visible), width, thumb, ui_col.dim);
+}
+
 const char *ui_power_name(uint8_t p, uint32_t tx_hz)
 {
 	return board_power_name(p, tx_hz);
@@ -295,7 +312,7 @@ static int draw_top_as(const radio_view_t *v, radio_state_t st, const ui_state_t
 		pfg = ui_col.pill_dark_fg;
 	// A filled strip (Settings > Display) draws on its own background in black, warnings in a dark shade that reads on
 	// it (accent_apply); the idle pill turns inverse on it, RX / TX / NO TX keep their colors and words (P5)
-	bool filled = CONFIG_UI_COLOR && ui_strip_fill && gfx_bpp() != 1;
+	bool filled = CONFIG_UI_COLOR && ui_strip_fill && gfx_bpp() != 1 && !L->gutter;
 	color_t sbg = filled ? ui_col.strip_bg : ui_col.bg, sfg = filled ? ui_col.pill_dark_fg : ui_col.fg;
 	color_t swarn = filled ? ui_col.strip_warn : ui_col.warn;
 	if (filled && st == RS_IDLE) {
@@ -303,7 +320,7 @@ static int draw_top_as(const radio_view_t *v, radio_state_t st, const ui_state_t
 		pfg = sbg;
 	}
 	gfx_fill(0, 0, w, L->strip_h, sbg);
-	int x = 0;
+	int x = L->gutter;
 	if (!merged || st != RS_IDLE) {
 		if (filled) {
 			// On the filled strip the pill is the strip's full height (a one-cell pill leaves a line of the
@@ -325,14 +342,14 @@ static int draw_top_as(const radio_view_t *v, radio_state_t st, const ui_state_t
 			gfx_text(f, pad, (ph - f->h + 1) / 2, word, pfg);
 			x = pw + 1 + f->w / 2;
 		} else {
-			x = gfx_pill(f, 0, 0, ph, word, pfg, pbg) + f->w / 2;
+			x = gfx_pill(f, x, 0, ph, word, pfg, pbg) + f->w / 2;
 		}
 	}
 	int ty = (ph - f->h + 1) / 2;
 
 	// Right side, right to left: battery %, battery icon, signal bars, unread messages, lock
 	sbuf_t b;
-	int rx = w;
+	int rx = w - L->gutter;
 	if (!merged) {
 		color_t bc = sfg;
 		if (!s->no_battery) {
@@ -379,7 +396,15 @@ static int draw_top_as(const radio_view_t *v, radio_state_t st, const ui_state_t
 		gfx_rect(rx + 1, iy, lw - 2, ih / 2 + 1, swarn);		// shackle
 	}
 
+	if (L->gutter && !merged) gfx_hline(0, L->strip_h - 1, w, ui_col.line);
 	if (merged) {
+		if (L->gutter) {
+			const font_t *title = gfx_bpp() == 1 ? f : L->medium;
+			int height = title->h + 2;
+			ui_draw_title(title, x, ui_text_y(title, height - 1), rx - x, prefix, name, sfg);
+			gfx_hline(0, height - 1, w, ui_col.line);
+			return height;
+		}
 		color_t dim = ui_col.dim;
 		if (filled)
 			ui_col.dim = sfg;	// the title's prefix, normally dim, in the strip's one text color
@@ -438,8 +463,9 @@ static int draw_top_as(const radio_view_t *v, radio_state_t st, const ui_state_t
 		return L->strip_h;
 	// Tall display: the title on its own row, underlined
 	int y = L->strip_h;
+	if (L->gutter) f = L->medium;
 	gfx_fill(0, y, w, f->h + 2, ui_col.bg);
-	ui_draw_title(f, 0, y + 1, w, prefix, name, ui_col.fg);
+	ui_draw_title(f, L->gutter, y + (L->gutter ? ui_text_y(f, f->h + 1) : 1), w - 2 * L->gutter, prefix, name, ui_col.fg);
 	gfx_hline(0, y + f->h + 1, w, ui_col.line);
 	return y + f->h + 2;
 }
@@ -470,7 +496,7 @@ void ui_draw_title(const font_t *f, int x, int y, int max_w, const char *prefix,
 		nw = gfx_text_width(f, nfit);
 	}
 	int tw = pw + gap + nw;
-	int tx = (gfx_width() - tw) / 2;
+	int tx = ui_layout.gutter ? x : (gfx_width() - tw) / 2;
 	if (tx + tw > x + max_w)
 		tx = x + max_w - tw;
 	if (tx < x)
@@ -584,6 +610,22 @@ static const char *key_names(const char *text, char *out, size_t cap, bool hint)
 // ("Back", "Back keeps", ...) is pinned to the right edge, under the key, and the others run from the left. A hint may
 // hold text alternates (font.h): the longest form that fits is used. A toast is centered; one too long for the row
 // takes a second line above it, so it is never shortened
+static void hint_text(const font_t *f, int x, int y, const char *text, color_t fg)
+{
+	if (ui_layout.gutter && gfx_bpp() != 1) {
+		const char *group = text;
+		do {
+			int n = 0;
+			while (group[n] && group[n] != ' ') n++;
+			gfx_round_fill(x + (group - text) * f->w - 1, y, n * f->w + 2, f->h,
+				ui_col.line == ui_col.fg ? ui_col.focus : ui_col.line);
+			group = strstr(group, "  ");
+			if (group) group += 2;
+		} while (group);
+	}
+	gfx_text(f, x, y, text, ui_layout.gutter ? ui_col.fg : fg);
+}
+
 void ui_draw_hint(const char *text, bool toast)
 {
 #if CONFIG_VOLUME_BAR
@@ -595,7 +637,7 @@ void ui_draw_hint(const char *text, bool toast)
 	const font_t *f = L->small;
 	int w = gfx_width();
 	char fit[64];
-	color_t bg = toast ? ui_col.fg : ui_col.hint_bg;
+	color_t bg = toast ? ui_col.fg : L->gutter ? ui_col.bg : ui_col.hint_bg;
 	color_t fg = toast ? ui_col.bg : ui_col.dim;
 	if (gfx_bpp() == 1 && !toast)
 		fg = ui_col.fg;
@@ -638,7 +680,7 @@ void ui_draw_hint(const char *text, bool toast)
 		return;
 	}
 	gfx_fill(0, L->hint_y, w, gfx_height() - L->hint_y, bg);
-	if (gfx_bpp() == 1)
+	if (gfx_bpp() == 1 || L->gutter)
 		gfx_hline(0, L->hint_y, w, ui_col.line);
 	// The longest alternate whose groups fit side by side (or the shortest there is)
 	char form[64], left[64], right[24];
@@ -649,11 +691,11 @@ void ui_draw_hint(const char *text, bool toast)
 		hint_split(key_names(form, fit, sizeof fit, true), left, sizeof left, right, sizeof right);
 		lw = gfx_text_width(f, left);
 		rw = gfx_text_width(f, right);
-		if (lw + (rw && lw ? f->w : 0) + rw <= w)
+		if (lw + (rw && lw ? f->w : 0) + rw <= w - 2 * L->gutter)
 			break;
 	}
 	// Still too wide: the last groups on the left go, whole, before anything is shortened
-	while (lw + (rw && lw ? f->w : 0) + rw > w) {
+	while (lw + (rw && lw ? f->w : 0) + rw > w - 2 * L->gutter) {
 		char *cut = NULL;
 		for (char *p = strstr(left, "  "); p != NULL; p = strstr(p + 1, "  "))
 			cut = p;
@@ -662,16 +704,16 @@ void ui_draw_hint(const char *text, bool toast)
 		*cut = 0;
 		lw = gfx_text_width(f, left);
 	}
-	int margin = lw + (rw && lw ? f->w : 0) + rw <= w - 2 ? 1 : 0;
+	int margin = L->gutter ? L->gutter : lw + (rw && lw ? f->w : 0) + rw <= w - 2 ? 1 : 0;
 	if (rw > w - 2 * margin)
 		rw = w - 2 * margin;
 	if (right[0]) {
 		gfx_text_fit(f, right, rw, fit, sizeof fit);
-		gfx_text(f, w - margin - gfx_text_width(f, fit), L->hint_y, fit, fg);
+		hint_text(f, w - margin - gfx_text_width(f, fit), L->hint_y + (L->gutter ? (gfx_bpp() == 1 ? 1 : 2) : 0), fit, fg);
 	}
 	if (left[0]) {
 		gfx_text_fit(f, left, w - 2 * margin - (right[0] ? rw + f->w : 0), fit, sizeof fit);
-		gfx_text(f, margin, L->hint_y, fit, fg);
+		hint_text(f, margin, L->hint_y + (L->gutter ? (gfx_bpp() == 1 ? 1 : 2) : 0), fit, fg);
 	}
 }
 
@@ -2457,12 +2499,12 @@ static int wrap_text(const font_t *f, const char *t, int y, int y_end, bool draw
 {
 	char line[64];
 	while (*t && y + f->h <= y_end) {
-		const char *next = ui_wrap_line(f, t, gfx_width(), line, sizeof line);
+		const char *next = ui_wrap_line(f, t, gfx_width() - 2 * ui_layout.gutter, line, sizeof line);
 		if (*next && y + 2 * f->h > y_end)
-			fit_end(f, t, gfx_width(), line, sizeof line);	// the last line that fits: never drop text silently
+			fit_end(f, t, gfx_width() - 2 * ui_layout.gutter, line, sizeof line);	// the last line that fits: never drop text silently
 		t = next;
 		if (draw)
-			gfx_text(f, 0, y, line, c);
+			gfx_text(f, ui_layout.gutter, y, line, c);
 		y += f->h;
 	}
 	return y;
@@ -2484,7 +2526,7 @@ int ui_draw_text_page(const radio_view_t *v, const ui_state_t *s, const char *ti
 {
 	const ui_layout_t *L = &ui_layout;
 	const font_t *f = body ? L->small : L->tiny;
-	int w = gfx_width();
+	int w = gfx_width() - 2 * L->gutter;
 	char line[64];
 	gfx_clear(ui_col.bg);
 	// Diagnostic pages hide idle status; received text keeps its title and status.
@@ -2518,17 +2560,19 @@ int ui_draw_text_page(const radio_view_t *v, const ui_state_t *s, const char *ti
 			char label[24];
 			memcpy(label, line, lab);
 			label[lab] = 0;
-			int x = gfx_text(f, 0, y + r * f->h, label, dim);
+			int x = gfx_text(f, ui_layout.gutter, y + r * f->h, label, dim);
 			gfx_text(f, x, y + r * f->h, line + lab, ui_col.fg);
 		} else if (lab > 0 && lab == len) {
-			gfx_text(f, 0, y + r * f->h, line, dim);
+			gfx_text(f, ui_layout.gutter, y + r * f->h, line, dim);
 		} else {
-			gfx_text(f, 0, y + r * f->h, line, ui_col.fg);
+			gfx_text(f, ui_layout.gutter, y + r * f->h, line, ui_col.fg);
 		}
 	}
-	if (*first > 0)
+	if (L->gutter)
+		ui_draw_scroll(y, rows * f->h, *first, rows, total);
+	else if (*first > 0)
 		gfx_fill(w - 3, y, 3, 2, ui_col.dim);
-	if (*first < max_first)
+	if (!L->gutter && *first < max_first)
 		gfx_fill(w - 3, y + rows * f->h - 2, 3, 2, ui_col.dim);
 	ui_draw_banner(s);
 	ui_draw_bottom(s, max_first > 0 ? TR("Up/Dn more  Back") : TR("Back"));
@@ -2641,7 +2685,7 @@ void ui_draw_list(const radio_view_t *v, const ui_state_t *s, const ui_list_t *l
 		*l->top = top;
 	if (l->count == 0 && l->empty != NULL)
 		wrap_text(f, l->empty, y + 1, y_end, true, ui_col.dim);
-	int pad = (L->row_h - f->h) / 2;
+	int pad = L->gutter ? ui_text_y(f, L->row_h) : (L->row_h - f->h) / 2;
 	for (int r = 0; r < rows && top + r < l->count; r++) {
 		uint16_t i = (uint16_t)(top + r);
 		ui_item_t it;
@@ -2651,12 +2695,12 @@ void ui_draw_list(const radio_view_t *v, const ui_state_t *s, const ui_list_t *l
 		l->item(i, &it);
 		int ry = y + r * L->row_h;
 		bool focus = i == l->focus && !(it.flags & UI_ITEM_INFO);
-		color_t fg = (it.flags & UI_ITEM_DIM) ? ui_col.line : (it.flags & UI_ITEM_WARN) ? ui_col.warn : ui_col.fg;
+		color_t fg = (it.flags & UI_ITEM_DIM) ? (L->gutter ? ui_col.dim : ui_col.line) : (it.flags & UI_ITEM_WARN) ? ui_col.warn : ui_col.fg;
 		if (gfx_bpp() == 1)
 			fg = ui_col.fg;
 		if ((it.flags & UI_ITEM_INFO) && gfx_bpp() != 1)
 			fg = ui_col.dim;
-		color_t vfg = (it.flags & UI_ITEM_DIM) && gfx_bpp() != 1 ? ui_col.line : ui_col.dim;
+		color_t vfg = (it.flags & UI_ITEM_DIM) && gfx_bpp() != 1 && !L->gutter ? ui_col.line : ui_col.dim;
 		if (it.flags & UI_ITEM_TEMP)
 			vfg = ui_col.warn;
 		if (focus) {
@@ -2665,8 +2709,8 @@ void ui_draw_list(const radio_view_t *v, const ui_state_t *s, const ui_list_t *l
 			fg = gfx_bpp() == 1 ? ui_col.bg : (it.flags & UI_ITEM_EDIT) ? ui_col.pill_dark_fg : ui_col.focus_fg;
 			vfg = fg;
 		}
-		int x = 1;
-		if (gfx_bpp() == 1 && !focus)
+		int x = L->gutter ? L->gutter : 1;
+		if (!L->gutter && gfx_bpp() == 1 && !focus)
 			x = gfx_text(f, 0, ry + pad, " ", fg);
 		if (it.num) {
 			char n[3] = { it.num, ' ', 0 };
@@ -2682,12 +2726,14 @@ void ui_draw_list(const radio_view_t *v, const ui_state_t *s, const ui_list_t *l
 		} else {
 			str_copy(val, sizeof val, it.value);
 		}
-		row_text(f, x, ry + pad, w, it.label, val, fg, vfg, (it.flags & UI_ITEM_PREVIEW) != 0);
+		row_text(f, x, ry + pad, w - L->gutter, it.label, val, fg, vfg, (it.flags & UI_ITEM_PREVIEW) != 0);
 	}
 	// Scroll marks: more above / below
-	if (top > 0)
+	if (L->gutter)
+		ui_draw_scroll(y, rows * L->row_h, top, rows, l->count);
+	else if (top > 0)
 		gfx_fill(w - 3, y, 3, 2, ui_col.dim);
-	if (top + rows < l->count)
+	if (!L->gutter && top + rows < l->count)
 		gfx_fill(w - 3, y + rows * L->row_h - 2, 3, 2, ui_col.dim);
 	ui_draw_banner(s);
 	ui_draw_bottom(s, l->hint);

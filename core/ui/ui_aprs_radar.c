@@ -338,7 +338,7 @@ static void __attribute__((noinline)) radar(uint8_t src)
 		ix = w - gutter - iw;
 		iy = top;
 		aw = ix - 2 * gutter;
-		ah = bottom - top;
+		ah = bottom - top - pitch;
 	}
 	// North's letter stands clear of a marker on the outer ring, and so does every edge of the radar's area
 	int r = (aw - 2 * rim) / 2, rv = (ah - f->h - 2 * rim) / 2;
@@ -416,7 +416,7 @@ static void __attribute__((noinline)) radar(uint8_t src)
 	cross(x + k, y + f->h / 2, k, ui_col.dim);
 	put(f, x + 2 * k + 5, y, (below ? tw : iw) - 2 * k - 5, 1, false, text, ui_col.dim);
 	if (!below && !on_rings)
-		range_row(ix, y - pitch, iw, k, step / unit * 3);
+		range_row(gutter, y, aw, k, step / unit * 3);
 
 	// The selected station: who, how far and which way, how old, and how it moves when it says so
 	text = selected[0] ? TR("No longer in list") : TR("No positions yet");
@@ -441,7 +441,7 @@ static void __attribute__((noinline)) radar(uint8_t src)
 			y = info(f, ix, y, iw, 1, false, INFO_DISTANCE, &sel, ui_col.fg);
 			y = info(f, ix, y, iw, 1, false, INFO_BEARING, &sel, ui_col.fg);
 			y = info(f, ix, y, iw, 1, false, INFO_AGE, &sel, ui_col.dim);
-			info(f, ix, y, iw, (bottom - 2 * pitch - y) / pitch, false, INFO_MOVING, &sel, ui_col.dim);
+			info(f, ix, y, iw, (bottom - pitch - y) / pitch, false, INFO_MOVING, &sel, ui_col.dim);
 		} else {
 			put(f, ix, y, iw, 3, false, text, ui_col.dim);
 		}

@@ -16,6 +16,10 @@ The radio sends APRS two ways:
 Not every radio does both. Some send only, some can't send APRS on FM yet, and a build can leave APRS out for flash
 room. The [Radio reference](23-radios.md) lists them and says where APRS is verified.
 
+APRS pages have left-aligned titles and a scroll thumb when more rows are available. The highlighted
+station keeps its range below the list; a comment preview appears when there is room. Open the station
+for its full details. Color displays show hint keys in small caps; mono displays keep plain key names.
+
 ## Before you start
 
 - You need an amateur radio license. APRS sends only on amateur frequencies, and the radio refuses others.
