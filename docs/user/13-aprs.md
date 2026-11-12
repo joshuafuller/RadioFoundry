@@ -93,7 +93,7 @@ station from Stations; the Weather filter only searches stations still retained.
 
 In **Tools > APRS**, open **Objects** for places and items published by other stations. Select a name to see its
 publisher (**From**), age, distance and direction, comment, and a frequency advertised as `ddd.dddMHz`.
-Distance needs a position of your own. The frequency is information only; opening it does not tune or transmit.
+Distance needs a position of your own. With Tune enabled, a valid advertised frequency offers **Tune to** for review; opening it does not tune or transmit.
 An object's location never moves its publisher in **Stations heard**.
 
 A withdrawn object reads **Removed** for ten minutes, then leaves the list. A new live report brings it back.
@@ -365,11 +365,15 @@ support enabled.
 ### Tune to a station's voice frequency
 
 When a station advertises a voice frequency, its detail list offers **Tune to**, followed by the frequency and
-tone. Select it to listen there in FM. Any advertised offset and transmit tone are applied together. Missing
+MHz. Objects and items offer the same action. Select it to review frequency, tone, offset, publisher callsign
+and packet age. Scroll with Up/Down; **OK** tunes in FM and **Back** cancels. Incoming packets do not change the
+reviewed values. Any advertised offset and transmit tone are applied together. Missing
 an offset means simplex. An unsupported frequency or tone shows a reason and leaves the channel unchanged.
 
-Tuning returns to Home and is temporary. Press Back on Home to undo it, or select another channel. It does not
-transmit or save a channel. On a single receiver you leave the APRS frequency while listening to voice.
+The **Temporary tune** screen shows the current frequency and whether APRS is listening. **Back** undoes the
+tune and returns Home. Hold Back goes Home while keeping the tune; Back on Home still undoes it. Selecting another
+channel also ends the temporary tune. Tuning does not transmit or save a channel. Leaving the APRS frequency
+stops APRS listening on a single receiver; returning to it lets listening resume when receive is enabled.
 
 ### My frequency in my beacon
 

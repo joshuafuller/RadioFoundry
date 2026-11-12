@@ -38,6 +38,8 @@
 #define RFOUNDRY_GIT_DATE ""
 #endif
 
+#include "ui_aprs_tune.h"
+
 extern const ui_scr_def_t ui_find_screen;
 #if CONFIG_APRS_RX
 extern const ui_scr_def_t ui_aprs_objects_screen, ui_aprs_object_screen, ui_aprs_bulletins_screen, ui_aprs_bulletin_screen;
@@ -6471,6 +6473,9 @@ const ui_scr_def_t *const ui_scr[SCR_COUNT] = {
 #if CONFIG_APRS_RX
 	[SCR_APRS_OBJECTS] = &ui_aprs_objects_screen, [SCR_APRS_OBJECT] = &ui_aprs_object_screen,
 	[SCR_APRS_BULLETINS] = &ui_aprs_bulletins_screen, [SCR_APRS_BULLETIN] = &ui_aprs_bulletin_screen,
+#endif
+#if CONFIG_APRS_TUNE
+	[SCR_APRS_TUNE] = &ui_aprs_tune_screen, [SCR_APRS_TUNED] = &ui_aprs_tuned_screen,
 #endif
 	[SCR_ABOUT] = &about_screen,
 #if CONFIG_POSITION

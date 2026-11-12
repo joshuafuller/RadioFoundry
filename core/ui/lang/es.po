@@ -540,7 +540,7 @@ msgstr "10 min"
 msgid "30 min"
 msgstr "30 min"
 
-#: core/ui/ui_aprs.c core/ui/ui_aprs_beacon.c core/ui/ui_menus.c core/ui/ui_screens.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_beacon.c core/ui/ui_aprs_tune.c core/ui/ui_menus.c core/ui/ui_screens.c
 msgid "None"
 msgstr "Ninguno"
 
@@ -789,7 +789,7 @@ msgstr "Atrás"
 msgid "0-9 pick  Back"
 msgstr "0-9 elegir  Atrás"
 
-#: core/ui/ui_aprs.c core/ui/ui_aprs_objects.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_objects.c core/ui/ui_aprs_tune.c
 msgid "Heard"
 msgstr "Oídas"
 
@@ -1207,7 +1207,7 @@ msgstr "APRS enviado "
 msgid ", next "
 msgstr ", siguiente "
 
-#: core/ui/ui_aprs_home.c
+#: core/ui/ui_aprs_home.c core/ui/ui_aprs_tune.c
 msgid "APRS listening"
 msgstr "APRS escuchando"
 
@@ -1299,7 +1299,7 @@ msgstr "Retirado"
 msgid "No objects heard"
 msgstr "Sin objetos recibidos"
 
-#: core/ui/ui_aprs_objects.c core/ui/ui_aprs_thread.c core/ui/ui_menus.c
+#: core/ui/ui_aprs_objects.c core/ui/ui_aprs_thread.c core/ui/ui_aprs_tune.c core/ui/ui_menus.c
 msgid "From "
 msgstr "De "
 
@@ -1423,9 +1423,41 @@ msgstr "Esta radio no puede usar ese tono"
 msgid "Radio busy"
 msgstr "Radio ocupada"
 
+#: core/ui/ui_aprs_tune.c core/ui/ui_screens.c
+msgid "Tone"
+msgstr "Tono"
+
 #: core/ui/ui_aprs_tune.c
-msgid "Tuned for now. Back to undo"
-msgstr "Cambio temporal. Atrás para deshacer"
+msgid "Unsupported"
+msgstr "No compatible"
+
+#: core/ui/ui_aprs_tune.c
+msgid "Offset"
+msgstr "Desplazamiento"
+
+#: core/ui/ui_aprs_tune.c
+msgid "Simplex"
+msgstr "Símplex"
+
+#: core/ui/ui_aprs_tune.c
+msgid "APRS not listening"
+msgstr "APRS sin escucha"
+
+#: core/ui/ui_aprs_tune.c
+msgid "Back to undo"
+msgstr "Atrás deshace"
+
+#: core/ui/ui_aprs_tune.c
+msgid "Tune review"
+msgstr "Revisar sintonía"
+
+#: core/ui/ui_aprs_tune.c
+msgid "OK tune  Back cancel"
+msgstr "OK sintoniza  Atrás cancela"
+
+#: core/ui/ui_aprs_tune.c
+msgid "Temporary tune"
+msgstr "Sintonía temporal"
 
 #: core/ui/ui_aprs_wx.c
 msgid "No weather reports"
@@ -4374,10 +4406,6 @@ msgstr "{Pot|Pt}"
 #: core/ui/ui_screens.c
 msgid "{Squelch|SQL}"
 msgstr "{Squelch|SQL}"
-
-#: core/ui/ui_screens.c
-msgid "Tone"
-msgstr "Tono"
 
 #: core/ui/ui_screens.c
 msgid "{Monitor|MON}"

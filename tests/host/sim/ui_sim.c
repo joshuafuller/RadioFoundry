@@ -516,7 +516,12 @@ bool ui_svc_aprs_packet(uint8_t i, aprs_packet_t *out)
 	*out = aprs_sim.packet;
 	return true;
 }
-bool ui_svc_aprs_listening(void) { return aprs_sim.listening == APRS_LISTEN_ON; }
+bool ui_svc_aprs_listening(void)
+{
+	aprs_view_t v;
+	ui_svc_aprs_view(&v);
+	return aprs_sim.listening == APRS_LISTEN_ON && sim_view()->ch.mode == RADIO_MODE_FM && sim_view()->ch.rx_hz == v.freq_hz;
+}
 bool ui_svc_aprs_can_receive(void) { return true; }
 // "aprs:radarmany": every symbol class, a pair close together, one on our own position, old positions, and stations on
 // the outer ring at each compass point (the farthest sets the scale)
@@ -668,6 +673,9 @@ bool ui_svc_aprs_object(uint8_t i, aprs_object_t *o)
 	str_copy(o->owner, sizeof o->owner, first ? "Q1ABC-9" : "Q2ABC");
 	str_copy(o->comment, sizeof o->comment, "146.520MHz Meet at north gate. Bring water. Check in here.");
 	o->frequency_hz = 146520000u;
+#if CONFIG_APRS_TUNE
+	aprs_freq_parse(o->comment, strlen(o->comment), o->name, &o->frequency);
+#endif
 	o->pos.lat = 338000000;
 	o->pos.lon = -840000000;
 	o->pos.sym_table = '/';

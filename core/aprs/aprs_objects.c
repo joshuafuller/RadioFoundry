@@ -102,6 +102,9 @@ void aprs_objects_receive(const ax25_frame_t *f, const aprs_parsed_t *p, uint32_
 		o->killed = p->killed;
 		text_copy(o->comment, sizeof(o->comment), p->text, p->text_len);
 		o->frequency_hz = frequency(o->comment);
+#if CONFIG_APRS_TUNE
+		aprs_freq_parse(p->text, p->text_len, o->name, &o->frequency);
+#endif
 	} else if (aprs_is_bulletin(p)) {
 		aprs_bulletin_t b = {0};
 		strcpy(b.group, p->addressee);

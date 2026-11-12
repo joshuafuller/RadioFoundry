@@ -149,6 +149,7 @@ typedef struct {
 
 #if CONFIG_APRS_TUNE
 	aprs_freq_t frequency;
+	uint32_t frequency_ms;
 #endif
 	char text[24];		// comment / status (truncated)
 } aprs_station_t;

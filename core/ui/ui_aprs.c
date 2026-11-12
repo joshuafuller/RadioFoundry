@@ -697,7 +697,7 @@ static void station_select(uint16_t i, bool hold)
 	else {
 		aprs_station_t s;
 		if (ui_svc_aprs_station_find(station_call, &s) && station_row(i, &s) == ST_TUNE)
-			ui_aprs_tune(&s.frequency);
+			ui_aprs_tune(&s.frequency, s.call, s.frequency_ms);
 	}
 #endif
 }

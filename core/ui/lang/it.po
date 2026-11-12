@@ -540,7 +540,7 @@ msgstr "10 min"
 msgid "30 min"
 msgstr "30 min"
 
-#: core/ui/ui_aprs.c core/ui/ui_aprs_beacon.c core/ui/ui_menus.c core/ui/ui_screens.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_beacon.c core/ui/ui_aprs_tune.c core/ui/ui_menus.c core/ui/ui_screens.c
 msgid "None"
 msgstr "Nessuno"
 
@@ -789,7 +789,7 @@ msgstr "Indietro"
 msgid "0-9 pick  Back"
 msgstr "0-9 scegli  Indietro"
 
-#: core/ui/ui_aprs.c core/ui/ui_aprs_objects.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_objects.c core/ui/ui_aprs_tune.c
 msgid "Heard"
 msgstr "Sentite"
 
@@ -1207,7 +1207,7 @@ msgstr "APRS inviato "
 msgid ", next "
 msgstr ", prossimo "
 
-#: core/ui/ui_aprs_home.c
+#: core/ui/ui_aprs_home.c core/ui/ui_aprs_tune.c
 msgid "APRS listening"
 msgstr "APRS in ascolto"
 
@@ -1299,7 +1299,7 @@ msgstr "Rimosso"
 msgid "No objects heard"
 msgstr "Nessun oggetto ricevuto"
 
-#: core/ui/ui_aprs_objects.c core/ui/ui_aprs_thread.c core/ui/ui_menus.c
+#: core/ui/ui_aprs_objects.c core/ui/ui_aprs_thread.c core/ui/ui_aprs_tune.c core/ui/ui_menus.c
 msgid "From "
 msgstr "Da "
 
@@ -1423,9 +1423,41 @@ msgstr "La radio non può usare questo tono"
 msgid "Radio busy"
 msgstr "Radio occupata"
 
+#: core/ui/ui_aprs_tune.c core/ui/ui_screens.c
+msgid "Tone"
+msgstr "Tono"
+
 #: core/ui/ui_aprs_tune.c
-msgid "Tuned for now. Back to undo"
-msgstr "Sintonia temporanea. Indietro per annullare"
+msgid "Unsupported"
+msgstr "Non supportato"
+
+#: core/ui/ui_aprs_tune.c
+msgid "Offset"
+msgstr "Scostamento"
+
+#: core/ui/ui_aprs_tune.c
+msgid "Simplex"
+msgstr "Simplex"
+
+#: core/ui/ui_aprs_tune.c
+msgid "APRS not listening"
+msgstr "APRS non in ascolto"
+
+#: core/ui/ui_aprs_tune.c
+msgid "Back to undo"
+msgstr "Indietro annulla"
+
+#: core/ui/ui_aprs_tune.c
+msgid "Tune review"
+msgstr "Verifica sintonia"
+
+#: core/ui/ui_aprs_tune.c
+msgid "OK tune  Back cancel"
+msgstr "OK sintonizza  Indietro annulla"
+
+#: core/ui/ui_aprs_tune.c
+msgid "Temporary tune"
+msgstr "Sintonia temporanea"
 
 #: core/ui/ui_aprs_wx.c
 msgid "No weather reports"
@@ -4374,10 +4406,6 @@ msgstr "{Potenza|Pot}"
 #: core/ui/ui_screens.c
 msgid "{Squelch|SQL}"
 msgstr "{Squelch|SQL}"
-
-#: core/ui/ui_screens.c
-msgid "Tone"
-msgstr "Tono"
 
 #: core/ui/ui_screens.c
 msgid "{Monitor|MON}"

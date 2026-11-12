@@ -4,6 +4,7 @@
 #define RFOUNDRY_APRS_OBJECTS_H
 #include "config.h"
 #include "aprs_fmt.h"
+#include "aprs_freq.h"
 
 #ifndef APRS_OBJECTS
 #define APRS_OBJECTS 8
@@ -19,6 +20,9 @@ typedef struct {
 	aprs_pos_t pos;
 	char comment[APRS_MSG_TEXT_MAX + 1];
 	uint32_t ms, frequency_hz;
+#if CONFIG_APRS_TUNE
+	aprs_freq_t frequency;
+#endif
 	bool killed;
 } aprs_object_t;
 

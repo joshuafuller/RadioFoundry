@@ -320,7 +320,7 @@ $(shell python3 tools/gen_about.py AUTHORS platform/$(PLATFORM)/THIRD_PARTY $(BU
 	&& rm -f $(ABOUT_OBJ))
 # The language tables (tools/i18n.py, core/ui/lang/*.po); i18n.o is rebuilt when they changed. A failure stops the
 # build: the old tables would link without a word
-I18N_GEN := $(shell python3 tools/i18n.py --gen $(BUILD)/gen/lang_tables.h $(if $(filter n,$(CONFIG_APRS_RX)),CONFIG_APRS_RX) $(if $(filter y,$(CONFIG_APRS_WX)),,core/ui/ui_aprs_wx.c) || echo i18n-failed)
+I18N_GEN := $(shell python3 tools/i18n.py --gen $(BUILD)/gen/lang_tables.h $(if $(filter n,$(CONFIG_APRS_RX)),CONFIG_APRS_RX) $(if $(filter y,$(CONFIG_APRS_WX)),,core/ui/ui_aprs_wx.c) $(if $(filter y,$(CONFIG_APRS_TUNE)),,core/ui/ui_aprs_tune.c) || echo i18n-failed)
 ifneq ($(filter i18n-failed,$(I18N_GEN)),)
 $(error tools/i18n.py --gen failed (above))
 endif

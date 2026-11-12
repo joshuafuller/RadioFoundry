@@ -738,6 +738,7 @@ static void station_update(const ax25_frame_t *f, const aprs_parsed_t *p)
 #if CONFIG_APRS_TUNE
 	if (p->type == APRS_T_POSITION || p->type == APRS_T_MICE || p->type == APRS_T_STATUS) {
 		aprs_freq_parse(p->text, p->text_len, NULL, &s->frequency);
+		s->frequency_ms = aprs_s.now;
 	}
 #endif
 	if (p->text != NULL && p->type != APRS_T_MESSAGE && p->type != APRS_T_OBJECT && p->type != APRS_T_ITEM) {

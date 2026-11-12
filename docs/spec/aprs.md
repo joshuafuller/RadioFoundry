@@ -237,7 +237,8 @@ its oldest entry when full; all entries are volatile.
   [APRS errata](https://www.aprs.org/errata.html).
 - The object detail retains the selected name and owner while incoming reports reorder the list. Eviction or
   ownership change shows **No longer in list**. Distance and bearing use the existing position service and range
-  formatter. A `ddd.dddMHz` token in the retained comment supplies the frequency row; it never tunes the radio.
+  formatter. A `ddd.dddMHz` token supplies the frequency row. With `CONFIG_APRS_TUNE`, valid frequency
+  extensions in the full packet or object name offer the same Tune review as stations.
 - Bulletin addresses are `BLN` plus a digit, announcement addresses `BLN` plus an uppercase letter, optionally
   followed by a group name. `NWS-*` messages share this list. Sender plus full addressee identifies a bulletin slot.
   Changed text replaces that slot and queues one banner. An identical repeat neither refreshes its receipt time
@@ -769,13 +770,18 @@ The parser also accepts a frequency object name with a two- or three-digit fract
 Different frequencies in the object name and comment are refused rather than guessing a cross-band split.
 
 Position and status comments update the sender's frequency before display-text truncation. A comment without a
-frequency clears it. Objects, items and messages do not change the sender's tuning target. Object details retain their separate frequency display.
+frequency clears it. Objects, items and messages do not change the sender's tuning target. Objects and items retain their own parsed frequency, tone and offset before comment truncation.
 
-Station detail offers Tune to with the frequency and tone. It refuses an unsupported receive or transmit
+Station and object/item detail offer Tune to. Selecting it opens a review of frequency in MHz, tone, offset,
+source callsign and frequency-packet age. The review snapshots those values; later packets cannot retarget it.
+Up/Down scrolls the review, OK tunes and Back cancels without changing the radio. Missing tone means none;
+missing offset means simplex. It refuses an unsupported receive or transmit
 frequency, an unusable tone, or a busy radio with a reason. The radio task checks the request again and applies
 frequency, explicit offset, FM bandwidth and transmit tone in one transaction. Receive tone is cleared.
-Tuning does not key the transmitter or write the codeplug. It returns Home with temporary state; Back restores
-the previous frequency (also in the VFO). Selecting a channel drops the temporary tune.
+Tuning does not key the transmitter or write the codeplug. The temporary-tune screen shows the current receive
+frequency and live APRS listening state. Back restores the previous frequency (also in the VFO) and returns Home.
+Hold Back reaches Home without undoing; Back on Home still restores the previous frequency. Selecting a channel
+drops the temporary tune.
 
 My frequency in my beacon defaults off, stored in the appended `aprs_my_frequency` setting. When enabled, position comments start
 with the current voice channel's receive frequency and transmit tone. The radio task refreshes this prefix before

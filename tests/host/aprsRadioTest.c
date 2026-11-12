@@ -1961,6 +1961,16 @@ static void test_frequency_tune(void)
 	CHECK(aprs_station(0, &station) && station.frequency.hz == CH_HZ && station.frequency.offset == 60);
 	rx_line("Q1ABC>APRS:;442.440md*092345z4803.50N/07001.75W>T077");
 	CHECK(aprs_station(0, &station) && station.frequency.hz == CH_HZ);
+	uint32_t frequency_ms = station.frequency_ms;
+	run(1000);
+	rx_line("Q1ABC>APRS::OTHER    :Hello");
+	CHECK(aprs_station(0, &station) && station.frequency_ms == frequency_ms);
+	aprs_object_t object;
+	CHECK(aprs_object(0, &object) && object.frequency.hz == 442440000 && object.frequency.tone == 77);
+	rx_line("Q1ABC>APRS:)REPEATER!4903.50N/07201.75W>146.940MHz T100 -060");
+	CHECK(aprs_object(0, &object) && object.frequency.hz == 146940000 && object.frequency.offset == -60 && object.frequency.tone == 100);
+	rx_line("Q1ABC>APRS:)REPEATER!4903.50N/07201.75W>146.940MHz Tbad");
+	CHECK(aprs_object(0, &object) && !object.frequency.hz);
 	rx_line("Q1ABC>APRS:>No frequency");
 	CHECK(aprs_station(0, &station) && station.frequency.hz == 0);
 #endif

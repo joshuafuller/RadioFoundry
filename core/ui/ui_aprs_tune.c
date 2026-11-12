@@ -8,6 +8,11 @@
 #include "radio/radio_bcast.h"
 #include "fmt.h"
 #include "i18n.h"
+#include "ui_svc_aprs.h"
+
+static aprs_freq_t selected;
+static char selected_source[AX25_CALL_LEN + 4];
+static uint32_t selected_ms;
 
 void ui_aprs_tune_item(const aprs_freq_t *f, ui_item_t *it)
 {
@@ -16,17 +21,14 @@ void ui_aprs_tune_item(const aprs_freq_t *f, ui_item_t *it)
 	sb_str(&b, TR("Tune to"));
 	sb_chr(&b, ' ');
 	sb_freq(&b, f->hz);
-	if (f->tone_kind) {
-		sb_chr(&b, ' ');
-		sb_chr(&b, f->tone_kind);
-		uint16_t v = f->tone_kind == 'D' ? (uint16_t)((f->tone >> 6) * 100u +
-			((f->tone >> 3) & 7u) * 10u + (f->tone & 7u)) : f->tone;
-		sb_u32(&b, v, 3);
-	}
+	sb_str(&b, " MHz");
 }
 
-void ui_aprs_tune(const aprs_freq_t *f)
+static void tune_select(uint16_t i, bool hold)
 {
+	(void)i;
+	(void)hold;
+	const aprs_freq_t *f = &selected;
 	int64_t tx = (int64_t)f->hz + (int64_t)f->offset * 10000;
 	const char *why = NULL;
 	subtone_t tone;
@@ -53,6 +55,87 @@ void ui_aprs_tune(const aprs_freq_t *f)
 		return;
 	}
 	ui_go_home();
-	ui_toast(TR("Tuned for now. Back to undo"));
+	ui_push(SCR_APRS_TUNED, 0);
 }
+static uint16_t review_count(void) { return 5; }
+static void review_item(uint16_t i, ui_item_t *it)
+{
+	sbuf_t b;
+	sb_init(&b, it->label, sizeof it->label);
+	subtone_t tone;
+	switch (i) {
+	case 0:
+		sb_freq(&b, selected.hz);
+		sb_str(&b, " MHz");
+		break;
+	case 1:
+		sb_str(&b, TR("Tone"));
+		sb_chr(&b, ' ');
+		if (!selected.tone_kind) sb_str(&b, TR("None"));
+		else if (!aprs_freq_tone(&selected, &tone)) sb_str(&b, TR("Unsupported"));
+		else {
+			sb_tone(&b, &tone);
+			if (tone.type == TONE_CTCSS) sb_str(&b, " Hz");
+		}
+		break;
+	case 2:
+		sb_str(&b, TR("Offset"));
+		sb_chr(&b, ' ');
+		if (!selected.offset) sb_str(&b, TR("Simplex"));
+		else {
+			sb_chr(&b, selected.offset < 0 ? '-' : '+');
+			sb_u32(&b, (selected.offset < 0 ? -selected.offset : selected.offset) * 10u, 1);
+			sb_str(&b, " kHz");
+		}
+		break;
+	case 3: sb_str(&b, TR("From ")); sb_str(&b, selected_source); break;
+	case 4:
+		sb_str(&b, TR("Heard"));
+		ui_sb_age(it->value, sizeof it->value, ui_st.now_ms - selected_ms);
+		break;
+	}
+}
+
+void ui_aprs_tune(const aprs_freq_t *f, const char *source, uint32_t ms)
+{
+	// Freeze the advertised values: packets arriving during review cannot retarget OK.
+	selected = *f;
+	str_copy(selected_source, sizeof selected_source, source);
+	selected_ms = ms;
+	ui_push(SCR_APRS_TUNE, 0);
+}
+
+static uint16_t tuned_count(void) { return 3; }
+static void tuned_item(uint16_t i, ui_item_t *it)
+{
+	sbuf_t b;
+	sb_init(&b, it->label, sizeof it->label);
+	if (i == 0) {
+		sb_freq(&b, ui_view()->ch.rx_hz);
+		sb_str(&b, " MHz");
+	} else if (i == 1) {
+		bool listening = false;
+#if CONFIG_APRS_RX
+		listening = ui_svc_aprs_listening();
+#endif
+		sb_str(&b, listening ? TR("APRS listening") : TR("APRS not listening"));
+	} else sb_str(&b, TR("Back to undo"));
+}
+static bool tuned_key(const input_event_t *ev)
+{
+	if (ev->action != ACT_BACK || ev->gesture != GESTURE_PRESS) return false;
+	radio_req_clear_temporary();
+	ui_go_home();
+	return true;
+}
+const ui_scr_def_t ui_aprs_tune_screen = {
+	.name = "aprs-tune", .flags = SF_LIST, .prefix = TRN("Tune review"),
+	.hint = TRN("OK tune  Back cancel"),
+	.count = review_count, .item = review_item, .select = tune_select,
+};
+const ui_scr_def_t ui_aprs_tuned_screen = {
+	.name = "aprs-tuned", .flags = SF_LIST, .prefix = TRN("Temporary tune"),
+	.hint = TRN("Back to undo"),
+	.count = tuned_count, .item = tuned_item, .key = tuned_key,
+};
 #endif

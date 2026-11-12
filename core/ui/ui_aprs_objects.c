@@ -4,6 +4,7 @@
 #if CONFIG_APRS_RX
 #include <string.h>
 #include "ui_nav.h"
+#include "ui_aprs_tune.h"
 #include "ui_svc_aprs.h"
 #include "fmt.h"
 #include "i18n.h"
@@ -109,6 +110,9 @@ static void object_item(uint16_t i, ui_item_t *it)
 		else sb_str(&b, TR("No position"));
 		break;
 	case 3:
+#if CONFIG_APRS_TUNE
+		if (o.frequency.hz) { ui_aprs_tune_item(&o.frequency, it); return; }
+#endif
 		label = TR("Frequency");
 		if (o.frequency_hz) sb_freq(&b, o.frequency_hz);
 		else sb_str(&b, TR("Unknown"));
@@ -118,10 +122,21 @@ static void object_item(uint16_t i, ui_item_t *it)
 	}
 	str_copy(it->label, sizeof it->label, label);
 }
+static void object_select(uint16_t i, bool hold)
+{
+	(void)hold;
+#if CONFIG_APRS_TUNE
+	aprs_object_t o;
+	if (i == 3 && object_find(&o) && o.frequency.hz)
+		ui_aprs_tune(&o.frequency, o.owner, o.ms);
+#else
+	(void)i;
+#endif
+}
 static const char *object_title(void) { return object_name; }
 const ui_scr_def_t ui_aprs_object_screen = {
-	.name = "aprs-object", .flags = SF_LIST | SF_FIELD, .prefix = TRN("Object"), .hint = TRN("Back"),
-	.title = object_title, .count = object_count, .item = object_item,
+	.name = "aprs-object", .flags = SF_LIST | SF_FIELD, .prefix = TRN("Object"), .hint = TRN("OK choose  Back"),
+	.title = object_title, .count = object_count, .item = object_item, .select = object_select,
 };
 
 static const char *group_name(const char *group)
