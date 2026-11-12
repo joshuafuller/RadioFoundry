@@ -40,7 +40,7 @@ static const uint32_t region_hz[APRS_REGION_COUNT] = {
 };
 static const char *const region_names[APRS_REGION_COUNT] = { "N America", "Europe", "Australia", "New Zealand",
 							      "Japan", "China", "Custom" };
-static const char *const path_texts[APRS_PATH_COUNT] = { "", "WIDE1-1", "WIDE1-1,WIDE2-1", "WIDE2-1", "WIDE2-2" };
+static const char *const path_texts[APRS_PATH_COUNT] = { "", "WIDE1-1", "WIDE1-1,WIDE2-1", "WIDE2-1", "WIDE2-2", "WIDE1-1,WIDE2-1" };
 
 uint32_t aprs_region_hz(uint8_t region)
 {
@@ -156,6 +156,9 @@ bool aprs_path_to_codeplug(void)
 		LOCK();
 		uint8_t path = aprs_s.cfg.path < APRS_PATH_COUNT ? aprs_s.cfg.path : APRS_PATH_WIDE1_WIDE2;
 		UNLOCK();
+		if (path == APRS_PATH_PROPORTIONAL) {
+			return true; // the codeplug stores literal paths, not a timing policy
+		}
 		if (!write_codeplug_path(path)) {
 			return false;
 		}
@@ -413,7 +416,7 @@ static void note_info(size_t n)
 	aprs_s.v.last_info[k] = '\0';
 }
 
-bool aprs_ax25_beacon(const position_fix_t *f, bool rf)
+bool aprs_ax25_beacon(const position_fix_t *f, bool rf, uint8_t path)
 {
 	bool any = false;
 	size_t n = build_beacon(f);
@@ -421,7 +424,7 @@ bool aprs_ax25_beacon(const position_fix_t *f, bool rf)
 		return false;
 	}
 	note_info(n);
-	if (rf && aprs_s.block == APRS_OK && queue_frame(K_BEACON, aprs_path_text(aprs_s.cfg.path), aprs_s.info, n)) {
+	if (rf && aprs_s.block == APRS_OK && queue_frame(K_BEACON, aprs_path_text(path), aprs_s.info, n)) {
 		any = true;
 	}
 	if (aprs_s.cfg.to_is && aprs_s.cfg.kiss && aprs_s.me_ok) {

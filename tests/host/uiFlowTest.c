@@ -580,10 +580,14 @@ static const flow_t flows[] = {
 	{ "A power of its own", "", "ok 6 8 4", "aprs_power=1", 4, false },
 	{ "A path shows the default", "ok 6 8", "down down down down", "shows=WIDE1-1,WIDE2-1 aprs_path=2", 4, false },
 	{ "A path: the next choice", "", "ok 6 8 5", "aprs_path=3 shows=WIDE2-1", 4, false },
-	{ "A path: WIDE2-2 then none", "ok 6 8 5 5", "5", "aprs_path=0 shows=None", 1, false },
-	{ "A path wraps to WIDE1-1", "ok 6 8 5 5 5", "5", "aprs_path=1", 1, false },
+	{ "A proportional path", "ok 6 8 5 5", "5", "aprs_path=5 shows=Proportional", 1, false },
+	{ "A path wraps to WIDE1-1", "ok 6 8 5 5 5 5", "5", "aprs_path=1", 1, false },
 	{ "A interval", "", "ok 6 8 6", "aprs_interval=60", 4, false },
 	{ "A SmartBeaconing", "", "ok 6 8 7", "aprs_smart=1", 4, false },
+	{ "A decay on", "ok 6 8", "9", "aprs_decay=1", 1, false },
+	{ "A Smart disables interval", "ok 6 8 7", "6", "aprs_interval=0 toast=SmartBeaconing_sets_timing", 1, false },
+	{ "A Smart disables decay", "ok 6 8 9 7", "9", "aprs_decay=1 toast=SmartBeaconing_sets_timing", 1, false },
+	{ "A proportional interval", "ok 6 8 5 5 5", "6", "aprs_interval=0 toast=Path_uses_one-minute_slots", 1, false },
 	{ "A send via DMR", "", "ok 6 8 8", "aprs_via=1", 4, false },
 	// Settings > Location: what every position report sends (the position service; ui_position.c). The page opens on
 	// Answer GPS requests (no GPS here: the rows above are dimmed); the position rows follow it

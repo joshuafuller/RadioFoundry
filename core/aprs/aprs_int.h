@@ -120,7 +120,7 @@ void aprs_ax25_poll(uint32_t now_ms);
 void aprs_ax25_tick(uint32_t now_ms);
 // A beacon is due (lock held): the packet is built, queued for RF when rf says so and RF isn't blocked, and sent to
 // APRS-IS when that is on. True when it went anywhere
-bool aprs_ax25_beacon(const position_fix_t *f, bool rf);
+bool aprs_ax25_beacon(const position_fix_t *f, bool rf, uint8_t path);
 // Every tick, lock held, after the beacon triggers: the message waiting for its ack, and this half's view fields
 void aprs_ax25_service(void);
 // "Send now" has somewhere to go on this half (lock held)
@@ -136,7 +136,7 @@ static inline void aprs_ax25_init(uint32_t now_ms) { (void)now_ms; }
 static inline void aprs_ax25_identity(void) {}
 static inline void aprs_ax25_poll(uint32_t now_ms) { (void)now_ms; }
 static inline void aprs_ax25_tick(uint32_t now_ms) { (void)now_ms; }
-static inline bool aprs_ax25_beacon(const position_fix_t *f, bool rf) { (void)f; (void)rf; return false; }
+static inline bool aprs_ax25_beacon(const position_fix_t *f, bool rf, uint8_t path) { (void)f; (void)rf; (void)path; return false; }
 static inline void aprs_ax25_service(void) {}
 static inline bool aprs_ax25_can_send(void) { return false; }
 static inline void aprs_ax25_view(aprs_view_t *v) { (void)v; }

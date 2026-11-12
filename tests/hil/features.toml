@@ -218,6 +218,11 @@ spec = "docs/spec/sfr.md"
 switch = "APRS"
 spec = "docs/spec/aprs.md"
 
+[feature.aprs_pathing]
+switch = "APRS_PATHING"
+spec = "docs/spec/aprs.md"
+source = ["core/aprs/aprs_pathing.c", "core/aprs/aprs.c", "core/ui/ui_aprs.c"]
+
 [feature.aprs_afsk]
 switch = "APRS_AFSK"
 spec = "docs/spec/aprs.md"

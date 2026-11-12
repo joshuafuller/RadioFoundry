@@ -256,6 +256,8 @@ CONFIG_NAND_STORAGE ?= n
 # APRS (core/aprs, docs/spec/aprs.md): our position sent by the beacon triggers, its settings and its page. The engine
 # only: it sends through the two backends below, and needs at least one. Transmit stays off until the user turns it on
 CONFIG_APRS ?= $(CONFIG_FM)
+# Stationary decay and proportional beacon paths
+CONFIG_APRS_PATHING ?= $(CONFIG_APRS)
 # APRS on FM: position, status and message packets as AX.25 / 1200 baud AFSK through board.afsk, a KISS TNC on the host
 # port (needs APRS and FM). Off, APRS goes over DMR only and nothing of AX.25 is built
 CONFIG_APRS_AFSK ?= $(if $(and $(filter y,$(CONFIG_APRS)),$(filter y,$(CONFIG_FM))),y,n)
@@ -274,7 +276,7 @@ CONFIG_GPS_SKY ?= $(CONFIG_GPS)
 
 FEATURES := FM SUBTONE DMR DMR_PRIVACY DMR_TALKER_ALIAS DMR_GPS DMR_SMS DMR_TMS DMR_ARS DMR_LRRP DMR_SIGNALING DMR_EMERGENCY DMR_ROAMING DMR_IP_GATEWAY ZONE_SHARE DMR_UDP_COMPRESS NET_TCP NET_KISS NET_HTTP NET_HTTP_GZIP NET_WEBCTL NET_RIGCTL NET_APRSIS NET_USRP MDNS TFTP TFTP_IDDB IDDB_COMPACT DMR_CONTROL_STATION SNMP SFR SFR_DUALPATH_RX SFR_CWID TASK_STACKS \
 	USB HOSTLINK USB_NETWORK NET_PPP HOTSPOT HOTSPOT_SPLIT DEBUGLINK CPS_OPENFW CPS_FAST VFO VFO_FM VFO_DMR DIAG FONT_XL FONT_AA FONT_BIG LANG_ES LANG_IT LANG_DEFAULT_ES LANG_DEFAULT_IT UI_COLOR UI_SETTINGS SCAN DUAL_WATCH BEEP FM_TX_TONES DTMF \
-	RX_EXT VOX REF_TRIM BATTERY_SAVE VIBRATE UNITS GPS AUDIO_PROBE STUB_ENTRY NAND_STORAGE CRASH_LOG CRASH_SCREEN CRASH_REPORT WATCHDOG FAULT_TRACE AM_RX BCAST_FM APRS APRS_AFSK APRS_DMR APRS_RX APRS_IGATE GPS_SKY KEY_ASSIGN CHANNEL_LIST CHANNEL_EDIT ZONE_EDIT CONTACT_EDIT VOLUME_BAR
+	RX_EXT VOX REF_TRIM BATTERY_SAVE VIBRATE UNITS GPS AUDIO_PROBE STUB_ENTRY NAND_STORAGE CRASH_LOG CRASH_SCREEN CRASH_REPORT WATCHDOG FAULT_TRACE AM_RX BCAST_FM APRS APRS_PATHING APRS_AFSK APRS_DMR APRS_RX APRS_IGATE GPS_SKY KEY_ASSIGN CHANNEL_LIST CHANNEL_EDIT ZONE_EDIT CONTACT_EDIT VOLUME_BAR
 
 # The panel's width in pixels: the display class the board's board.toml names (hardware.gallery = "160x128", the width
 # first). Empty when it names none, which counts as a narrow panel
@@ -436,7 +438,7 @@ ifneq ($(call feature_on,CRASH_REPORT),)
     $(error CONFIG_CRASH_REPORT=y needs CONFIG_CRASH_SCREEN=y and CONFIG_DMR=y)
   endif
 endif
-$(foreach f,APRS_AFSK APRS_DMR,$(if $(and $(call feature_on,$(f)),$(if $(call feature_on,APRS),,x)),$(error CONFIG_$(f)=y needs CONFIG_APRS=y)))
+$(foreach f,APRS_PATHING APRS_AFSK APRS_DMR,$(if $(and $(call feature_on,$(f)),$(if $(call feature_on,APRS),,x)),$(error CONFIG_$(f)=y needs CONFIG_APRS=y)))
 ifneq ($(call feature_on,APRS),)
   ifeq ($(call feature_on,APRS_AFSK)$(call feature_on,APRS_DMR),)
     $(error CONFIG_APRS=y needs CONFIG_APRS_AFSK=y (with FM) or CONFIG_APRS_DMR=y (with DMR))

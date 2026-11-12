@@ -266,6 +266,9 @@
 #endif
 // APRS's two ways out (docs/spec/aprs.md 1): AX.25 / AFSK on FM with everything packet (KISS, messages, receive), and
 // position reports over DMR. CONFIG_APRS alone is the engine: the beacon triggers, the settings, the page
+#ifndef CONFIG_APRS_PATHING
+#define CONFIG_APRS_PATHING CONFIG_APRS
+#endif
 #ifndef CONFIG_APRS_AFSK
 #define CONFIG_APRS_AFSK		(CONFIG_APRS && CONFIG_FM)
 #endif

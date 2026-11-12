@@ -1107,7 +1107,7 @@ static void test_cfg_store(void)
 	aprs_cfg_t c, b;
 	aprs_get_cfg(&c);
 	c.tx_on = c.smart = c.compressed = c.after_ptt = c.boot = c.kiss = c.narrow = c.rx_on = true;
-	c.igate = c.igate_tx = c.messaging = c.dmr_udt = c.to_is = true;
+	c.decay = c.igate = c.igate_tx = c.messaging = c.dmr_udt = c.to_is = true;
 	c.region = APRS_REGION_CUSTOM;
 	c.freq_hz = 145825000;
 	c.ssid = 9;
@@ -1478,8 +1478,47 @@ static void test_rx_board_only(void)
 }
 #endif
 
+static void test_proportional(void)
+{
+	reset();
+	aprs_set_test_call("Q1TST");
+	configure(600, false);
+	aprs_cfg_t c;
+	aprs_get_cfg(&c);
+	c.path = APRS_PATH_PROPORTIONAL;
+	ui_svc_aprs_set_cfg(&c);
+	CHECK(aprs_path_to_codeplug());
+	CHECK(strcmp(cp_path[0], "WIDE1-1") == 0 && strcmp(cp_path[1], "WIDE2-1") == 0);
+	reload_settings();
+	run(100);
+	aprs_get_cfg(&c);
+	CHECK(c.path == APRS_PATH_PROPORTIONAL);
+	const char *paths[] = { ">APZRDF:", ">APZRDF,WIDE1-1:", ">APZRDF:", ">APZRDF,WIDE1-1,WIDE2-1:" };
+	for (int i = 0; i < 4; i++) {
+		CHECK(wait_start(i + 1, 65000));
+		wait_idle();
+		CHECK(nframes == i + 1 && strstr(frames[i], paths[i]) != NULL);
+	}
+	c.decay = true;
+	aprs_set_cfg(&c, now);
+	CHECK(wait_start(5, 65000));
+	wait_idle();
+	aprs_view_t v;
+	aprs_get_view(&v);
+	CHECK(v.next_s > 110 && v.next_s <= 120);
+	fixed_position(490600000, -720291667);
+	run(100);
+	aprs_get_view(&v);
+	CHECK(v.next_s <= 60);
+	reload_settings();
+	run(100);
+	aprs_get_cfg(&c);
+	CHECK(c.decay && c.path == APRS_PATH_PROPORTIONAL);
+}
+
 int main(void)
 {
+	test_proportional();
 	test_defaults();
 	test_beacon_on_air();
 	test_tx_limit();

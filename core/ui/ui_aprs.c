@@ -38,7 +38,7 @@ WEAK bool ui_svc_aprs_station(uint8_t i, aprs_station_t *out) { (void)i; (void)o
 WEAK bool ui_svc_aprs_station_find(const char *call, aprs_station_t *out) { (void)call; (void)out; return false; }
 WEAK bool ui_svc_aprs_range(const aprs_station_t *s, uint32_t *m, uint16_t *deg) { (void)s; (void)m; (void)deg; return false; }
 
-enum { AP_SEND, AP_AUTO, AP_FREQ, AP_POWER, AP_PATH, AP_INTERVAL, AP_SMART, AP_VIA, AP_KISS, AP_HEARD, AP_COUNT };
+enum { AP_SEND, AP_AUTO, AP_FREQ, AP_POWER, AP_PATH, AP_INTERVAL, AP_SMART, AP_VIA, AP_KISS, AP_HEARD, AP_DECAY, AP_COUNT };
 
 // The rows this build shows, in order: the packet rows only with the AX.25 backend (CONFIG_APRS_AFSK), "Send via"
 // only when there is a choice (both backends built)
@@ -51,10 +51,14 @@ static const uint8_t rows[] = {
 #if CONFIG_APRS_AFSK && CONFIG_APRS_DMR
 	AP_VIA,
 #endif
+#if CONFIG_APRS_PATHING
+	AP_DECAY,
+#endif
 	AP_KISS,
 #if CONFIG_APRS_AFSK
 	AP_HEARD,
 #endif
+
 };
 #define N_ROWS	((uint16_t)(sizeof(rows) / sizeof(rows[0])))
 
@@ -70,7 +74,7 @@ static const char *const interval_names[] = { TRN("Off"), TRN("1 min"), TRN("2 m
 #define N_INTERVALS	(sizeof(intervals) / sizeof(intervals[0]))
 // aprs_path_t order; the text is aprs_path_text()'s, kept here so the page builds without APRS (the simulator)
 static const char *const path_names[APRS_PATH_COUNT] = { TRN("None"), "WIDE1-1", "WIDE1-1,WIDE2-1", "WIDE2-1",
-							   "WIDE2-2" };
+							   "WIDE2-2", TRN("Proportional") };
 static const char *const via_names[] = { "AFSK", "DMR", TRN("Both") };
 static const char *const pos_names[] = { TRN("Auto"), "GPS", TRN("Computer"), TRN("Fixed") };
 static const char *const region_names[APRS_REGION_COUNT] = { TRN("N America"), TRN("Europe"), TRN("Australia"),
@@ -155,7 +159,7 @@ static void aprs_item(uint16_t i, ui_item_t *it)
 {
 	static const char *const names[] = { TRN("Send position now"), TRN("Automatic beacons"), TRN("Frequency"),
 					     TRN("Power"), TRN("Path"), TRN("Interval"), TRN("SmartBeaconing"),
-					     TRN("Send via"), TRN("KISS on USB"), TRN("Stations heard") };
+					     TRN("Send via"), TRN("KISS on USB"), TRN("Stations heard"), TRN("Decay") };
 	aprs_view_t v;
 	aprs_cfg_t c;
 	bool built = ui_svc_aprs_view(&v);
@@ -203,7 +207,20 @@ static void aprs_item(uint16_t i, ui_item_t *it)
 			sb_str(&b, tr(path_names[c.path < APRS_PATH_COUNT ? c.path : 0]));
 		}
 		break;
-	case AP_INTERVAL: sb_str(&b, tr(interval_names[interval_index(c.interval_s)])); break;
+	case AP_INTERVAL:
+	case AP_DECAY:
+		if (c.smart) {
+			it->flags |= UI_ITEM_DIM;
+			sb_str(&b, TR("Smart on"));
+		} else if (i == AP_INTERVAL && CONFIG_APRS_PATHING && c.path == APRS_PATH_PROPORTIONAL) {
+			it->flags |= UI_ITEM_DIM;
+			sb_str(&b, TR("Path: 1 min"));
+		} else if (i == AP_DECAY) {
+			sb_str(&b, c.decay ? TR("On") : TR("Off"));
+		} else {
+			sb_str(&b, tr(interval_names[interval_index(c.interval_s)]));
+		}
+		break;
 	case AP_SMART: sb_str(&b, c.smart ? TR("On") : TR("Off")); break;
 	case AP_VIA: sb_str(&b, tr(via_names[c.via < APRS_VIA_COUNT ? c.via : 0])); break;
 	case AP_KISS: sb_str(&b, c.kiss ? TR("On") : TR("Off")); break;
@@ -259,9 +276,24 @@ static void aprs_select(uint16_t i, bool hold)
 		if (!rf_send()) {
 			return;
 		}
-		c.path = (uint8_t)((c.path + 1u) % APRS_PATH_COUNT);	// none, then more hops; WIDE2-2 wraps to none
+		c.path = (uint8_t)((c.path + 1u) % (CONFIG_APRS_PATHING ? APRS_PATH_COUNT : APRS_PATH_PROPORTIONAL));	// the local proportional policy follows the literal paths
 		break;
-	case AP_INTERVAL: c.interval_s = intervals[(interval_index(c.interval_s) + 1u) % N_INTERVALS]; break;
+	case AP_INTERVAL:
+	case AP_DECAY:
+		if (c.smart) {
+			ui_toast(TR("SmartBeaconing sets timing"));
+			return;
+		}
+		if (rows[i] == AP_INTERVAL) {
+			if (CONFIG_APRS_PATHING && c.path == APRS_PATH_PROPORTIONAL) {
+				ui_toast(TR("Path uses one-minute slots"));
+				return;
+			}
+			c.interval_s = intervals[(interval_index(c.interval_s) + 1u) % N_INTERVALS];
+		} else {
+			c.decay = !c.decay;
+		}
+		break;
 	case AP_SMART: c.smart = !c.smart; break;
 	case AP_VIA: c.via = (uint8_t)((c.via + 1u) % APRS_VIA_COUNT); break;
 	case AP_KISS: c.kiss = !c.kiss; break;
