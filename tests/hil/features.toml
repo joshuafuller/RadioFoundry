@@ -478,3 +478,8 @@ source = ["tools/rfoundry/rfoundry"]
 [feature.audio_probe]
 switch = "AUDIO_PROBE"
 spec = "docs/spec/usb-audio.md"
+
+[feature.units]
+switch = "UNITS"
+spec = "docs/spec/aprs.md"
+source = ["core/ui/fmt.c", "core/ui/ui_svc_storage.c", "core/settings/settings.h"]

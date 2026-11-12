@@ -209,15 +209,13 @@ static void draw_status(const ui_position_t *p, int y)
 		}
 		if (p->alt_ok) {
 			sb_init(&b, buf, sizeof buf);
-			sb_i32(&b, p->alt_m);
-			sb_str(&b, " m");
+			sb_altitude(&b, p->alt_m);
 			if (!row(&y, TR("Alt"), buf, ui_col.fg))
 				return;
 		}
 		if (p->speed_kmh != 0xFFFFu) {
 			sb_init(&b, buf, sizeof buf);
-			sb_u32(&b, p->speed_kmh, 1);
-			sb_str(&b, " km/h");
+			sb_speed(&b, (uint32_t)p->speed_kmh * 1000u);
 			if (p->course != 0xFFFFu) {
 				sb_chr(&b, ' ');
 				sb_compass(&b, p->course);

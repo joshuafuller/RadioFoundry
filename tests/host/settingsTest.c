@@ -134,6 +134,7 @@ static void test_settings_basic(void)
 	settings_get_stats(&st);
 	CHECK(st.load == SETTINGS_DEFAULTS && st.seq == 0);
 	settings_read(&s);
+	CHECK(s.units == 0);
 	CHECK(s.brightness == 100 && s.squelch == SETTINGS_UNSET8 && s.beeps == 1);
 	CHECK((s.accent & SETTINGS_AUDIO_MASK) == 0);	// noise reduction on, AGC off (a record from before them: also 0)
 	// Zone shares accepted by default, and by a record that stored the old Off (0) or Ask (1); only 2 turns them off
@@ -144,6 +145,7 @@ static void test_settings_basic(void)
 	CHECK(!settings_zs_accept(&s));
 
 	settings_t *w = settings_begin();
+	w->units = 1;
 	w->vfo_rx_hz = 146520000;
 	w->squelch = 3;
 	strcpy(w->radio_name, "Q0TEST");
@@ -171,6 +173,7 @@ static void test_settings_basic(void)
 	boot();
 	settings_get_stats(&st);
 	settings_read(&s);
+	CHECK(s.units == 1);
 	CHECK(st.load == SETTINGS_LOADED && st.seq == 2);
 	CHECK(s.vfo_rx_hz == 146520000 && s.squelch == 4 && strcmp(s.radio_name, "Q0TEST") == 0);
 	CHECK(s.accent == (SETTINGS_AUDIO_NO_NOISE_REDUCTION | SETTINGS_AUDIO_AGC | 3u));

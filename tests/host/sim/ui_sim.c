@@ -2188,6 +2188,7 @@ void sim_reset(const sim_geom_t *g, sim_map_t map)
 	hwopt_val[1] = 0;
 	ui_svc_setting_set(UI_SET_VOLUME, RADIO_VOLUME_DEFAULT);
 	ui_svc_setting_set(UI_SET_HINTS, 1);
+	ui_svc_setting_set(UI_SET_UNITS, 0);
 	ui_svc_setting_set(UI_SET_LARGE_TEXT, 0);
 	ui_svc_setting_set(UI_SET_BRIGHTNESS, 100);
 	ui_svc_setting_set(UI_SET_TOT_S, 180);

@@ -222,6 +222,9 @@
 #ifndef CONFIG_VIBRATE
 #define CONFIG_VIBRATE			1
 #endif
+#ifndef CONFIG_UNITS
+#define CONFIG_UNITS 1
+#endif
 #ifndef CONFIG_GPS
 #define CONFIG_GPS			1
 #endif

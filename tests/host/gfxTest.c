@@ -497,11 +497,11 @@ int main(void)
 	CHECK(strcmp(age, "30s ago") == 0);
 
 	// Ranges (sb_range, Stations heard and DMR GPS Info), BVA at each unit and rounding step and the compass's edges.
-	// 99950 m and up print 100.0 km: the 0.1 km rounding runs past the step to whole km (as before)
+	ui_svc_setting_set(UI_SET_UNITS, 1);
 	static const struct { uint32_t m; uint16_t deg; const char *want; } ranges[] = {
 		{ 0, 0, "0 m N" }, { 1, 0, "1 m N" }, { 999, 0, "999 m N" }, { 1000, 0, "1.0 km N" },
 		{ 1049, 0, "1.0 km N" }, { 1050, 0, "1.1 km N" }, { 9949, 0, "9.9 km N" }, { 9950, 0, "10.0 km N" },
-		{ 99949, 0, "99.9 km N" }, { 99950, 0, "100.0 km N" }, { 99999, 0, "100.0 km N" },
+		{ 99949, 0, "99.9 km N" }, { 99950, 0, "100 km N" }, { 99999, 0, "100 km N" },
 		{ 100000, 0, "100 km N" }, { 100499, 0, "100 km N" }, { 100500, 0, "101 km N" },
 		{ 20015087, 0, "20015 km N" },
 		{ 5, 22, "5 m N" }, { 5, 23, "5 m NE" }, { 5, 67, "5 m NE" }, { 5, 68, "5 m E" }, { 5, 90, "5 m E" },
@@ -513,6 +513,47 @@ int main(void)
 		sb_range(&b, ranges[i].m, ranges[i].deg);
 		CHECK(strcmp(age, ranges[i].want) == 0);
 	}
+
+	static const struct { uint32_t m; const char *want; } us_ranges[] = {
+		{ 0, "0 ft N" }, { 1, "3 ft N" }, { 2, "7 ft N" },
+		{ 1609, "5279 ft N" }, { 1610, "1.0 mi N" },
+		{ 1689, "1.0 mi N" }, { 1690, "1.1 mi N" },
+		{ 160853, "99.9 mi N" }, { 160854, "100 mi N" },
+		{ 161739, "100 mi N" }, { 161740, "101 mi N" },
+	};
+	ui_svc_setting_set(UI_SET_UNITS, 0);
+	for (size_t i = 0; i < sizeof us_ranges / sizeof us_ranges[0]; i++) {
+		sb_init(&b, age, sizeof age);
+		sb_range(&b, us_ranges[i].m, 0);
+		CHECK(strcmp(age, us_ranges[i].want) == 0);
+	}
+#define QUANTITY(fn, value, want) do { sb_init(&b, age, sizeof age); fn(&b, value); \
+	CHECK(strcmp(age, want) == 0); CHECK(gfx_text_width(&font_6x12, age) <= 120); } while (0)
+	QUANTITY(sb_speed, 804, "0 mph");
+	QUANTITY(sb_speed, 805, "1 mph");
+	QUANTITY(sb_speed, 18520, "12 mph");
+	QUANTITY(sb_altitude, -100, "-328 ft");
+	QUANTITY(sb_altitude, 2, "7 ft");
+	QUANTITY(sb_temperature, 0, "32" GLYPH_DEGREE "F");
+	QUANTITY(sb_temperature, -400, "-40" GLYPH_DEGREE "F");
+	QUANTITY(sb_temperature, -185, "-1" GLYPH_DEGREE "F");
+	QUANTITY(sb_rain, 1, "0.01 in");
+	QUANTITY(sb_rain, 100, "1.00 in");
+	QUANTITY(sb_pressure, 10132, "29.92 inHg");
+	ui_svc_setting_set(UI_SET_UNITS, 1);
+	QUANTITY(sb_speed, 499, "0 km/h");
+	QUANTITY(sb_speed, 500, "1 km/h");
+	QUANTITY(sb_speed, 18520, "19 km/h");
+	QUANTITY(sb_altitude, -100, "-100 m");
+	QUANTITY(sb_temperature, -4, "0" GLYPH_DEGREE "C");
+	QUANTITY(sb_temperature, -5, "-1" GLYPH_DEGREE "C");
+	QUANTITY(sb_temperature, 5, "1" GLYPH_DEGREE "C");
+	QUANTITY(sb_rain, 1, "0.3 mm");
+	QUANTITY(sb_rain, 100, "25.4 mm");
+	QUANTITY(sb_pressure, 10134, "1013 hPa");
+	QUANTITY(sb_pressure, 10135, "1014 hPa");
+	ui_svc_setting_set(UI_SET_UNITS, 0);
+#undef QUANTITY
 
 	// 160x120 color
 	ui_layout_init();

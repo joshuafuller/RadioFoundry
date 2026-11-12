@@ -141,6 +141,7 @@ is `tools/bringup.py list --radio <id>`.
 | `nand_storage` | ✕ | ✕ | ✕ | not recorded | ✕ | ✕ | ✕ |
 | `codec_check` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | pass, needs re-run |
 | `audio_probe` | not written | off | not written | not written | not written | off | off |
+| `units` | not recorded | not recorded | not recorded | not recorded | off | not recorded | not recorded |
 <!-- end generated -->
 
 What the records don't hold yet: limits and known problems from the bring-up pages.
@@ -236,6 +237,7 @@ clock`; ? = not known yet). No driver reads the clock yet ([radio-features.md](s
 | `REF_TRIM` | ● | ● | ● | ● | ● | ● | ● |
 | `BATTERY_SAVE` | ● | ● | ● | ● | ● | ● | ● |
 | `VIBRATE` | ? | ✕ | ● | ✕ | ✕ | ✕ | ✕ |
+| `UNITS` | ● | ● | ● | ● | ○ | ● | ● |
 | `GPS` | ● | ● | ✕ | ● | ● | ● | ● |
 | `AUDIO_PROBE` | … | ○ | … | … | … | ○ | ○ |
 | `STUB_ENTRY` | ● | ● | ● | ● | ● | ● | ● |
@@ -446,3 +448,5 @@ iGate, USB, broadcast FM, air band AM, `FONT_XL`, `AUDIO_PROBE` (`boards/db25d/c
 |---|---:|---:|---:|
 | DMR only (hotspot, VFO and network off) | 295,460 | 139,952 (25,472 free) | 19,024 (33,888 free) |
 | default (hotspot, PPP, gateway, every service but USRP, 3 TCP connections; no split duplex) | 362,364 | 150,080 (15,344 free) | 28,584 (24,328 free) |
+
+`CONFIG_UNITS` adds a radio-wide US/Metric display preference; see [display units](spec/aprs.md#display-units).

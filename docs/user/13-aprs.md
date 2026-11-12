@@ -165,3 +165,22 @@ In USB network mode the radio does both without the helper. APRS programs connec
 port 8001 directly ([Services on the radio](15-usb-network.md#services-on-the-radio)). The radio logs in to an
 APRS-IS server itself ([APRS-IS from the radio](15-usb-network.md#aprs-is-from-the-radio)). KISS on USB must be on
 for both.
+
+## Display units
+
+Settings > Display > Units selects **US** (default) or **Metric** for the whole radio. It is saved with the
+other settings and applies immediately to APRS, GPS and caller distances. Internal values and transmitted
+packets do not change. Builds without `CONFIG_UNITS` retain metric displays and omit the setting.
+
+| Quantity | US | Metric |
+|---|---|---|
+| Distance | ft below one mile, then mi | m below one kilometer, then km |
+| Speed | mph | km/h |
+| Altitude | ft | m |
+| Temperature | °F | °C |
+| Rain | in, two decimals | mm, one decimal |
+| Pressure | inHg, two decimals | hPa |
+
+Distance uses one decimal below 100 mi/km and whole units above, switching to whole units when rounding
+would reach 100. Other values round to the nearest displayed unit; exact halves round away from zero.
+Weather formatters are shared helpers; this base does not yet display received weather fields.

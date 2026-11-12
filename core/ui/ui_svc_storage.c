@@ -221,6 +221,11 @@ int32_t ui_svc_setting_get(uint8_t id)
 	case UI_SET_POS_SEND_S:
 		settings_read(&st);
 		return st.pos_send_s;
+#if CONFIG_UNITS
+	case UI_SET_UNITS:
+		settings_read(&st);
+		return st.units == 1;
+#endif
 	case UI_SET_LANGUAGE:
 		settings_read(&st);
 		return (int32_t)((uint8_t)st.lang[0] << 8 | (uint8_t)st.lang[1]);
@@ -476,6 +481,15 @@ bool ui_svc_setting_set(uint8_t id, int32_t value)
 		}
 		settings_end(hal_millis());
 		return true;
+#if CONFIG_UNITS
+	case UI_SET_UNITS:
+		if (value != 0 && value != 1)
+			return false;
+		st = settings_begin();
+		st->units = (uint8_t)value;
+		settings_end(hal_millis());
+		return true;
+#endif
 	case UI_SET_LANGUAGE:
 		if (value < 0 || value > 0xFFFF)
 			return false;
