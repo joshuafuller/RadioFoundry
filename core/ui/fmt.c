@@ -279,7 +279,7 @@ void sb_rain(sbuf_t *b, uint32_t hundredths_inch)
 	sb_str(b, si ? " mm" : " in");
 }
 
-void sb_pressure(sbuf_t *b, uint16_t hpa10)
+void sb_pressure(sbuf_t *b, uint32_t hpa10)
 {
 	bool si = fmt_metric();
 	if (si)

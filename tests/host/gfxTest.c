@@ -540,6 +540,7 @@ int main(void)
 	QUANTITY(sb_rain, 1, "0.01 in");
 	QUANTITY(sb_rain, 100, "1.00 in");
 	QUANTITY(sb_pressure, 10132, "29.92 inHg");
+	QUANTITY(sb_pressure, 99999, "295.30 inHg");
 	ui_svc_setting_set(UI_SET_UNITS, 1);
 	QUANTITY(sb_speed, 499, "0 km/h");
 	QUANTITY(sb_speed, 500, "1 km/h");
@@ -552,6 +553,7 @@ int main(void)
 	QUANTITY(sb_rain, 100, "25.4 mm");
 	QUANTITY(sb_pressure, 10134, "1013 hPa");
 	QUANTITY(sb_pressure, 10135, "1014 hPa");
+	QUANTITY(sb_pressure, 99999, "10000 hPa");
 	ui_svc_setting_set(UI_SET_UNITS, 0);
 #undef QUANTITY
 

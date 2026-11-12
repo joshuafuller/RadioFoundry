@@ -241,7 +241,7 @@ packets do not change. Builds without `CONFIG_UNITS` retain metric displays and 
 
 Distance uses one decimal below 100 mi/km and whole units above, switching to whole units when rounding
 would reach 100. Other values round to the nearest displayed unit; exact halves round away from zero.
-Weather formatters are shared helpers; this base does not yet display received weather fields.
+Received weather uses these same display units.
 
 ## Home status and the APRS hub
 
@@ -258,9 +258,25 @@ Open **Tools > APRS** for the hub:
 |---|---|
 | 1 | Stations: count and new stations since your last visit |
 | 2 | Messages: unread count; opens the shared inbox |
-| 3 | Weather: reserved row |
+| 3 | Weather: received reports (when enabled) |
 | 4 | Send position now |
 | 5 | My beacon: review identity, frequency, position and symbol |
 
 The existing beacon settings follow these rows. Keys 1-9 and 0 pick the first ten rows; use Up / Down and OK for
 later rows. Builds without this feature keep the compact APRS settings page.
+
+## Weather
+
+Open **Tools > APRS > Weather** to see received weather stations. The list starts with the newest report.
+Select **Sort** to switch to nearest first. Nearest needs your position and the station's position; reports
+without a known distance follow the others. With no position of your own, the list stays newest first.
+Reopen Weather or change Sort to refresh its station list.
+
+Select a station to read temperature, wind, gust and report age, then scroll to rain for the last hour,
+last 24 hours and since midnight, humidity, pressure and luminosity. Units follow Settings > Display > Units; US is the default. Luminosity is shown in W/m².
+**Unknown** means the report did not provide that measurement. A reported zero is shown as zero.
+Report age is how long ago your radio received the weather, not the age of the station's observation.
+
+Reports stay in a small memory table until replaced or the radio restarts. A new report replaces that station's
+old measurements; missing fields do not keep older values. Weather appears only in builds with weather receive
+support enabled.

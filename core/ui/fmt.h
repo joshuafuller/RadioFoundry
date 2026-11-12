@@ -47,7 +47,7 @@ void sb_speed(sbuf_t *b, uint32_t meters_per_hour);
 void sb_altitude(sbuf_t *b, int32_t meters);
 void sb_temperature(sbuf_t *b, int16_t celsius10);
 void sb_rain(sbuf_t *b, uint32_t hundredths_inch);
-void sb_pressure(sbuf_t *b, uint16_t hpa10);
+void sb_pressure(sbuf_t *b, uint32_t hpa10);
 // A distance and a compass point: "850 m NE", "12.3 km S", "240 km W"
 void sb_range(sbuf_t *b, uint32_t meters, uint16_t bearing);
 

@@ -1450,6 +1450,64 @@ static void test_parse_fuzz(void)
 	printf("# aprs fuzz: %ld frames, %ld decoded, %ld parsed\n", iters, decoded, parsed);
 }
 
+
+#if CONFIG_APRS_WX
+static void test_weather(void)
+{
+	// APRS101 chapter 12, pp. 64-66; the remaining fixtures exercise wire boundaries.
+	static const struct { const char *text; int temp; unsigned dir, wind, rain, humidity; uint32_t pressure; } cases[] = {
+		{ "!4903.50N/07201.75W_220/004g005t077r000p000P000h50b09900wRSW", 77, 220, 4, 0, 50, 9900 },
+		{ "@092345z4903.50N/07201.75W_220/004g005t-07r000p000P000h50b09900wRSW", -7, 220, 4, 0, 50, 9900 },
+		{ "_10090556c...s...g...t...P012Jim", APRS_WX_TEMP_UNKNOWN, 65535, 65535, 65535, 65535, UINT32_MAX },
+		{ "_10090556c360s000g999t-99r999p001P012h00b99999L999", -99, 360, 0, 999, 100, 99999 },
+		{ "_10090556c361s999g000t999r000h01b00000l999", 999, 65535, 999, 0, 1, 0 },
+		{ "!4903.50N/07201.75W_.../...g   t   r...h..b.....", APRS_WX_TEMP_UNKNOWN, 65535, 65535, 65535, 65535, UINT32_MAX },
+		{ "_10090556t000", 0, 65535, 65535, 65535, 65535, UINT32_MAX },
+		{ "_10090556t-0", APRS_WX_TEMP_UNKNOWN, 65535, 65535, 65535, 65535, UINT32_MAX },
+	};
+	ax25_addr_t dst = addr("APRS");
+	aprs_parsed_t p;
+	for (size_t i = 0; i < sizeof cases / sizeof cases[0]; i++) {
+		aprs_parse(&dst, (const uint8_t *)cases[i].text, strlen(cases[i].text), &p);
+		CHECK(p.has_wx && p.type == APRS_T_WEATHER, "weather type %zu", i);
+		CHECK(p.wx.temp_f == cases[i].temp && p.wx.wind_dir == cases[i].dir && p.wx.wind_mph == cases[i].wind,
+		      "weather wind/temp %zu", i);
+		CHECK(p.wx.rain_hour == cases[i].rain && p.wx.humidity == cases[i].humidity && p.wx.pressure == cases[i].pressure,
+		      "weather rain/humidity/pressure %zu", i);
+		CHECK(!p.has_pos || (p.pos.speed_kn == APRS_SPEED_NONE && p.pos.course == APRS_COURSE_NONE), "wind is not motion");
+		// Every truncated prefix is safe, including truncated numeric fields.
+		for (size_t n = 0; n < strlen(cases[i].text); n++) aprs_parse(&dst, (const uint8_t *)cases[i].text, n, &p);
+	}
+	const char *full = "_10090556c000s001g005t010P012p034r056h00b10132l123";
+	aprs_parse(&dst, (const uint8_t *)full, strlen(full), &p);
+	CHECK(p.wx.gust_mph == 5 && p.wx.rain_midnight == 12 && p.wx.rain_day == 34 && p.wx.rain_hour == 56 &&
+	      p.wx.luminosity == 1123 && p.wx.wind_dir == 0, "all weather fields, reordered rain");
+	aprs_wx_parse("L000", 4, false, &p.wx);
+	CHECK(p.wx.luminosity == 0, "zero luminosity");
+	aprs_wx_parse("L999", 4, false, &p.wx);
+	CHECK(p.wx.luminosity == 999, "low luminosity boundary");
+	aprs_wx_parse("l000", 4, false, &p.wx);
+	CHECK(p.wx.luminosity == 1000, "high luminosity boundary");
+	aprs_wx_parse("wRSWt099", 8, false, &p.wx);
+	CHECK(p.wx.temp_f == APRS_WX_TEMP_UNKNOWN, "do not parse a suffix as weather");
+	aprs_wx_parse("220/004s1.5h50", strlen("220/004s1.5h50"), true, &p.wx);
+	CHECK(p.wx.wind_mph == 4 && p.wx.humidity == 50, "positioned snow is not wind speed");
+	const char *compressed = "@092345z/5L!!<*e7_7P[g005t077r000p000P000h50b09900wRSW";
+	aprs_parse(&dst, (const uint8_t *)compressed, strlen(compressed), &p);
+	CHECK(p.has_wx && p.has_pos && p.wx.wind_dir == 88 && p.wx.wind_mph == 41 && p.wx.temp_f == 77,
+	      "compressed weather wind (36 knots to 41 mph)");
+	aprs_parse(&dst, (const uint8_t *)"_bad", 4, &p);
+	CHECK(!p.has_wx, "short positionless timestamp");
+	// Fuzz a weather body directly, rather than relying on random bytes to hit a valid header.
+	for (unsigned i = 0; i < 2000; i++) {
+		char raw[80];
+		for (size_t j = 0; j < sizeof raw; j++) raw[j] = (char)(rand() & 127);
+		aprs_wx_parse(raw, i % sizeof raw, (i & 1u) != 0, &p.wx);
+		CHECK(p.wx.wind_dir <= 360 || p.wx.wind_dir == APRS_WX_UNKNOWN, "weather fuzz direction");
+	}
+}
+#endif
+
 int main(int argc, char **argv)
 {
 	if (argc == 2 && strcmp(argv[1], "--sweep") == 0) {
@@ -1472,6 +1530,9 @@ int main(int argc, char **argv)
 	if (argc == 3 && strcmp(argv[1], "--wav") == 0) {
 		return write_wav(argv[2]);
 	}
+	#if CONFIG_APRS_WX
+	test_weather();
+	#endif
 	test_fcs();
 	test_addresses();
 	test_hdlc();

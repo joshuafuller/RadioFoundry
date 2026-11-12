@@ -53,6 +53,10 @@ bool ui_svc_aprs_send_message(const char *to, const char *text, uint8_t flags)
 	return aprs_send_message_opts(to, text, flags);
 }
 
+#if CONFIG_APRS_WX
+uint8_t ui_svc_aprs_wx_count(void) { return aprs_wx_count(); }
+bool ui_svc_aprs_wx_station(uint8_t i, aprs_wx_station_t *out) { return aprs_wx_station(i, out); }
+#endif
 #if CONFIG_APRS_RX
 uint8_t ui_svc_aprs_packet_count(void) { return aprs_packet_count(); }
 bool ui_svc_aprs_packet(uint8_t i, aprs_packet_t *out) { return aprs_packet(i, out); }

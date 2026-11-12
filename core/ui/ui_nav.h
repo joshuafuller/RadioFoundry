@@ -40,6 +40,8 @@ typedef enum {
 #if CONFIG_APRS_RX
 	SCR_APRS_PACKETS, SCR_APRS_PACKET,
 #endif
+
+	SCR_APRS_WEATHER, SCR_APRS_WEATHER_DETAIL,
 	SCR_APRS_STATION,		// a heard station's actions
 	SCR_APRS_FILTER,		// station display filter
 	SCR_APRS_RADAR,

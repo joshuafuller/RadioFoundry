@@ -15,6 +15,11 @@ void ui_svc_aprs_home(aprs_home_t *h);
 void ui_aprs_status(char *out, size_t len, bool second);
 #endif
 
+#if CONFIG_APRS_WX
+uint8_t ui_svc_aprs_wx_count(void);
+bool ui_svc_aprs_wx_station(uint8_t i, aprs_wx_station_t *out);
+#endif
+
 // False when APRS isn't in this build
 bool ui_svc_aprs_view(aprs_view_t *v);
 void ui_svc_aprs_cfg(aprs_cfg_t *c);

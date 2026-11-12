@@ -87,6 +87,11 @@ typedef struct {
 #endif
 } aprs_state_t;
 
+#if CONFIG_APRS_WX
+// Startup, then receive with the engine lock held. Storage stays in ordinary main RAM.
+void aprs_wx_reset(void);
+void aprs_wx_receive(const aprs_station_t *s, const aprs_wx_t *wx);
+#endif
 extern aprs_state_t aprs_s;
 extern void (*aprs_lock_fn)(void);
 extern void (*aprs_unlock_fn)(void);

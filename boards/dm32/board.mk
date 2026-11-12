@@ -12,5 +12,7 @@ BOARD_DIRS := boards/dm32 drivers/rf/rfbus drivers/rf/fd6818 drivers/rf/subaudio
 	drivers/bcast/rda5807m drivers/bus/i2c_gpio
 # The 240x320 panel at full resolution in 16 colors (display_dm32.c): the frame buffer is 37.5 KB (2.5 KB under the
 # 40 KB default) and has 320 rows
-# Keep the combined APRS UI and Home state below the codec RAM window.
-MCU_DEFS   += -DAPRS_RECENT_PACKETS=6 -DGFX_INDEXED=1 -DGFX_FB_BYTES=38400u -DGFX_MAX_ROWS=320u
+# Keep the combined APRS UI, weather and Home state below the codec RAM window.
+MCU_DEFS   += -DAPRS_RECENT_PACKETS=4 -DGFX_INDEXED=1 -DGFX_FB_BYTES=38400u -DGFX_MAX_ROWS=320u
+
+MCU_DEFS += -DAPRS_WX_STATIONS=4

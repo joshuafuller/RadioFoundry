@@ -546,6 +546,23 @@ bool ui_svc_aprs_station_find(const char *call, aprs_station_t *out)
 	}
 	return false;
 }
+
+#if CONFIG_APRS_WX
+uint8_t ui_svc_aprs_wx_count(void) { return ui_svc_aprs_station_count(); }
+bool ui_svc_aprs_wx_station(uint8_t i, aprs_wx_station_t *out)
+{
+	aprs_station_t s;
+	if (!ui_svc_aprs_station(i, &s)) return false;
+	*out = (aprs_wx_station_t) {
+		.heard_ms = s.heard_ms, .has_pos = s.has_pos, .lat = s.lat, .lon = s.lon,
+		.wx = { .temp_f = -7, .wind_dir = 360, .wind_mph = 8, .gust_mph = 15,
+			.rain_hour = 2, .rain_day = 10, .rain_midnight = 0, .humidity = 64, .pressure = 10132,
+			.luminosity = APRS_WX_UNKNOWN },
+	};
+	memcpy(out->call, s.call, sizeof out->call);
+	return true;
+}
+#endif
 // The engine's range for station 0 from our position (the sim has no aprs_fmt.c: the figures, not the math)
 bool ui_svc_aprs_range(const aprs_station_t *s, uint32_t *m, uint16_t *deg)
 {

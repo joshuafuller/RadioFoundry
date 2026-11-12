@@ -693,13 +693,13 @@ msgstr "Pacchetti recenti"
 msgid "Messages"
 msgstr "Messaggi"
 
-#: core/ui/ui_aprs.c core/ui/ui_aprs_list.c
-msgid "Weather"
-msgstr "Meteo"
-
 #: core/ui/ui_aprs.c
 msgid "My beacon"
 msgstr "Il mio beacon"
+
+#: core/ui/ui_aprs.c core/ui/ui_aprs_list.c core/ui/ui_aprs_wx.c
+msgid "Weather"
+msgstr "Meteo"
 
 #: core/ui/ui_aprs.c
 msgid "NMEA on USB"
@@ -817,7 +817,7 @@ msgstr "Rotta"
 msgid "Packets"
 msgstr "Pacchetti"
 
-#: core/ui/ui_aprs.c core/ui/ui_aprs_list.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_list.c core/ui/ui_aprs_wx.c
 msgid "OK choose  Back"
 msgstr "OK scegli  Indietro"
 
@@ -1003,7 +1003,7 @@ msgstr "Non ascolta: ricevitore occupato"
 msgid "Recent"
 msgstr "Recenti"
 
-#: core/ui/ui_aprs_list.c
+#: core/ui/ui_aprs_list.c core/ui/ui_aprs_wx.c
 msgid "Nearest"
 msgstr "Più vicini"
 
@@ -1074,6 +1074,70 @@ msgstr "Impostazioni > Posizione"
 #: core/ui/ui_aprs_radar.c core/ui/ui_gps.c
 msgid "No positions yet"
 msgstr "Ancora nessuna posizione"
+
+#: core/ui/ui_aprs_wx.c
+msgid "No weather reports"
+msgstr "Nessun rapporto meteo"
+
+#: core/ui/ui_aprs_wx.c
+msgid "Sort"
+msgstr "Ordine"
+
+#: core/ui/ui_aprs_wx.c
+msgid "Newest"
+msgstr "Più recenti"
+
+#: core/ui/ui_aprs_wx.c
+msgid "Temperature"
+msgstr "Temperatura"
+
+#: core/ui/ui_aprs_wx.c
+msgid "Wind"
+msgstr "Vento"
+
+#: core/ui/ui_aprs_wx.c
+msgid "Wind from"
+msgstr "Vento da"
+
+#: core/ui/ui_aprs_wx.c
+msgid "Gust"
+msgstr "Raffica"
+
+#: core/ui/ui_aprs_wx.c
+msgid "Report age"
+msgstr "Età rapporto"
+
+#: core/ui/ui_aprs_wx.c
+msgid "Rain last hour"
+msgstr "Pioggia ultima ora"
+
+#: core/ui/ui_aprs_wx.c
+msgid "Rain last 24h"
+msgstr "Pioggia ultime 24h"
+
+#: core/ui/ui_aprs_wx.c
+msgid "Rain since midnight"
+msgstr "Pioggia da mezzanotte"
+
+#: core/ui/ui_aprs_wx.c
+msgid "Humidity"
+msgstr "Umidità"
+
+#: core/ui/ui_aprs_wx.c
+msgid "Pressure"
+msgstr "Pressione"
+
+#: core/ui/ui_aprs_wx.c
+msgid "Luminosity"
+msgstr "Luminosità"
+
+#: core/ui/ui_aprs_wx.c
+msgid "Unknown"
+msgstr "Sconosciuto"
+
+#: core/ui/ui_aprs_wx.c
+msgid "Up/Down scroll  Back"
+msgstr "Su/Giù scorri  Indietro"
 
 #: core/ui/ui_dual.c core/ui/ui_screens.c
 msgid "No tone"

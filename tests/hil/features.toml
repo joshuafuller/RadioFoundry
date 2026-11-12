@@ -247,6 +247,11 @@ hardware = "a color display"
 spec = "docs/spec/aprs.md"
 source = ["core/ui/ui_aprs_radar.c"]
 
+[feature.aprs_wx]
+switch = "APRS_WX"
+spec = "docs/spec/aprs.md"
+source = ["core/aprs/aprs_wx.c", "core/aprs/aprs_wx_store.c", "core/ui/ui_aprs_wx.c"]
+
 [feature.aprs_igate]
 switch = "APRS_IGATE"
 spec = "docs/spec/aprs.md"

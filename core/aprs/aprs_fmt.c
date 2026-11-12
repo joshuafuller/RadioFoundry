@@ -403,6 +403,19 @@ static bool parse_position(const char *s, size_t n, aprs_parsed_t *p)
 	} else {
 		return false;
 	}
+#if CONFIG_APRS_WX
+	if (q->sym_code == '_') {
+		p->has_wx = true;
+		aprs_wx_parse(s + used, n - used, true, &p->wx);
+		if (used == 13 && q->speed_kn != APRS_SPEED_NONE) {
+			p->wx.wind_dir = (uint16_t)((s[10] - 33) * 4);
+			// Compressed wind uses knots; ordinary weather fields use mph (APRS101 ch. 9, 12).
+			p->wx.wind_mph = (uint16_t)(((uint32_t)q->speed_kn * 115078u + 50000u) / 100000u);
+		}
+		q->course = APRS_COURSE_NONE;
+		q->speed_kn = APRS_SPEED_NONE;
+	}
+#endif
 	p->has_pos = true;
 	p->text = s + used;
 	p->text_len = (uint16_t)(n - used);
@@ -657,6 +670,18 @@ bool aprs_parse(const ax25_addr_t *dst, const uint8_t *info, size_t n, aprs_pars
 		break;
 	case '_':
 		p->type = APRS_T_WEATHER;
+#if CONFIG_APRS_WX
+		if (n >= 9) {
+			bool stamp = true;
+			for (size_t i = 1; i < 9; i++) {
+				stamp = stamp && digit(s[i]);
+			}
+			if (stamp) {
+				p->has_wx = true;
+				aprs_wx_parse(s + 9, n - 9, false, &p->wx);
+			}
+		}
+#endif
 		break;
 	case 'T':
 		p->type = APRS_T_TELEMETRY;

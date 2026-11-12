@@ -571,7 +571,7 @@ static const flow_t flows[] = {
 	{ "S message failed text", "", "", "screen=home", 0, false },
 	// APRS (docs/spec/aprs.md 10): Tools 9, one row each
 	{ "A hub Messages", "", "ok 6 8 2", "screen=messages", 4, false },
-	{ "A hub Weather placeholder", "", "ok 6 8 3", "screen=aprs focus=Weather", 4, false },
+	{ "A hub Weather", "", "ok 6 8 3", "screen=aprs-weather", 4, false },
 	{ "A My beacon review", "", "ok 6 8 5", "screen=aprs-beacon shows=Q0SIM-7", 4, false },
 	{ "A Home line off", "", "", "hides=APRS_listening", 0, false },
 	{ "A Stations visit clears new", "ok 6 8 1", "back", "shows=0_new", 1, false },
@@ -1379,6 +1379,38 @@ static void heard_checks(void)
 }
 
 // Detail rows remain reachable on the smallest panel; only Message opens another screen.
+
+#if CONFIG_APRS_WX
+static void weather_checks(void)
+{
+	static const char *const scripts[] = {
+		"wait:600000 ok 6 8 3 expect:screen=aprs-weather expect:shows=Newest down ok "
+		"expect:screen=aprs-weather-detail expect:shows=-7 down expect:shows=8_mph "
+		"down expect:shows=N down expect:shows=15_mph down expect:shows=1m "
+		"down expect:shows=0.02_in down expect:shows=0.10_in down expect:shows=0.00_in "
+		"down expect:shows=64% down expect:shows=29.92_inHg down expect:shows=Unknown",
+		"aprs:reorder ok 6 8 3 ok expect:shows=Nearest down ok expect:shows=Q4WABC-15",
+		"aprs:nopos ok 6 8 3 ok down ok expect:screen=aprs-weather-detail",
+		"ok 6 8 3 down aprs:reorder ok expect:shows=Q4WABC-15 "
+		"aprs:evict down expect:shows=Unknown",
+		"aprs:evict ok 6 8 3 expect:screen=aprs-weather expect:shows=No_weather_reports",
+		"ok 7 2 up up up ok long:back ok 6 8 3 down ok expect:shows=-22 "
+		"down expect:shows=13_km/h down down expect:shows=24_km/h down down expect:shows=0.5_mm "
+		"down down down down expect:shows=1013_hPa",
+	};
+	char err[300];
+	for (int g = 0; g < sim_geom_count; g++) {
+		for (size_t i = 0; i < sizeof scripts / sizeof scripts[0]; i++) {
+			sim_reset(&sim_geoms[g], SIM_MAP_K);
+			if (!sim_run(scripts[i], err, sizeof err)) {
+				printf("FAIL weather %zu [%s]: %s\n", i, sim_geoms[g].name, err);
+				fails++;
+			}
+		}
+	}
+}
+#endif
+
 static void station_checks(void)
 {
 	static const struct { const char *name, *script; } cases[] = {
@@ -1836,6 +1868,10 @@ int main(int argc, char **argv)
 	radar_marker_checks();
 #endif
 	packet_checks();
+
+#if CONFIG_APRS_WX
+	weather_checks();
+#endif
 	vfo_split_dmr_checks();
 	no_battery_checks();
 #if CONFIG_VOLUME_BAR

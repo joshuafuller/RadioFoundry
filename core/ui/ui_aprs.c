@@ -17,6 +17,9 @@
 
 // The services when APRS isn't built (and in the UI simulator): nothing there
 #define WEAK __attribute__((weak))
+#if CONFIG_APRS_WX
+extern const ui_scr_def_t ui_aprs_weather_screen;
+#endif
 WEAK bool ui_svc_aprs_view(aprs_view_t *v) { memset(v, 0, sizeof(*v)); return false; }
 WEAK void ui_svc_aprs_cfg(aprs_cfg_t *c) { memset(c, 0, sizeof(*c)); }
 WEAK void ui_svc_aprs_set_cfg(const aprs_cfg_t *c) { (void)c; }
@@ -44,9 +47,9 @@ enum { AP_SEND, AP_AUTO, AP_FREQ, AP_POWER, AP_PATH, AP_INTERVAL, AP_SMART, AP_V
 	AP_RECENT,
 #endif
 #if CONFIG_APRS_HOME
-	AP_MESSAGES, AP_WEATHER, AP_BEACON,
+	AP_MESSAGES, AP_BEACON,
 #endif
-	AP_COUNT };
+	AP_WEATHER, AP_COUNT };
 
 // The rows this build shows, in order: the packet rows only with the AX.25 backend (CONFIG_APRS_AFSK), "Send via"
 // only when there is a choice (both backends built)
@@ -65,6 +68,9 @@ static const uint8_t rows[] = {
 #endif
 #if CONFIG_APRS_PATHING
 	AP_DECAY,
+#endif
+#if CONFIG_APRS_WX && !CONFIG_APRS_HOME
+	AP_WEATHER,
 #endif
 	AP_KISS,
 #if CONFIG_APRS_AFSK && CONFIG_APRS_RX
@@ -226,8 +232,9 @@ static void aprs_item(uint16_t i, ui_item_t *it)
 		TRN("Recent packets"),
 #endif
 #if CONFIG_APRS_HOME
-		TRN("Messages"), TRN("Weather"), TRN("My beacon")
+		TRN("Messages"), TRN("My beacon"),
 #endif
+		TRN("Weather"),
 	};
 	aprs_view_t v;
 	aprs_cfg_t c;
@@ -238,6 +245,13 @@ static void aprs_item(uint16_t i, ui_item_t *it)
 	if (i >= AP_COUNT) {
 		return;
 	}
+#if CONFIG_APRS_WX
+	if (i == AP_WEATHER) {
+		str_copy(it->label, sizeof it->label, tr(ui_aprs_weather_screen.prefix));
+		if (!built) it->flags |= UI_ITEM_DIM;
+		return;
+	}
+#endif
 	// Without the AX.25 backend the host port is no TNC: it only takes NMEA positions
 	str_copy(it->label, sizeof it->label, i == AP_KISS && !CONFIG_APRS_AFSK ? TR("NMEA on USB") : tr(names[i]));
 	sbuf_t b;
@@ -333,8 +347,6 @@ static void aprs_select(uint16_t i, bool hold)
 	case AP_MESSAGES:
 		ui_push(SCR_MESSAGES, 0);
 		return;
-	case AP_WEATHER:
-		return;
 	case AP_BEACON:
 		ui_push(SCR_APRS_BEACON, 0);
 		return;
@@ -392,6 +404,9 @@ static void aprs_select(uint16_t i, bool hold)
 	case AP_KISS: c.kiss = !c.kiss; break;
 #if CONFIG_APRS_RX
 	case AP_RECENT: ui_push(SCR_APRS_PACKETS, 0); return;
+#endif
+#if CONFIG_APRS_WX
+	case AP_WEATHER: ui_push(SCR_APRS_WEATHER, 0); return;
 #endif
 	case AP_HEARD:
 		if (!CONFIG_APRS_RX) {
