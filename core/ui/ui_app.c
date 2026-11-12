@@ -1856,6 +1856,7 @@ static bool roams_known;
 
 void ui_app_init(void)
 {
+	fmt_units_refresh();
 #if CONFIG_APRS_RX
 	ui_aprs_list_reset();
 #endif

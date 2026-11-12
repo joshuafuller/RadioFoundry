@@ -199,10 +199,23 @@ void sb_compass(sbuf_t *b, uint16_t bearing)
 	sb_str(b, points[((bearing % 360u) * 2u + 45u) / 90u % 8u]);
 }
 
+#if CONFIG_UNITS
+// The Units setting, cached: reading it through the settings store copies the whole record onto the caller's stack,
+// too deep for every distance a list row prints (stack check). Loaded at UI start and on every change of the setting.
+static bool units_metric;
+#endif
+
+void fmt_units_refresh(void)
+{
+#if CONFIG_UNITS
+	units_metric = ui_svc_setting_get(UI_SET_UNITS) == 1;
+#endif
+}
+
 bool fmt_metric(void)
 {
 #if CONFIG_UNITS
-	return ui_svc_setting_get(UI_SET_UNITS) == 1;
+	return units_metric;
 #else
 	return true;
 #endif

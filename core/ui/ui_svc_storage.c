@@ -14,6 +14,7 @@
 //     that fails tells the UI with a UI_EV_SAVE_FAILED event (a toast).
 #include <string.h>
 #include "board.h"
+#include "fmt.h"
 #include "ui_svc.h"
 #include "i18n.h"
 #include "radio/radio.h"
@@ -505,6 +506,7 @@ bool ui_svc_setting_set(uint8_t id, int32_t value)
 		st = settings_begin();
 		st->units = (uint8_t)value;
 		settings_end(hal_millis());
+		fmt_units_refresh();
 		return true;
 #endif
 	case UI_SET_LANGUAGE:

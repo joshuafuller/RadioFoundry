@@ -5,6 +5,7 @@
 // owns one of these defines it without the weak attribute and the linker takes that one.
 #include <stddef.h>
 #include "ui_svc.h"
+#include "fmt.h"
 
 #define WEAK __attribute__((weak))
 
@@ -124,4 +125,12 @@ bool ui_svc_ram_set(uint8_t id, int32_t value)
 }
 
 WEAK int32_t ui_svc_setting_get(uint8_t id) { return ui_svc_ram_get(id); }
-WEAK bool ui_svc_setting_set(uint8_t id, int32_t value) { return ui_svc_ram_set(id, value); }
+WEAK bool ui_svc_setting_set(uint8_t id, int32_t value)
+{
+	bool ok = ui_svc_ram_set(id, value);
+#if CONFIG_UNITS
+	if (ok && id == UI_SET_UNITS)
+		fmt_units_refresh();	// the formatter caches it (fmt.c)
+#endif
+	return ok;
+}

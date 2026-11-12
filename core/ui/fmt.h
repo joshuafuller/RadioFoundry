@@ -42,6 +42,7 @@ void sb_coord(sbuf_t *b, int32_t e7, char pos, char neg);
 void sb_compass(sbuf_t *b, uint16_t bearing);
 // Display quantities use Settings > Display > Units; inputs keep their protocol/SI units.
 bool fmt_metric(void);	// true: metric display units, false: US
+void fmt_units_refresh(void);	// reload the cached Units setting (UI start, and after it changes)
 void sb_distance(sbuf_t *b, uint32_t meters);
 void sb_speed(sbuf_t *b, uint32_t meters_per_hour);
 void sb_altitude(sbuf_t *b, int32_t meters);
