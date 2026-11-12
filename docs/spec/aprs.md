@@ -546,7 +546,12 @@ publishers in this station table, not separate named entities. These filters use
 The station and weather tables have separate capacity limits. A weather report can remain in Weather after its
 sender is evicted from Stations; the station filter does not restore evicted senders.
 They never remove table entries or change receive, acknowledgment or gating behavior. The title gives the filter
-and visible/total counts; a dim information row gives the sort and hidden count. Reset to All takes `#`, `1`.
+and a persistent hidden count when rows are filtered. The body shows used/capacity and the own-position source.
+When the station table fills, a powered-session counter shows how many oldest records newer identities displaced;
+updates to an existing identity do not increment it. Reset to All takes `#`, `1`.
+The selected callsign and right-aligned age precede its range and comment preview; remaining identities use the
+same age column. Ages over 30 minutes are explicitly marked Old, using position age when available.
+Nothing heard yet means an empty table; No matches means a filter hid all retained entries.
 If the focused station is hidden or evicted, the list selects its first remaining station; an already open detail
 keeps its original callsign. With no matches, the counts remain and the filter menu is still reachable.
 
@@ -558,7 +563,9 @@ direction when both positions
 exist, heard age, Direct or Via digipeater, position age when different from heard age, speed in the selected units and course
 when the retained position has them, symbol table and code, the retained comment/status text, and packet count.
 Unknown speed and course have no row. Text is limited to the engine's 24-byte field; no digipeater identity or
-additional comment text is retained. Detail rows scroll with Up / Down and do not perform actions. If the station
+additional comment text is retained. The retained text wraps into complete scrollable rows. Latitude, longitude
+and own-position source follow the packet count for positioned stations. Position age and range repeat alongside
+these coordinates so they remain visible together on the smallest display. Detail rows scroll with Up / Down and do not perform actions. If the station
 is evicted, the screen says "No longer in list" and Message still addresses the saved callsign. This detail code
 and the saved callsign are guarded by `CONFIG_APRS_RX`; the engine storage is unchanged.
 
@@ -782,3 +789,6 @@ with the current voice channel's receive frequency and transmit tone. The radio 
 beacon generation, including after a channel change. It preserves the configured comment after a space, within
 `APRS_COMMENT_MAX`. Digital channels, inverted DCS, or frequencies not representable in whole kHz omit the prefix.
 The setting changes content only; it does not trigger transmission.
+
+Recent traffic shows used/capacity and the powered-session count of oldest packets displaced by a full ring.
+Duplicate packets suppressed by the existing deduplication rule do not increment the counter.

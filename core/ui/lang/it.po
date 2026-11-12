@@ -556,11 +556,11 @@ msgstr "Entrambi"
 msgid "Auto"
 msgstr "Auto"
 
-#: core/ui/ui_aprs.c core/ui/ui_aprs_radar.c core/ui/ui_menus.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_list.c core/ui/ui_aprs_radar.c core/ui/ui_menus.c
 msgid "Computer"
 msgstr "Computer"
 
-#: core/ui/ui_aprs.c core/ui/ui_aprs_radar.c core/ui/ui_menus.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_list.c core/ui/ui_aprs_radar.c core/ui/ui_menus.c
 msgid "Fixed"
 msgstr "Fisso"
 
@@ -676,7 +676,7 @@ msgstr "Invia via"
 msgid "KISS on USB"
 msgstr "KISS su USB"
 
-#: core/ui/ui_aprs.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_list.c
 msgid "Stations"
 msgstr "Stazioni sentite"
 
@@ -793,7 +793,7 @@ msgstr "0-9 scegli  Indietro"
 msgid "Heard"
 msgstr "Sentite"
 
-#: core/ui/ui_aprs.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_list.c
 msgid "Nothing heard yet"
 msgstr "Ancora niente sentito"
 
@@ -808,6 +808,11 @@ msgstr "Non più in elenco"
 #: core/ui/ui_aprs.c
 msgid "{Distance|Dist|}"
 msgstr "{Distanza|Dist|}"
+
+#: core/ui/ui_aprs.c core/ui/ui_aprs_list.c core/ui/ui_aprs_radar.c
+#. requires: CONFIG_APRS_RX
+msgid "Old"
+msgstr "Datata"
 
 #: core/ui/ui_aprs.c core/ui/ui_aprs_beacon.c
 msgid "Direct"
@@ -828,6 +833,29 @@ msgstr "Velocità"
 #: core/ui/ui_aprs.c
 msgid "Course"
 msgstr "Rotta"
+
+#: core/ui/ui_aprs.c core/ui/ui_aprs_objects.c
+#. requires: CONFIG_APRS_RX
+msgid "Distance"
+msgstr "Distanza"
+
+#: core/ui/ui_aprs.c core/ui/ui_aprs_list.c
+#. requires: CONFIG_APRS_RX
+msgid "No own pos"
+msgstr "No pos."
+
+#: core/ui/ui_aprs.c core/ui/ui_position.c
+msgid "Latitude"
+msgstr "Latitudine"
+
+#: core/ui/ui_aprs.c core/ui/ui_position.c
+msgid "Longitude"
+msgstr "Longitudine"
+
+#: core/ui/ui_aprs.c
+#. requires: CONFIG_APRS_RX
+msgid "Own position"
+msgstr "Posizione propria"
 
 #: core/ui/ui_aprs.c
 msgid "Packets"
@@ -912,6 +940,11 @@ msgstr "Non in ascolto: canale voce"
 msgid "Not listening: audio unavailable"
 msgstr "Non in ascolto: audio non disponibile"
 
+#: core/ui/ui_aprs.c core/ui/ui_aprs_list.c
+#. requires: CONFIG_APRS_RX
+msgid " dropped"
+msgstr " scartati"
+
 #: core/ui/ui_aprs.c core/ui/ui_aprs_radar.c
 msgid "OK open  Back"
 msgstr "OK apri  Indietro"
@@ -919,14 +952,6 @@ msgstr "OK apri  Indietro"
 #: core/ui/ui_aprs.c core/ui/ui_menus.c
 msgid "To"
 msgstr "A"
-
-#: core/ui/ui_aprs.c core/ui/ui_position.c
-msgid "Latitude"
-msgstr "Latitudine"
-
-#: core/ui/ui_aprs.c core/ui/ui_position.c
-msgid "Longitude"
-msgstr "Longitudine"
 
 #: core/ui/ui_aprs.c
 #. requires: CONFIG_APRS_RX
@@ -1275,13 +1300,19 @@ msgstr "Solo digipeater"
 msgid " hidden"
 msgstr " nascosti"
 
-#: core/ui/ui_aprs_list.c
-msgid "No own pos"
-msgstr "No pos."
-
 #: core/ui/ui_aprs_list.c core/ui/ui_aprs_thread.c core/ui/ui_gps.c core/ui/ui_menus.c core/ui/ui_screens.c
 msgid " of "
 msgstr " di "
+
+#: core/ui/ui_aprs_list.c
+#. requires: CONFIG_APRS_RX
+msgid "No matches"
+msgstr "Nessun risultato"
+
+#: core/ui/ui_aprs_list.c
+#. requires: CONFIG_APRS_RX
+msgid "OK open  # filter  Back"
+msgstr "OK apri  # filtro  Indietro"
 
 #: core/ui/ui_aprs_list.c
 msgid "* sort  # filter  OK open  Back"
@@ -1306,10 +1337,6 @@ msgstr "Da "
 #: core/ui/ui_aprs_objects.c
 msgid "Live"
 msgstr "Attivo"
-
-#: core/ui/ui_aprs_objects.c
-msgid "Distance"
-msgstr "Distanza"
 
 #: core/ui/ui_aprs_objects.c core/ui/ui_aprs_wx.c
 msgid "Unknown"
@@ -1338,10 +1365,6 @@ msgstr "Imposta la tua posizione per vedere il radar"
 #: core/ui/ui_aprs_radar.c core/ui/ui_gps.c
 msgid "Settings > Location"
 msgstr "Impostazioni > Posizione"
-
-#: core/ui/ui_aprs_radar.c
-msgid "Old"
-msgstr "Datata"
 
 #: core/ui/ui_aprs_radar.c core/ui/ui_gps.c
 msgid "No positions yet"

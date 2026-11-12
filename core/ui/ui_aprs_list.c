@@ -139,6 +139,84 @@ static const char *heard_title(void)
 	return text;
 }
 
+// Keep list state and the selected preview visible while the identities scroll.
+static void heard_draw(void)
+{
+	(void)heard_count();
+	const font_t *font = ui_layout.small;
+	int pitch = font->h + 1, w = gfx_width();
+	char text[80], value[44];
+	sbuf_t b;
+	sb_init(&b, text, sizeof text);
+	if (total != shown) {
+		sb_u32(&b, total - shown, 1);
+		sb_str(&b, TR(" hidden"));
+	} else sb_str(&b, tr(sorts[sort]));
+	gfx_clear(ui_col.bg);
+	int y = ui_draw_top(ui_view(), &ui_st, filter ? tr(filters[filter]) : TR("Stations"), text) + 1;
+	aprs_view_t v;
+	ui_svc_aprs_view(&v);
+	sb_init(&b, text, sizeof text);
+	sb_u32(&b, total, 1);
+	sb_chr(&b, '/');
+	sb_u32(&b, APRS_STATIONS, 1);
+	sb_chr(&b, ' ');
+	if (v.stations_dropped) {
+		sb_u32(&b, v.stations_dropped, 1);
+		sb_str(&b, TR(" dropped"));
+	} else {
+		sb_str(&b, v.pos_valid ? (v.pos_src == 1 ? "GPS" : v.pos_src == 2 ? TR("Computer") : TR("Fixed")) : TR("No own pos"));
+	}
+	gfx_text(font, 1, y, text, ui_col.fg);
+	y += pitch;
+	if (v.stations_dropped) {
+		gfx_text(font, 1, y, v.pos_valid ? (v.pos_src == 1 ? "GPS" : v.pos_src == 2 ? TR("Computer") : TR("Fixed")) : TR("No own pos"), ui_col.fg);
+		y += pitch;
+	}
+	if (!shown) {
+		gfx_text(font, 1, y, total ? TR("No matches") : TR("Nothing heard yet"), ui_col.fg);
+	} else {
+		uint16_t focus = ui_frame()->focus ? ui_frame()->focus : 1;
+		for (uint16_t n = 0; n < shown && y + font->h <= ui_layout.hint_y; n++) {
+			uint16_t i = (focus - 1u + n) % shown;
+			aprs_station_t station;
+			if (!ui_svc_aprs_station_find(rows[i].call, &station)) continue;
+			uint32_t age = ui_st.now_ms - (station.has_pos ? station.pos_ms : station.heard_ms);
+			ui_sb_age(value, sizeof value, age);
+			bool more;
+			gfx_text_alt(value, 1, text, sizeof text, &more);
+			if (age > 1800000u) {
+				str_copy(value, sizeof value, text);
+				sb_init(&b, text, sizeof text);
+				sb_str(&b, TR("Old"));
+				sb_chr(&b, ' ');
+				sb_str(&b, value);
+			}
+			if (!n) gfx_fill(0, y, w, pitch, ui_col.focus);
+			color_t fg = !n ? (gfx_bpp() == 1 ? ui_col.bg : ui_col.focus_fg) : ui_col.fg;
+			gfx_text(font, 1, y, station.call, fg);
+			gfx_text(font, w - 1 - gfx_text_width(font, text), y, text, fg);
+			y += pitch;
+			if (n) continue;
+			uint32_t m;
+			uint16_t deg;
+			sb_init(&b, text, sizeof text);
+						if (ui_svc_aprs_range(&station, &m, &deg)) sb_range(&b, m, deg);
+			else sb_str(&b, station.has_pos ? TR("No own pos") : TR("No position"));
+			if (y + font->h <= ui_layout.hint_y) {
+				gfx_text(font, 1, y, text, ui_col.fg);
+				y += pitch;
+			}
+			if (station.text[0] && y + font->h <= ui_layout.hint_y) {
+				ui_wrap_line(font, station.text, w - 2, text, sizeof text);
+				gfx_text(font, 1, y, text, ui_col.fg);
+				y += pitch;
+			}
+		}
+	}
+	ui_draw_bottom(&ui_st, TR("OK open  # filter  Back"));
+}
+
 static void heard_select(uint16_t i, bool hold)
 {
 	if (hold) {
@@ -184,7 +262,7 @@ static void filter_select(uint16_t i, bool hold)
 const ui_scr_def_t ui_aprs_heard_screen = {
 	.name = "aprs-heard", .flags = SF_LIST | SF_FIELD, .prefix = "", .title = heard_title,
 	.hint = TRN("* sort  # filter  OK open  Back"),
-	.count = heard_count, .item = heard_item, .select = heard_select, .enter = heard_enter, .key = heard_key,
+	.count = heard_count, .item = heard_item, .select = heard_select, .enter = heard_enter, .key = heard_key, .draw = heard_draw,
 };
 const ui_scr_def_t ui_aprs_filter_screen = {
 	.name = "aprs-filter", .flags = SF_LIST | SF_NUMBERED | SF_FIELD, .prefix = TRN("Filter"),

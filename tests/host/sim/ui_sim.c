@@ -432,7 +432,7 @@ static struct {
 #endif
 	uint32_t message_ms;
 	uint8_t radar;		// "aprs:radar": four stations on the compass points; "aprs:radarmany": radar_many
-	bool evicted;
+	bool evicted, full, long_comment;
 	bool no_speed;
 	bool other_pos;
 	uint8_t category;
@@ -487,6 +487,10 @@ bool ui_svc_aprs_view(aprs_view_t *v)
 	v->rf_sent = aprs_sim.sent;
 	v->rf_active = aprs_sim.rf_active;
 	v->stations = 2;
+#if CONFIG_APRS_RX
+	v->stations_dropped = aprs_sim.full ? 3 : 0;
+	v->packets_dropped = aprs_sim.full ? 5 : 0;
+#endif
 	v->messages = aprs_sim.message ? 1 : 0;
 	v->unread = aprs_sim.message && !aprs_sim.message_read ? 1 : 0;
 	return true;
@@ -544,7 +548,7 @@ static const struct {
 
 uint8_t ui_svc_aprs_station_count(void)
 {
-	return aprs_sim.off || aprs_sim.evicted ? 0 : aprs_sim.radar == 2 ? RADAR_MANY : aprs_sim.radar ? 4 : 2;
+	return aprs_sim.off || aprs_sim.evicted ? 0 : aprs_sim.full ? APRS_STATIONS : aprs_sim.radar == 2 ? RADAR_MANY : aprs_sim.radar ? 4 : 2;
 }
 bool ui_svc_aprs_station(uint8_t i, aprs_station_t *out)
 {
@@ -571,6 +575,11 @@ bool ui_svc_aprs_station(uint8_t i, aprs_station_t *out)
 		out->sym_table = '/';
 		out->sym_code = '>';
 		out->course = i * 90;
+		return true;
+	}
+	if (i >= 2) {
+		snprintf(out->call, sizeof out->call, "Q9S%03u", i);
+		if (aprs_sim.category == 1 && i % 2) out->type = APRS_T_WEATHER;
 		return true;
 	}
 	strcpy(out->call, calls[i]);
@@ -601,7 +610,7 @@ bool ui_svc_aprs_station(uint8_t i, aprs_station_t *out)
 	}
 #endif
 	out->count = 3;
-	strcpy(out->text, i == 0 ? "On the road" : "At home");
+	strcpy(out->text, aprs_sim.long_comment ? "Meet at the north gate" : i == 0 ? "On the road" : "At home");
 	out->pos_ms = 0;	// the position heard at start, the packets since (heard_ms) without one
 	return true;
 }
@@ -3145,6 +3154,8 @@ static bool run_token(char *t, char *err, size_t len)
 			ui_svc_setting_set(UI_SET_APRS_LINE, 1);
 		aprs_sim.reordered = strcmp(arg, "reorder") == 0;
 		aprs_sim.evicted = strcmp(arg, "evict") == 0;
+		if (!strcmp(arg, "full")) aprs_sim.full = true;
+		if (!strcmp(arg, "longcomment")) aprs_sim.long_comment = true;
 		aprs_sim.frequency = strcmp(arg, "freq") == 0 || strcmp(arg, "badfreq") == 0;
 		aprs_sim.bad_frequency = strcmp(arg, "badfreq") == 0;
 		aprs_sim.no_speed = strcmp(arg, "nospeed") == 0;

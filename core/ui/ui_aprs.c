@@ -570,7 +570,20 @@ const ui_scr_def_t ui_aprs_heard_screen = {
 #endif
 
 #if CONFIG_APRS_RX
-enum { ST_MESSAGE, ST_TUNE, ST_RANGE, ST_HEARD, ST_PATH, ST_POS_AGE, ST_SPEED, ST_COURSE, ST_SYMBOL, ST_TEXT, ST_PACKETS, ST_COUNT };
+enum { ST_MESSAGE, ST_TUNE, ST_RANGE, ST_HEARD, ST_PATH, ST_POS_AGE, ST_SPEED, ST_COURSE, ST_SYMBOL,
+	ST_TEXT, ST_PACKETS, ST_LAT, ST_LON, ST_SOURCE, ST_POINT_AGE, ST_POINT_RANGE, ST_COUNT };
+
+static uint16_t station_text_row(const char *text, uint16_t row, ui_item_t *it)
+{
+	char line[sizeof it->label];
+	uint16_t count = 0;
+	while (*text) {
+		text = ui_wrap_line(ui_layout.small, text, gfx_width() - 12, line, sizeof line);
+		if (it && count == row) str_copy(it->label, sizeof it->label, line);
+		count++;
+	}
+	return count;
+}
 
 // Resolve optional rows from the current record; no copy of the engine's station table lives in the UI.
 static uint8_t station_row(uint16_t i, const aprs_station_t *s)
@@ -590,7 +603,14 @@ static uint8_t station_row(uint16_t i, const aprs_station_t *s)
 		    (row == ST_SPEED && (!s->has_pos || s->speed_kn == 0xFFFFu)) ||
 		    (row == ST_COURSE && (!s->has_pos || s->course == 0xFFFFu)) ||
 		    (row == ST_SYMBOL && (!s->sym_table || !s->sym_code)) ||
+		    (row >= ST_LAT && !s->has_pos) ||
 		    (row == ST_TEXT && !s->text[0])) {
+			continue;
+		}
+		if (row == ST_TEXT) {
+			uint16_t lines = station_text_row(s->text, 0, NULL);
+			if (i < lines) return row;
+			i -= lines;
 			continue;
 		}
 		if (i-- == 0) {
@@ -644,12 +664,12 @@ static void station_item(uint16_t i, ui_item_t *it)
 		}
 		break;
 	case ST_HEARD:
-		label = TR("Heard");
+		label = ui_st.now_ms - s.heard_ms > 1800000u ? TR("Old") : TR("Heard");
 		ui_sb_age(it->value, sizeof it->value, ui_st.now_ms - s.heard_ms);
 		break;
 	case ST_PATH: label = s.direct ? TR("Direct") : TR("Via digipeater"); break;
 	case ST_POS_AGE:
-		label = TR(TEXT_ALT_OPEN "Position age" TEXT_ALT_NEXT "Pos age" TEXT_ALT_CLOSE);
+		label = ui_st.now_ms - s.pos_ms > 1800000u ? TR("Old") : TR(TEXT_ALT_OPEN "Position age" TEXT_ALT_NEXT "Pos age" TEXT_ALT_CLOSE);
 		ui_sb_age(it->value, sizeof it->value, ui_st.now_ms - s.pos_ms);
 		break;
 	case ST_SPEED:
@@ -667,10 +687,32 @@ static void station_item(uint16_t i, ui_item_t *it)
 		sb_chr(&b, s.sym_table);
 		sb_chr(&b, s.sym_code);
 		break;
-	case ST_TEXT:
-		label = s.text;
-		it->flags |= UI_ITEM_PREVIEW;
+	case ST_TEXT: {
+		uint16_t first = 0;
+		while (station_row(first, &s) != ST_TEXT) first++;
+		station_text_row(s.text, i - first, it);
+		return;
+	}
+	case ST_POINT_AGE:
+		label = ui_st.now_ms - s.pos_ms > 1800000u ? TR("Old") : TR(TEXT_ALT_OPEN "Position age" TEXT_ALT_NEXT "Pos age" TEXT_ALT_CLOSE);
+		ui_sb_age(it->value, sizeof it->value, ui_st.now_ms - s.pos_ms);
 		break;
+	case ST_POINT_RANGE:
+		label = TR("Distance");
+		if (ui_svc_aprs_range(&s, &m, &deg)) sb_range(&b, m, deg);
+		else sb_str(&b, TR("No own pos"));
+		break;
+	case ST_LAT: case ST_LON:
+		label = station_row(i, &s) == ST_LAT ? TR("Latitude") : TR("Longitude");
+		sb_degrees(&b, station_row(i, &s) == ST_LAT ? s.lat : s.lon);
+		break;
+	case ST_SOURCE: {
+		aprs_view_t v;
+		ui_svc_aprs_view(&v);
+		label = TR("Own position");
+		sb_str(&b, v.pos_valid ? tr(pos_names[v.pos_src < 4 ? v.pos_src : 0]) : TR("No position"));
+		break;
+	}
 	case ST_PACKETS:
 		label = TR("Packets");
 		sb_u32(&b, s.count, 1);
@@ -768,7 +810,7 @@ static void packets_item(uint16_t i, ui_item_t *it)
 	ui_sb_age(it->value, sizeof it->value, ui_st.now_ms - p.ms);
 }
 
-static const char *packets_body(void)
+static const char *packets_reason(void)
 {
 	if (ui_svc_aprs_listening())
 		return NULL;
@@ -785,6 +827,24 @@ static const char *packets_body(void)
 	if (ui_view()->ch.mode != RADIO_MODE_FM || ui_view()->ch.rx_hz != v.freq_hz)
 		return TR("Not listening: on voice channel");
 	return TR("Not listening: audio unavailable");
+}
+
+static const char *packets_body(void)
+{
+	static char text[128];
+	aprs_view_t v;
+	ui_svc_aprs_view(&v);
+	sbuf_t b;
+	sb_init(&b, text, sizeof text);
+	sb_u32(&b, ui_svc_aprs_packet_count(), 1);
+	sb_chr(&b, '/');
+	sb_u32(&b, APRS_RECENT_PACKETS, 1);
+	sb_chr(&b, ' ');
+	sb_u32(&b, v.packets_dropped, 1);
+	sb_str(&b, TR(" dropped"));
+	const char *reason = packets_reason();
+	if (reason) { sb_chr(&b, '\n'); sb_str(&b, reason); }
+	return text;
 }
 
 static void packets_select(uint16_t i, bool hold)
