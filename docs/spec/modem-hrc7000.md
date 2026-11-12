@@ -996,6 +996,10 @@ What a working DMR driver does that a first attempt tends to miss. Details are i
 | 17 | Interrupt masking | PIC_MASK bits 29-31 and PIC_MASK_1 bit 0 (3.2) |
 | 18 | Lost requests | clear every pending modem request at each receiver restart; drop a system request pending with no handler run (3.3) |
 
+The linker places task-only engine entry points and the outbound queue writer in flash. Interrupt handlers and
+their helpers stay in RAM, as does the outbound restart's slot-alignment wait. This saves main RAM without
+reducing queues, task stacks or the RTOS heap.
+
 ---
 
 ## 10. Open questions

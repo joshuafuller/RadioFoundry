@@ -25,6 +25,16 @@ SECTIONS
 	{
 		KEEP(*(.entry))	/* crt0: the loader, or the first stage, jumps to the first byte */
 		*(EXCLUDE_FILE(*hrc7000_dmr.o *hrc7000_bs.o *dmr_glue.o) .text EXCLUDE_FILE(*hrc7000_dmr.o *hrc7000_bs.o *dmr_glue.o) .text.*)
+		/* Task-only entry points need no RAM copy. Keep ISR helpers and the BS slot-alignment wait in RAM. */
+		*hrc7000_dmr.o(.text.hrc7000_dmr_init .text.hrc7000_dmr_run .text.hrc7000_dmr_halt
+			.text.hrc7000_dmr_pop .text.hrc7000_dmr_poll .text.hrc7000_dmr_configure
+			.text.hrc7000_dmr_rx_restart .text.hrc7000_dmr_rx_lock_slot
+			.text.hrc7000_dmr_tx_begin .text.hrc7000_dmr_tx_listen .text.hrc7000_dmr_tx_queue
+			.text.hrc7000_dmr_tx_fill .text.hrc7000_dmr_tx_queue_space .text.hrc7000_dmr_tx_end
+			.text.hrc7000_dmr_tx_abort .text.hrc7000_dmr_set_embedded_lc .text.hrc7000_dmr_set_cc_filter)
+		*hrc7000_bs.o(.text.hrc7000_bs_start .text.hrc7000_bs_key .text.queue
+			.text.hrc7000_bs_queue .text.hrc7000_bs_queue_at .text.hrc7000_bs_space
+			.text.hrc7000_bs_release .text.hrc7000_bs_stop .text.hrc7000_bs_poll)
 		*(.flashfunc .flashfunc.*)	/* HRC_FLASHFUNC: task-side code in the files placed in RAM below */
 		. = ALIGN(4);
 	} >FLASH

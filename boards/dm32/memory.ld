@@ -29,3 +29,6 @@ MEMORY
 }
 
 INCLUDE common.ld
+
+ASSERT(ORIGIN(RAM) + LENGTH(RAM) - (ADDR(.stack) + SIZEOF(.stack)) >= 2048,
+	"keep at least 2 KiB of main RAM free")
