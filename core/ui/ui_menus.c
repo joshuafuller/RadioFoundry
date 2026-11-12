@@ -39,6 +39,9 @@
 #endif
 
 extern const ui_scr_def_t ui_find_screen;
+#if CONFIG_APRS_WX
+extern const ui_scr_def_t ui_aprs_weather_screen, ui_aprs_weather_detail_screen;
+#endif
 extern const ui_scr_def_t ui_aprs_screen, ui_aprs_heard_screen, ui_aprs_station_screen;	// ui_aprs.c
 #if CONFIG_POSITION
 extern const ui_scr_def_t ui_fixed_pos_screen;	// ui_position.c
@@ -6350,6 +6353,10 @@ const ui_scr_def_t *const ui_scr[SCR_COUNT] = {
 	[SCR_DIAG] = &diag_screen, [SCR_EMERGENCY] = &emergency_screen, [SCR_SCAN] = &scan_screen,
 	[SCR_ROAM] = &roam_screen, [SCR_APRS] = &ui_aprs_screen, [SCR_APRS_HEARD] = &ui_aprs_heard_screen,
 	[SCR_APRS_STATION] = &ui_aprs_station_screen,
+#if CONFIG_APRS_WX
+	[SCR_APRS_WEATHER] = &ui_aprs_weather_screen,
+	[SCR_APRS_WEATHER_DETAIL] = &ui_aprs_weather_detail_screen,
+#endif
 	[SCR_ABOUT] = &about_screen,
 #if CONFIG_POSITION
 	[SCR_FIXED_POS] = &ui_fixed_pos_screen,

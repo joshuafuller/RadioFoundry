@@ -1478,8 +1478,46 @@ static void test_rx_board_only(void)
 }
 #endif
 
+
+#if CONFIG_APRS_WX
+static void test_weather_store(void)
+{
+	reset();
+	configure(0, false);
+	rx_line("Q1ABC>APRS:!4903.50N/07201.75W_220/004g005t077r000h50b10132");
+	aprs_wx_station_t s;
+	CHECK(aprs_wx_count() == 1 && aprs_wx_station(0, &s));
+	CHECK(s.has_pos && s.wx.temp_f == 77 && s.wx.wind_mph == 4);
+	uint32_t report_ms = s.heard_ms;
+	rx_line("Q1ABC>APRS:>Still here");
+	CHECK(aprs_wx_station(0, &s) && s.heard_ms == report_ms && s.wx.temp_f == 77);
+	rx_line("Q2ABC>APRS:_10090556t-01");
+	CHECK(aprs_wx_count() == 2 && aprs_wx_station(0, &s) && !s.has_pos && s.wx.temp_f == -1);
+	rx_line("Q1ABC>APRS:_10090556t000");
+	CHECK(aprs_wx_count() == 2 && aprs_wx_station(0, &s) && strcmp(s.call, "Q1ABC") == 0);
+	CHECK(s.has_pos && s.wx.temp_f == 0 && s.wx.wind_mph == APRS_WX_UNKNOWN && s.wx.pressure == UINT32_MAX);
+	// Weather objects belong to their object identity, never the publishing station.
+	rx_line("Q3ABC>APRS:;WEATHER  *092345z4903.50N/07201.75W_220/004t099");
+	CHECK(aprs_wx_count() == 2);
+	for (unsigned i = 0; i < APRS_WX_STATIONS; i++) {
+		char line[80];
+		snprintf(line, sizeof line, "Q9W%03u>APRS:_10090556t010", i);
+		rx_line(line);
+	}
+	CHECK(aprs_wx_count() == APRS_WX_STATIONS && !aprs_wx_station(APRS_WX_STATIONS, &s));
+	for (uint8_t i = 0; i < aprs_wx_count(); i++) {
+		CHECK(aprs_wx_station(i, &s) && strcmp(s.call, "Q1ABC") != 0);
+	}
+	reset();
+	CHECK(aprs_wx_count() == 0);
+}
+#endif
+
 int main(void)
 {
+	#if CONFIG_APRS_WX
+	test_weather_store();
+	#endif
 	test_defaults();
 	test_beacon_on_air();
 	test_tx_limit();

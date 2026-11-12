@@ -11,6 +11,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include "aprs/ax25.h"
+#include "aprs/aprs_wx.h"
 
 #define APRS_DEG		10000000L	// position units per degree
 #define APRS_COURSE_NONE	0xFFFFu
@@ -59,6 +60,10 @@ typedef enum {
 
 typedef struct {
 	uint8_t type;		// aprs_type_t
+#if CONFIG_APRS_WX
+	bool has_wx;
+	aprs_wx_t wx;
+#endif
 	bool has_pos;
 	aprs_pos_t pos;
 	bool messaging;		// the station takes messages ('=' / '@' / Mic-E message capable)

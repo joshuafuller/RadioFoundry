@@ -760,9 +760,81 @@ msgstr "Símbolo"
 msgid "Packets"
 msgstr "Paquetes"
 
-#: core/ui/ui_aprs.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_wx.c
 msgid "OK choose  Back"
 msgstr "OK elegir  Atrás"
+
+#: core/ui/ui_aprs_wx.c
+msgid "No weather reports"
+msgstr "Sin informes meteorológicos"
+
+#: core/ui/ui_aprs_wx.c
+msgid "Sort"
+msgstr "Orden"
+
+#: core/ui/ui_aprs_wx.c
+msgid "Nearest"
+msgstr "Más cercanas"
+
+#: core/ui/ui_aprs_wx.c
+msgid "Newest"
+msgstr "Más recientes"
+
+#: core/ui/ui_aprs_wx.c
+msgid "Temperature"
+msgstr "Temperatura"
+
+#: core/ui/ui_aprs_wx.c
+msgid "Wind"
+msgstr "Viento"
+
+#: core/ui/ui_aprs_wx.c
+msgid "Wind from"
+msgstr "Viento de"
+
+#: core/ui/ui_aprs_wx.c
+msgid "Gust"
+msgstr "Ráfaga"
+
+#: core/ui/ui_aprs_wx.c
+msgid "Report age"
+msgstr "Antigüedad"
+
+#: core/ui/ui_aprs_wx.c
+msgid "Rain last hour"
+msgstr "Lluvia última hora"
+
+#: core/ui/ui_aprs_wx.c
+msgid "Rain last 24h"
+msgstr "Lluvia últimas 24h"
+
+#: core/ui/ui_aprs_wx.c
+msgid "Rain since midnight"
+msgstr "Lluvia desde medianoche"
+
+#: core/ui/ui_aprs_wx.c
+msgid "Humidity"
+msgstr "Humedad"
+
+#: core/ui/ui_aprs_wx.c
+msgid "Pressure"
+msgstr "Presión"
+
+#: core/ui/ui_aprs_wx.c
+msgid "Luminosity"
+msgstr "Luminosidad"
+
+#: core/ui/ui_aprs_wx.c
+msgid "Unknown"
+msgstr "Desconocido"
+
+#: core/ui/ui_aprs_wx.c
+msgid "Weather"
+msgstr "Tiempo"
+
+#: core/ui/ui_aprs_wx.c
+msgid "Up/Down scroll  Back"
+msgstr "Arr/Ab desplazar  Atrás"
 
 #: core/ui/ui_dual.c core/ui/ui_screens.c
 msgid "No tone"

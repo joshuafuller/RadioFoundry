@@ -165,3 +165,19 @@ In USB network mode the radio does both without the helper. APRS programs connec
 port 8001 directly ([Services on the radio](15-usb-network.md#services-on-the-radio)). The radio logs in to an
 APRS-IS server itself ([APRS-IS from the radio](15-usb-network.md#aprs-is-from-the-radio)). KISS on USB must be on
 for both.
+
+## Weather
+
+Open **Tools > APRS > Weather** to see received weather stations. The list starts with the newest report.
+Select **Sort** to switch to nearest first. Nearest needs your position and the station's position; reports
+without a known distance follow the others. With no position of your own, the list stays newest first.
+Reopen Weather or change Sort to refresh its station list.
+
+Select a station to read temperature, wind, gust and report age, then scroll to rain for the last hour,
+last 24 hours and since midnight, humidity, pressure and luminosity. Units are °F, mph, inches, inHg and W/m².
+**Unknown** means the report did not provide that measurement. A reported zero is shown as zero.
+Report age is how long ago your radio received the weather, not the age of the station's observation.
+
+Reports stay in a small memory table until replaced or the radio restarts. A new report replaces that station's
+old measurements; missing fields do not keep older values. Weather appears only in builds with weather receive
+support enabled.

@@ -16,3 +16,5 @@ BOARD_HAL_MODULES := hal_i2c
 MCU_DEFS   += -DGFX_INDEXED=1 -DGFX_FB_BYTES=9600u -DGFX_MAX_ROWS=120u
 # The lens hides the panel's last 8 rows (boards/uv380_family/display_uvf.c)
 MCU_DEFS   += -DUVF_LCD_HIDDEN_ROWS=8
+
+MCU_DEFS += -DAPRS_WX_STATIONS=8

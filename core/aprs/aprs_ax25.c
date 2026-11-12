@@ -457,6 +457,9 @@ void aprs_ax25_view(aprs_view_t *v)
 
 void aprs_ax25_init(uint32_t now_ms)
 {
+#if CONFIG_APRS_WX
+	aprs_wx_reset();
+#endif
 	aprs_s.host_tokens = HOST_BURST;
 	aprs_s.host_refill_ms = now_ms;
 	aprs_s.msg_seq = (uint16_t)(now_ms % 900u);
@@ -615,6 +618,11 @@ static void station_update(const ax25_frame_t *f, const aprs_parsed_t *p)
 		s->course = p->pos.course;
 		s->speed_kn = p->pos.speed_kn;
 	}
+#if CONFIG_APRS_WX
+	if (p->has_wx && p->type == APRS_T_WEATHER) {
+		aprs_wx_receive(s, &p->wx);
+	}
+#endif
 	if (p->text != NULL && p->type != APRS_T_MESSAGE) {
 		size_t k = p->text_len < sizeof(s->text) - 1u ? p->text_len : sizeof(s->text) - 1u;
 		memcpy(s->text, p->text, k);

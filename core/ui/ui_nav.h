@@ -37,6 +37,7 @@ typedef enum {
 	SCR_LANGUAGE,			// Settings > Display > Language: every language, those not built dimmed
 	SCR_CP_FOREIGN,			// another firmware's codeplug: what the first edit does with it (ui_svc_codeplug_answer)
 	SCR_APRS_TO,			// destination callsign editor for APRS transmission
+	SCR_APRS_WEATHER, SCR_APRS_WEATHER_DETAIL,
 	SCR_APRS_STATION,		// a heard station's actions
 	SCR_MESSAGE_TEXT,		// message body editor
 	SCR_COUNT

@@ -317,6 +317,7 @@ clock`; ? = not known yet). No driver reads the clock yet ([radio-features.md](s
 | APRS over DMR: LRRP or UDT positions to a gateway ID | `APRS_DMR` | 692 | 1,380 | Needs APRS and DMR. Off, APRS is FM only. Measured with LTO |
 | APRS receive: demodulator, station list, digipeater | `APRS_RX` | 8,892 | — | DM-1701: FM receive audio on the I2S stream, squelch gated ([aprs](spec/aprs.md) 5.3). MD-380: not written |
 | GPS screen: sky plot, signal bars, grid locator (Tools > Position) | `GPS_SKY` | — | 5,244 | Needs GPS. 176 B of RAM. MD-380 measured 2026-10-29 (LTO) |
+| APRS weather reports and Weather pages | `APRS_WX` | Not measured | — | Needs APRS receive; fixed main-RAM table ([aprs](spec/aprs.md#44-weather)) |
 | APRS iGate rules (with tools/aprs_gate.py) | `APRS_IGATE` | 1,820* | — | Needs APRS receive. DM-1701: off by default |
 
 ## Host link and USB

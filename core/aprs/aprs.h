@@ -19,6 +19,7 @@
 #include <stddef.h>
 #include "config.h"
 #include "aprs/ax25.h"
+#include "aprs/aprs_wx.h"
 #include "position/position.h"
 
 #define APRS_TOCALL		"APZRDF"	// destination: the experimental APZ block (docs/spec/aprs.md 4.2)
@@ -134,6 +135,19 @@ typedef struct {
 	uint16_t count;
 	char text[24];		// comment / status (truncated)
 } aprs_station_t;
+
+#if CONFIG_APRS_WX
+typedef struct {
+	char call[AX25_CALL_LEN + 4];
+	uint32_t heard_ms;
+	bool has_pos;
+	int32_t lat, lon;
+	aprs_wx_t wx;
+} aprs_wx_station_t;
+// Any task: newest first, copies under the engine lock.
+uint8_t aprs_wx_count(void);
+bool aprs_wx_station(uint8_t i, aprs_wx_station_t *out);
+#endif
 
 typedef struct {
 	char from[AX25_CALL_LEN + 4];

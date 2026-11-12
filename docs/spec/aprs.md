@@ -156,7 +156,43 @@ tocalls list) is an open decision.
 
 Positions (plain, compressed, with and without timestamps), Mic-E (the destination field's latitude and message bits,
 longitude, speed and course from the information field), objects, items, status, messages, third-party packets,
-queries, weather and telemetry recognized by type (not decoded further).
+queries and telemetry recognized by type. Weather is decoded when `CONFIG_APRS_WX` is enabled (4.4).
+
+### 4.4 Weather
+
+`CONFIG_APRS_WX` needs `CONFIG_APRS_RX`. `aprs_wx.c` decodes positioned reports with symbol `_`
+(plain or compressed, with or without a timestamp) and positionless `_` reports with an eight-digit MDHM
+timestamp. Field definitions and fixtures follow [APRS101 chapter 12](https://www.aprs.org/doc/APRS101.PDF)
+and the [weather clarifications](https://www.aprs.org/aprs11/spec-wx.txt).
+
+| Field | Stored unit |
+|---|---|
+| Wind direction | Degrees clockwise from north |
+| Sustained wind and gust | mph; compressed position wind is converted from knots |
+| Temperature | Signed degrees Fahrenheit |
+| Rain last hour, last 24 hours, since midnight | Hundredths of an inch, independent values |
+| Humidity | Percent; wire `h00` means 100% |
+| Pressure | Tenths of hPa, displayed as inHg |
+| Luminosity | W/m²; `L000`–`L999` and `l000`–`l999` cover 0–1999 |
+
+Omitted fields, dots, spaces, invalid numbers and incomplete fields are unknown, never measured zero. A new
+report replaces all weather fields; absent fields do not inherit old measurements. The parser stops at the
+software/unit suffix. Weather wind never becomes station motion. Object weather is parsed but not stored under
+the publishing station's identity.
+
+`aprs_wx_store.c` holds the latest report per callsign/SSID in ordinary main RAM, separate from the engine's
+CPU-only RAM section. `APRS_WX_STATIONS` is a board-overridable capacity (default four). Updates move a station to
+the front; a full table replaces the oldest report. Ordinary station traffic neither evicts weather nor refreshes
+its receipt time. A positionless report uses a position already retained in the station list, if available.
+The table is cleared at startup. With the switch off, no weather table, decoder or screens are linked.
+
+Tools > APRS > Weather opens a list ordered newest first. Sort toggles nearest; unknown distances follow known
+ones, with newest first for ties or when our position is unavailable. Row identities are captured on entry or a
+sort change so incoming packets cannot redirect a selection. Reopen or change Sort to refresh the list.
+Details follow the selected callsign and show temperature, sustained wind, wind direction, gust and report age,
+then the three rain periods, humidity, pressure and luminosity. Unknown values say Unknown. Report age is time
+since receipt on this radio, not an inferred observation timestamp. US units are used; there is no shared units
+setting in this build. All fields are scrollable on monochrome displays.
 
 ## 5. The radio side
 

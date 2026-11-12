@@ -1340,6 +1340,35 @@ static void heard_checks(void)
 }
 
 // Detail rows remain reachable on the smallest panel; only Message opens another screen.
+
+#if CONFIG_APRS_WX
+static void weather_checks(void)
+{
+	static const char *const scripts[] = {
+		"wait:600000 ok 6 8 up up up ok expect:screen=aprs-weather expect:shows=Newest down ok "
+		"expect:screen=aprs-weather-detail expect:shows=-7 down expect:shows=8_mph "
+		"down expect:shows=N down expect:shows=15_mph down expect:shows=1m "
+		"down expect:shows=0.02_in down expect:shows=0.10_in down expect:shows=0.00_in "
+		"down expect:shows=64% down expect:shows=29.92_inHg down expect:shows=Unknown",
+		"aprs:reorder ok 6 8 up up up ok ok expect:shows=Nearest down ok expect:shows=Q4WABC-15",
+		"aprs:nopos ok 6 8 up up up ok ok down ok expect:screen=aprs-weather-detail",
+		"ok 6 8 up up up ok down aprs:reorder ok expect:shows=Q4WABC-15 "
+		"aprs:evict down expect:shows=Unknown",
+		"aprs:evict ok 6 8 up up up ok expect:screen=aprs-weather expect:shows=No_weather_reports",
+	};
+	char err[300];
+	for (int g = 0; g < sim_geom_count; g++) {
+		for (size_t i = 0; i < sizeof scripts / sizeof scripts[0]; i++) {
+			sim_reset(&sim_geoms[g], SIM_MAP_K);
+			if (!sim_run(scripts[i], err, sizeof err)) {
+				printf("FAIL weather %zu [%s]: %s\n", i, sim_geoms[g].name, err);
+				fails++;
+			}
+		}
+	}
+}
+#endif
+
 static void station_checks(void)
 {
 	static const struct { const char *name, *script; } cases[] = {
@@ -1601,6 +1630,9 @@ int main(void)
 	call_screen_checks();
 	heard_checks();
 	station_checks();
+#if CONFIG_APRS_WX
+	weather_checks();
+#endif
 	vfo_split_dmr_checks();
 	no_battery_checks();
 #if CONFIG_VOLUME_BAR
