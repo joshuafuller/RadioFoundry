@@ -42,7 +42,9 @@ typedef struct {
 	aprs_view_t v;
 #if CONFIG_APRS_AFSK
 	// The AX.25 half (aprs_ax25.c)
+#if !CONFIG_APRS_BEACON
 	char comment[CODEPLUG_APRS_COMMENT + 1];	// from the codeplug's APRS configuration 1
+#endif
 	char test_call[AX25_CALL_LEN + 4];
 	ax25_addr_t me;
 	bool me_ok;

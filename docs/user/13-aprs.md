@@ -38,6 +38,7 @@ frequency, your position and its source, and when the next beacon goes out. If t
 | Interval | How often: Off, 1, 2, 5, 10 or 30 minutes |
 | SmartBeaconing | More often when you move fast, at once after a turn, rarely when you stand still |
 | Send via | AFSK (on FM), DMR, or both |
+| My beacon | Preview and edit symbol, comment, automatic beacons, pace and reach (when built) |
 | KISS on USB | The radio works as a KISS TNC for APRS programs on the computer |
 | Stations heard | Stations the radio heard (radios that can receive APRS), newest first. A station that sent its position shows how far away and which way it was from yours, when the radio has a position too; the age on that row is then the age of that position. Other rows show when the station was last heard. Objects and items a station sends don't count as its position, and a position more than a day old is dropped. Select one and choose Message to fill its callsign |
 
@@ -45,8 +46,26 @@ A firmware built with only one way to send APRS shows only the rows for it. With
 Frequency, Power, Path, Send via or Stations heard, and KISS on USB is called NMEA on USB (the computer can still give
 the radio its position).
 
-The symbol, comment and the DMR destination are set with the debug tool for now
-(`tools/rfoundry_debug.py aprs set ...`), later with qdmr.
+## My beacon
+
+Open **Tools > APRS > My beacon** when included in your build. The preview shows your callsign, symbol name
+and comment for FM packets. DMR gateways use their own profile for symbol and comment.
+
+| Row | Choice | Default |
+|---|---|---|
+| Symbol | Pick from 40 plain names with Up / Down, then OK. Back keeps the old symbol | On foot |
+| Comment | Edit up to 43 characters; the editor shows how many remain | Codeplug comment, until edited here |
+| Beacons | Off or Automatic | Off |
+| Pace | Smart, or a fixed interval of 1, 2, 5, 10 or 30 minutes | Smart, with a 10-minute fallback |
+| Reach | Direct, Local relay, Local then wide, Wide one hop or Wide two hops | Local then wide |
+
+In Comment, **OK** saves. **Back** deletes a character; when empty, Back cancels. To clear the saved comment,
+delete its text and press OK. Hold Back cancels and returns Home. A saved comment, including an empty one,
+overrides the codeplug comment and survives restart. Symbols outside the list show **Custom** until you replace them.
+
+Reach names correspond to None, WIDE1-1, WIDE1-1,WIDE2-1, WIDE2-1 and WIDE2-2, respectively; see Path below.
+Changing Pace leaves Beacons as it was. Setting a position, symbol, comment or reach never turns beacons on.
+The DMR destination remains available through `tools/rfoundry_debug.py aprs set ...`.
 
 ## Station details
 

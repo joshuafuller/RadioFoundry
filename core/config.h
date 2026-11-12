@@ -266,6 +266,9 @@
 #ifndef CONFIG_APRS_AFSK
 #define CONFIG_APRS_AFSK		(CONFIG_APRS && CONFIG_FM)
 #endif
+#ifndef CONFIG_APRS_BEACON
+#define CONFIG_APRS_BEACON		CONFIG_APRS_AFSK
+#endif
 #ifndef CONFIG_APRS_DMR
 #define CONFIG_APRS_DMR			(CONFIG_APRS && CONFIG_DMR)
 #endif
@@ -426,6 +429,9 @@
 #endif
 #if (CONFIG_APRS_AFSK && !(CONFIG_APRS && CONFIG_FM)) || (CONFIG_APRS_DMR && !(CONFIG_APRS && CONFIG_DMR))
 #error "an APRS backend is on without its parents (APRS_AFSK needs APRS and FM; APRS_DMR needs APRS and DMR)"
+#endif
+#if CONFIG_APRS_BEACON && !CONFIG_APRS_AFSK
+#error "CONFIG_APRS_BEACON needs CONFIG_APRS_AFSK"
 #endif
 #if CONFIG_APRS && !CONFIG_APRS_AFSK && !CONFIG_APRS_DMR
 #error "CONFIG_APRS needs a backend: CONFIG_APRS_AFSK or CONFIG_APRS_DMR"

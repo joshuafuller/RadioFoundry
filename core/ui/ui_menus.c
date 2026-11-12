@@ -39,6 +39,9 @@
 #endif
 
 extern const ui_scr_def_t ui_find_screen;
+#if CONFIG_APRS_BEACON
+extern const ui_scr_def_t ui_aprs_beacon_screen, ui_aprs_symbol_screen, ui_aprs_pace_screen, ui_aprs_reach_screen;
+#endif
 extern const ui_scr_def_t ui_aprs_screen, ui_aprs_heard_screen, ui_aprs_station_screen;	// ui_aprs.c
 #if CONFIG_POSITION
 extern const ui_scr_def_t ui_fixed_pos_screen;	// ui_position.c
@@ -1890,7 +1893,12 @@ static void text_open(char *target, uint8_t max, uint8_t screen)
 	text_target = target;
 	text_done = NULL;
 	text_buf = screen == SCR_MESSAGE_TEXT ? message_buffer : text_name_buf;
-	text_max = screen == SCR_MESSAGE_TEXT ? max :
+#if CONFIG_APRS_BEACON
+	if (screen == SCR_APRS_COMMENT) {
+		text_buf = message_buffer;
+	}
+#endif
+	text_max = text_buf == message_buffer ? max :
 		(max < CODEPLUG_NAME_LEN ? max : CODEPLUG_NAME_LEN);
 	ui_push(screen, 0);
 }
@@ -1915,6 +1923,25 @@ static void ui_text_open(char *target, uint8_t max) { text_open(target, max, SCR
 #endif
 #if CONFIG_APRS_AFSK
 static void ui_text_open_to(char *target, uint8_t max) { text_open(target, max, SCR_APRS_TO); }
+#endif
+
+#if CONFIG_APRS_BEACON
+void ui_aprs_comment_edit(char *target, void (*done)(void))
+{
+	text_open(target, APRS_COMMENT_MAX, SCR_APRS_COMMENT);
+	text_done = done;
+}
+
+static const char *comment_remaining(void)
+{
+	static char out[32];
+	sbuf_t b;
+	sb_init(&b, out, sizeof out);
+	sb_u32(&b, text_max - text_len, 1);
+	sb_chr(&b, ' ');
+	sb_str(&b, TR("remaining"));
+	return out;
+}
 #endif
 
 static void text_enter(void)
@@ -2058,6 +2085,14 @@ static const ui_scr_def_t text_screen = {
 	.name = "text", .flags = SF_LIST, .prefix = TRN("Name"), .title = text_title,
 	.hint = TRN(TEXT_ALT_OPEN "Back delete  # ABC/123/abc  OK keep" TEXT_ALT_NEXT "Back del  # mode  OK" TEXT_ALT_CLOSE),
 	.count = text_count, .item = text_item, .key = text_key_fn, .enter = text_enter,
+};
+#endif
+
+#if CONFIG_APRS_BEACON
+static const ui_scr_def_t aprs_comment_screen = {
+	.name = "aprs-comment", .flags = SF_LIST, .prefix = TRN("Comment"), .title = text_title,
+	.hint = TRN(TEXT_ALT_OPEN "Back delete  # ABC/123/abc  OK keep" TEXT_ALT_NEXT "Back del  # mode  OK" TEXT_ALT_CLOSE),
+	.count = text_count, .item = text_item, .key = text_key_fn, .enter = text_enter, .body = comment_remaining,
 };
 #endif
 
@@ -6350,6 +6385,11 @@ const ui_scr_def_t *const ui_scr[SCR_COUNT] = {
 	[SCR_DIAG] = &diag_screen, [SCR_EMERGENCY] = &emergency_screen, [SCR_SCAN] = &scan_screen,
 	[SCR_ROAM] = &roam_screen, [SCR_APRS] = &ui_aprs_screen, [SCR_APRS_HEARD] = &ui_aprs_heard_screen,
 	[SCR_APRS_STATION] = &ui_aprs_station_screen,
+#if CONFIG_APRS_BEACON
+	[SCR_APRS_BEACON] = &ui_aprs_beacon_screen, [SCR_APRS_SYMBOL] = &ui_aprs_symbol_screen,
+	[SCR_APRS_PACE] = &ui_aprs_pace_screen, [SCR_APRS_REACH] = &ui_aprs_reach_screen,
+	[SCR_APRS_COMMENT] = &aprs_comment_screen,
+#endif
 	[SCR_ABOUT] = &about_screen,
 #if CONFIG_POSITION
 	[SCR_FIXED_POS] = &ui_fixed_pos_screen,

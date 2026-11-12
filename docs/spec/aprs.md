@@ -384,7 +384,23 @@ additional comment text is retained. Detail rows scroll with Up / Down and do no
 is evicted, the screen says "No longer in list" and Message still addresses the saved callsign. This detail code
 and the saved callsign are guarded by `CONFIG_APRS_RX`; the engine storage is unchanged.
 
-The rest (symbol, comment, digital destination, ambiguity, iGate, digipeater, fixed altitude) is set over the
+With `CONFIG_APRS_BEACON`, My beacon (`ui_aprs_beacon.c`) adds a callsign, symbol name and comment preview,
+then five rows: Symbol, Comment, Beacons, Pace and Reach. Symbol offers 40 named choices, with table/code
+assignments from the [APRS symbol specification](https://www.aprs.org/symbols/symbolsX.txt); no graphics are stored.
+A symbol outside this subset reads Custom and is preserved until a choice is saved. Comment uses the existing
+text editor, accepts up to 43 printable ASCII characters and shows the remaining count. OK saves, including an
+empty comment; Back deletes, then cancels when empty. Hold Back cancels and returns Home.
+Beacons selects Off or Automatic. Pace selects Smart or a fixed interval of 1, 2, 5, 10 or 30 minutes; choosing
+Smart preserves the fallback interval. Reach selects Direct, Local relay, Local then wide, Wide one hop or
+Wide two hops, in `aprs_path_t` order. These use the existing settings and path-to-codeplug storage job.
+Only Beacons changes `tx_on`; editing a symbol, comment, pace, reach or fixed position never enables beacons.
+The feature needs `CONFIG_APRS_AFSK`; off, the screens, symbol table and comment editing code are absent.
+The common settings record still grows by 44 bytes in every build (132 bytes across its three main-RAM copies),
+and the shared translation catalogs retain the new strings when their language is built. The switch therefore
+does not remove all shared metadata storage.
+New UI buffers and the longer engine comment buffer live in main RAM, without enlarging CPU-only RAM.
+
+The rest (digital destination, ambiguity, iGate, digipeater, fixed altitude) is set over the
 debug link (`rfoundry_debug.py aprs set`) and later by qdmr through the native codeplug.
 
 ## 11. Settings
@@ -398,6 +414,11 @@ to APRS-IS), `aprs_region`, `aprs_ssid`, `aprs_freq_hz`, `aprs_dmr_dst`, `aprs_i
 ([position.md](position.md) 5): APRS never changes them, and its save keeps them. The codeplug's APRS record 1 (EEPROM 0x1588,
 64 bytes each) gives the SSID, path, symbol, comment and ambiguity when present; its fixed position and frequency
 encodings are unknown and not used. Of these the radio takes the comment and the path.
+
+The appended `aprs_comment[44]` and `SETTINGS_APRS2_COMMENT` flag hold an on-radio comment override.
+Without the flag the codeplug comment remains in use. Saving an empty string sets the flag too, so a cleared
+comment does not return after restart. Other APRS saves preserve the flag. The settings layout is identical
+across feature builds; builds without My beacon retain the field but use the codeplug comment.
 
 The path lives in both places, and the one changed last wins:
 
@@ -429,6 +450,13 @@ manual and after-PTT triggers, KISS and NMEA from the host, messages with acks, 
 the iGate both ways, the DMR position source, a packet as AFSK audio through the PCM stream into the station list
 only on the APRS frequency). `usrpNetTest` checks the stream's APRS ring. `tests/host/aprs_wav_check.sh` feeds the WAV to Direwolf's `atest`
 when it is installed (a black-box check).
+
+My beacon host coverage: `uiFlowTest` and `uiFlowTestNoColor` open each screen, select and cancel choices,
+edit and clear comments, and check the 43-character limit at every display geometry. `aprsRadioTest` checks
+validation, settings reload, no automatic TX after position edits and the decoded comment. `settingsTest`
+checks comment persistence and clearing across simulated power cycles. The navigation-only HIL test
+`test_aprs_beacon_ui.py` needs `RFOUNDRY_HIL_APRS_BEACON=1`; it opens and cancels editors without saving or
+requesting RF. It has not been run on a radio.
 
 HIL (opt-in, `tests/hil/test_aprs.py`, README there): `--allow-rf --allow-service-stop --aprs-call CALL` (a licensed
 operator's callsign, set as the RAM-only test call; SSID `--aprs-ssid`, default 15).

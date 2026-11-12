@@ -19,6 +19,7 @@
 #include <stddef.h>
 #include "config.h"
 #include "aprs/ax25.h"
+#include "aprs/aprs_fmt.h"
 #include "position/position.h"
 
 #define APRS_TOCALL		"APZRDF"	// destination: the experimental APZ block (docs/spec/aprs.md 4.2)
@@ -71,6 +72,12 @@ typedef struct {
 	bool igate_tx;		// APRS-IS -> RF
 	uint8_t digi;		// aprs_digi_mode_t
 } aprs_cfg_t;	// where our position comes from and its ambiguity: the position service's settings (position.h)
+
+#if CONFIG_APRS_BEACON
+// Any task: effective comment, or a printable ASCII override saved in settings.
+void aprs_get_comment(char out[APRS_COMMENT_MAX + 1]);
+bool aprs_set_comment(const char *text, uint32_t now_ms);
+#endif
 
 void aprs_cfg_default(aprs_cfg_t *c);
 // The APRS frequency c selects (0 = none)

@@ -1109,8 +1109,33 @@ static void test_write_across_sectors(void)
 	CHECK(sim_flash_violations() == 0);
 }
 
+// The appended APRS comment and its presence flag survive a power cycle, including an explicit clear.
+static void test_aprs_comment_store(void)
+{
+	sim_flash_create(FLASH_SIZE, &map);
+	boot();
+	settings_t *w = settings_begin();
+	w->aprs_flags2 |= SETTINGS_APRS2_COMMENT;
+	strcpy(w->aprs_comment, "1234567890123456789012345678901234567890123");
+	settings_end(1000);
+	CHECK(settings_flush());
+	boot();
+	settings_t s;
+	settings_read(&s);
+	CHECK((s.aprs_flags2 & SETTINGS_APRS2_COMMENT) != 0);
+	CHECK(strcmp(s.aprs_comment, "1234567890123456789012345678901234567890123") == 0);
+	w = settings_begin();
+	w->aprs_comment[0] = '\0';
+	settings_end(2000);
+	CHECK(settings_flush());
+	boot();
+	settings_read(&s);
+	CHECK((s.aprs_flags2 & SETTINGS_APRS2_COMMENT) != 0 && s.aprs_comment[0] == '\0');
+}
+
 int main(void)
 {
+	test_aprs_comment_store();
 	test_journal_basic();
 	test_journal_cuts();
 	test_settings_basic();

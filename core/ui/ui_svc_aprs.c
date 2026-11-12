@@ -39,6 +39,11 @@ void ui_svc_aprs_set_cfg(const aprs_cfg_t *c)
 	}
 }
 
+#if CONFIG_APRS_BEACON
+void ui_svc_aprs_comment(char out[APRS_COMMENT_MAX + 1]) { aprs_get_comment(out); }
+bool ui_svc_aprs_set_comment(const char *text) { return aprs_set_comment(text, hal_millis()); }
+#endif
+
 bool ui_svc_aprs_send_now(void)
 {
 	return aprs_send_now();

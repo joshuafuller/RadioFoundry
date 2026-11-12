@@ -97,7 +97,7 @@ static void cfg_to_settings(const aprs_cfg_t *c, settings_t *s)
 	s->aprs_flags2 = (uint8_t)((c->igate ? SETTINGS_APRS2_IGATE : 0) | (c->igate_tx ? SETTINGS_APRS2_IGATE_TX : 0) |
 				   (c->messaging ? SETTINGS_APRS2_MESSAGING : 0) |
 				   (c->dmr_udt ? SETTINGS_APRS2_DMR_UDT : 0) | (c->to_is ? SETTINGS_APRS2_TO_IS : 0) |
-				   (s->aprs_flags2 & SETTINGS_APRS2_DMR_GPS));
+				   (s->aprs_flags2 & (SETTINGS_APRS2_DMR_GPS | SETTINGS_APRS2_COMMENT)));
 	s->aprs_region = c->region;
 	s->aprs_ssid = c->ssid;
 	s->aprs_freq_hz = c->freq_hz;

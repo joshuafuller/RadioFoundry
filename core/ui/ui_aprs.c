@@ -38,7 +38,7 @@ WEAK bool ui_svc_aprs_station(uint8_t i, aprs_station_t *out) { (void)i; (void)o
 WEAK bool ui_svc_aprs_station_find(const char *call, aprs_station_t *out) { (void)call; (void)out; return false; }
 WEAK bool ui_svc_aprs_range(const aprs_station_t *s, uint32_t *m, uint16_t *deg) { (void)s; (void)m; (void)deg; return false; }
 
-enum { AP_SEND, AP_AUTO, AP_FREQ, AP_POWER, AP_PATH, AP_INTERVAL, AP_SMART, AP_VIA, AP_KISS, AP_HEARD, AP_COUNT };
+enum { AP_SEND, AP_AUTO, AP_FREQ, AP_POWER, AP_PATH, AP_INTERVAL, AP_SMART, AP_VIA, AP_KISS, AP_HEARD, AP_BEACON, AP_COUNT };
 
 // The rows this build shows, in order: the packet rows only with the AX.25 backend (CONFIG_APRS_AFSK), "Send via"
 // only when there is a choice (both backends built)
@@ -50,6 +50,9 @@ static const uint8_t rows[] = {
 	AP_INTERVAL, AP_SMART,
 #if CONFIG_APRS_AFSK && CONFIG_APRS_DMR
 	AP_VIA,
+#endif
+#if CONFIG_APRS_BEACON
+	AP_BEACON,
 #endif
 	AP_KISS,
 #if CONFIG_APRS_AFSK
@@ -155,7 +158,7 @@ static void aprs_item(uint16_t i, ui_item_t *it)
 {
 	static const char *const names[] = { TRN("Send position now"), TRN("Automatic beacons"), TRN("Frequency"),
 					     TRN("Power"), TRN("Path"), TRN("Interval"), TRN("SmartBeaconing"),
-					     TRN("Send via"), TRN("KISS on USB"), TRN("Stations heard") };
+					     TRN("Send via"), TRN("KISS on USB"), TRN("Stations heard"), TRN("My beacon") };
 	aprs_view_t v;
 	aprs_cfg_t c;
 	bool built = ui_svc_aprs_view(&v);
@@ -265,6 +268,11 @@ static void aprs_select(uint16_t i, bool hold)
 	case AP_SMART: c.smart = !c.smart; break;
 	case AP_VIA: c.via = (uint8_t)((c.via + 1u) % APRS_VIA_COUNT); break;
 	case AP_KISS: c.kiss = !c.kiss; break;
+#if CONFIG_APRS_BEACON
+	case AP_BEACON:
+		ui_push(SCR_APRS_BEACON, 0);
+		return;
+#endif
 	case AP_HEARD:
 		if (!CONFIG_APRS_RX) {
 			ui_toast(TR("This radio can't receive APRS"));
