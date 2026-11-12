@@ -1579,6 +1579,10 @@ msgid "To "
 msgstr "A "
 
 #: core/ui/ui_aprs_thread.c
+msgid "Not acknowledged: APRS TX off"
+msgstr "Non confermato: TX APRS spento"
+
+#: core/ui/ui_aprs_thread.c
 msgid "OK reply  # Cancel"
 msgstr "OK rispondi  # Annulla"
 

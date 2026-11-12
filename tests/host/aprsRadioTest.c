@@ -758,6 +758,21 @@ static void test_messages(void)
 	aprs_view_t v;
 	aprs_get_view(&v);
 	CHECK(v.msg_acked || !v.msg_pending);
+	// TX off still stores numbered messages, without an ACK or REJ.
+	cfg.tx_on = false;
+	aprs_set_cfg(&cfg, now);
+	nframes = 0;
+	rx_line("Q1ABC-9>APRS,WIDE1-1::Q1TST-7  :Hi there{42");
+	run(5000);
+	aprs_msg_t received;
+	CHECK(aprs_msg_count() == 1 && aprs_msg(0, &received));
+	CHECK(strcmp(received.text, "Hi there") == 0 && received.ack_tx_off);
+	CHECK(hw.starts == 2 && nframes == 0 && !aprs_rf_pending());
+	aprs_thread_msg_t thread[APRS_THREAD_MAX];
+	CHECK(aprs_thread("Q1ABC-9", thread, false) == 2 && thread[1].ack_tx_off);
+	cfg.tx_on = true;
+	aprs_set_cfg(&cfg, now);
+	CHECK(aprs_thread("Q1ABC-9", thread, false) == 2 && thread[1].ack_tx_off);
 	// a message to us: kept and acked
 	nframes = 0;
 	rx_line("Q1ABC-9>APRS,WIDE1-1::Q1TST-7  :Hi there{42");
@@ -772,6 +787,7 @@ static void test_messages(void)
 	CHECK(wait_start(4, 5000));
 	wait_idle();
 	CHECK(aprs_msg_count() == 1 && nframes == 2);
+	CHECK(aprs_msg(0, &m) && !m.ack_tx_off);
 #else
 	(void)rx_line;
 #endif

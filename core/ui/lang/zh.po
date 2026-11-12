@@ -1555,6 +1555,10 @@ msgid "To "
 msgstr "至 "
 
 #: core/ui/ui_aprs_thread.c
+msgid "Not acknowledged: APRS TX off"
+msgstr "未确认：APRS 发射关闭"
+
+#: core/ui/ui_aprs_thread.c
 msgid "OK reply  # Cancel"
 msgstr "OK回复  #取消"
 
