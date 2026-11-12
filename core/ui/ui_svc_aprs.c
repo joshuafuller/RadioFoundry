@@ -4,6 +4,7 @@
 #include "config.h"
 #if CONFIG_APRS
 #include "ui_svc_aprs.h"
+#include <string.h>
 #include "aprs/aprs_fmt.h"
 #include "ui_svc.h"
 #include "board.h"
@@ -66,6 +67,16 @@ uint8_t ui_svc_aprs_station_count(void)
 bool ui_svc_aprs_station(uint8_t i, aprs_station_t *out)
 {
 	return aprs_station(i, out);
+}
+
+bool ui_svc_aprs_station_find(const char *call, aprs_station_t *out)
+{
+	for (uint8_t i = 0; i < aprs_station_count(); i++) {
+		if (aprs_station(i, out) && strcmp(out->call, call) == 0) {
+			return true;
+		}
+	}
+	return false;
 }
 
 bool ui_svc_aprs_range(const aprs_station_t *s, uint32_t *m, uint16_t *deg)

@@ -887,6 +887,12 @@ static void test_station_range(void)
 	rx_line("Q1ABC-8>APZRDF:=4903.50N/07201.75W>Here");	// on it
 	rx_line("Q1ABC-7>APZRDF:>Status only");
 	CHECK(aprs_station_count() == 3);
+	CHECK(ui_svc_aprs_station_find("Q1ABC-9", &far) && far.has_pos);
+	rx_line("Q1ABC-8>APZRDF:>New packet");
+	CHECK(aprs_station(0, &here) && strcmp(here.call, "Q1ABC-8") == 0);
+	CHECK(ui_svc_aprs_station_find("Q1ABC-9", &far) && strcmp(far.call, "Q1ABC-9") == 0);
+	CHECK(!ui_svc_aprs_station_find("Q1NONE", &nopos));
+	rx_line("Q1ABC-7>APZRDF:>Status only");
 	CHECK(aprs_station(2, &far) && far.has_pos && aprs_station(1, &here) && here.has_pos);
 	CHECK(aprs_station(0, &nopos) && !nopos.has_pos);
 	// our position: none
