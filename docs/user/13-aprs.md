@@ -31,7 +31,7 @@ for its full details. Color displays show hint keys in small caps; mono displays
 
 Press **OK**, **6** (Tools), **8** (APRS). The header shows callsign-SSID, position source, TX state and path. Send position now is the first
 choice, including on mono. Local TX and matching-repeat evidence precede station and message counts.
-Open **0 Settings** for the policy controls below. Each changed setting opens a review before saving.
+Open **0 Settings** for the policy controls below. Transmit settings open a review before saving. Receive-only listening changes immediately.
 
 | Row | What it does |
 |---|---|
@@ -45,6 +45,7 @@ Open **0 Settings** for the policy controls below. Each changed setting opens a 
 | SmartBeaconing | More often when you move fast, at once after a turn, rarely when you stand still |
 | Send via | AFSK (on FM), DMR, or both |
 | My beacon | Preview and edit symbol, comment, automatic beacons, pace and reach (when built) |
+| Listen on voice channels | Off by default. With APRS RX and dual watch built, alternate the idle voice receiver with APRS. Home says Listening: time share. Packets may be missed; voice cannot be heard while the receiver is away. PTT returns immediately to voice. This setting never enables transmit |
 | KISS on USB | The radio works as a KISS TNC for APRS programs on the computer |
 | Objects | Named objects and items; OK opens position, owner, comment and advertised frequency |
 | Bulletins | Announcements and group bulletins; OK opens the complete text |

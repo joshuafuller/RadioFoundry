@@ -39,6 +39,7 @@ static struct {
 	uint8_t tx_power;
 	int tx_off_calls;
 	bool keyed;
+	uint8_t noise_on_voice;
 	uint8_t noise_on_aprs;	// noise reading on 144.390 (low = a carrier)
 	// AFSK
 	uint8_t tones[600];
@@ -87,7 +88,7 @@ static void r_tx_off(void)
 }
 static void r_status(radio_status_t *st)
 {
-	st->noise = hw.rx_hz == APRS_HZ ? hw.noise_on_aprs : 120;
+	st->noise = hw.rx_hz == APRS_HZ ? hw.noise_on_aprs : hw.noise_on_voice;
 	st->rssi_dbm = -120;
 	st->carrier = false;
 	st->tone_ok = true;
@@ -211,7 +212,7 @@ const board_t board = {
 	.bcast = &fake_bcast,
 };
 
-// ---- fake codeplug: one channel ----
+// ---- fake codeplug: one channel, with an optional second scan stop ----
 static channel_t chan;
 static zone_t zone;
 static char cp_name[CODEPLUG_NAME_LEN + 1];
@@ -223,13 +224,14 @@ void storage_lock(void) {}
 void storage_unlock(void) {}
 void storage_quick_lock(void) {}
 void storage_quick_unlock(void) {}
-uint16_t codeplug_channel_count(void) { return 1; }
+uint16_t codeplug_channel_count(void) { return zone.count; }
 bool codeplug_channel(uint16_t n, channel_t *out)
 {
-	if (n != 1) {
+	if (n == 0 || n > zone.count) {
 		return false;
 	}
 	*out = chan;
+	if (n == 2) out->rx_hz = out->tx_hz = CH_HZ + 25000;
 	return true;
 }
 uint16_t codeplug_zone_count(void) { return 1; }
@@ -310,7 +312,7 @@ static void req(uint8_t type, int32_t arg)
 static void reset(void)
 {
 	memset(&hw, 0, sizeof(hw));
-	hw.noise_on_aprs = 120;
+	hw.noise_on_aprs = hw.noise_on_voice = 120;
 	nframes = 0;
 	memset(frames, 0, sizeof(frames));
 	now = 1000;
@@ -1406,6 +1408,125 @@ static void feed(const int16_t *s)
 
 // FM receive audio on the PCM stream (AUDIO_TAP_FM_RX) into the demodulator: only on the APRS frequency, battery saving
 // held off while it listens (docs/spec/aprs.md 5.3)
+static void test_voice_listen(void)
+{
+	fake_tap.caps = AUDIO_TAP_FM_RX;
+	reset();
+	aprs_cfg_t c;
+	aprs_get_cfg(&c);
+	CHECK(!c.listen_voice);
+	run(2000);
+	CHECK(hw.rx_hz == CH_HZ && !hw.tx_calls);
+	// A single-channel zone cannot start a scan; give the ownership tests two distinct stops.
+	req(RREQ_SCAN, RSCAN_ZONE);
+	CHECK(sm.scan.kind == SCAN_OFF && hw.rx_hz == CH_HZ);
+	zone.count = 2;
+	zone.channels[1] = 2;
+	req(RREQ_RELOAD, 0);
+	c.listen_voice = true;
+	aprs_set_cfg(&c, now);
+	aprs_reload();
+	aprs_get_cfg(&c);
+	CHECK(c.listen_voice && !c.tx_on);
+	aprs_stop_tx(true); // stopping transmissions must not disable receive-only sharing
+	run(25); // scheduler's origin
+	unsigned dwell = 0;
+	for (unsigned i = 0; i < 80; i++) {
+		run(25);
+		if (hw.rx_hz == APRS_HZ) dwell++;
+	}
+	CHECK(dwell == 20); // 250 ms in each 1000 ms cycle
+	CHECK(!hw.tx_calls && sm.view.ch.rx_hz == CH_HZ);
+	aprs_home_t h;
+	aprs_home_get(&h);
+	CHECK(h.listening == APRS_LISTEN_SHARED);
+	// Voice appearing at the departure boundary prevents the APRS hop.
+	hw.noise_on_voice = 30;
+	run(2000);
+	CHECK(hw.rx_hz == CH_HZ && sm.view.state == RS_RX);
+	hw.noise_on_voice = 120;
+	for (unsigned i = 0; i < 100 && hw.rx_hz != APRS_HZ; i++) run(25);
+	CHECK(hw.rx_hz == APRS_HZ && aprs_rx_listening());
+	// A real AFSK packet starts during the dwell and finishes beyond its normal end.
+	static uint8_t tones[256];
+	static int16_t audio[24000];
+	ax25_frame_t f;
+	uint8_t raw[AX25_FRAME_MAX];
+	const char *line = "Q1ABC-9>APRS:!4903.50N/07201.75W-Held to completion";
+	CHECK(ax25_from_tnc2(line, strlen(line), &f));
+	size_t n = ax25_encode(&f, raw, sizeof raw);
+	hdlc_enc_t e;
+	hdlc_enc_init(&e, tones, sizeof tones);
+	CHECK(hdlc_enc_flags(&e, 30) && hdlc_enc_frame(&e, raw, n) && hdlc_enc_flags(&e, 3));
+	afsk_mod_t m;
+	afsk_mod_init(&m, 8000);
+	memset(audio, 0, sizeof audio);
+	size_t samples = afsk_mod(&m, tones, e.nbits, 8000, audio + 800, 22400);
+	CHECK(samples > 2000);
+	hw.noise_on_aprs = 30;
+	for (size_t i = 0; i + AUDIO_BLOCK_SAMPLES <= samples + 1600; i += AUDIO_BLOCK_SAMPLES) {
+		feed(audio + i);
+		CHECK(hw.rx_hz == APRS_HZ);
+	}
+	CHECK(aprs_station_count() == 1);
+	// Short noise gaps do not cut off a packet.
+	hw.noise_on_aprs = 120;
+	run(100);
+	CHECK(hw.rx_hz == APRS_HZ);
+	hw.noise_on_aprs = 30;
+	run(2000);
+	CHECK(hw.rx_hz == APRS_HZ && aprs_rx_listening() && !hw.tx_calls);
+	hw.noise_on_aprs = 120;
+	run(150);
+	CHECK(hw.rx_hz == CH_HZ && !aprs_rx_listening());
+	// PTT at every point in the APRS dwell, including a carrier hold, keys the voice channel in the request.
+	for (unsigned offset = 0; offset <= 300; offset += 25) {
+		for (unsigned i = 0; i < 100 && hw.rx_hz != APRS_HZ; i++) run(25);
+		CHECK(hw.rx_hz == APRS_HZ);
+		hw.noise_on_aprs = 30;
+		run(offset);
+		unsigned before = hw.tx_calls;
+		req(RREQ_PTT, 1);
+		CHECK(hw.keyed && hw.tx_hz == CH_HZ && hw.tx_calls == (int)before + 1);
+		CHECK(hw.rx_hz == CH_HZ && sm.aprs_phase == 0);
+		req(RREQ_PTT, 0);
+		hw.noise_on_aprs = 120;
+	}
+	for (unsigned i = 0; i < 100 && hw.rx_hz != APRS_HZ; i++) run(25);
+	// A user scan or dual watch takes ownership, even during an APRS carrier hold.
+	for (unsigned dual = 0; dual < 2; dual++) {
+		for (unsigned i = 0; i < 100 && hw.rx_hz != APRS_HZ; i++) run(25);
+		CHECK(hw.rx_hz == APRS_HZ);
+		hw.noise_on_aprs = 30;
+		run(300);
+		CHECK(hw.rx_hz == APRS_HZ);
+		radio_req_t r = { RREQ_SCAN, dual ? RSCAN_DUAL : RSCAN_ZONE, 1 };
+		radio_sm_request(&sm, &r, now);
+		uint8_t kind = dual ? SCAN_DUAL : SCAN_ZONE;
+		CHECK(sm.aprs_phase == 0 && sm.scan.kind == kind);
+		CHECK(hw.rx_hz == sm.view.ch.rx_hz && hw.rx_hz != APRS_HZ);
+		unsigned visited = 0;
+		for (unsigned i = 0; i < 60; i++) {
+			run(25);
+			CHECK(sm.aprs_phase == 0 && sm.scan.kind == kind);
+			CHECK(hw.rx_hz == sm.view.ch.rx_hz && hw.rx_hz != APRS_HZ);
+			visited |= 1u << sm.view.zone_pos;
+		}
+		CHECK(visited == 3 && !aprs_rx_listening());
+		req(RREQ_SCAN, RSCAN_CANCEL);
+		CHECK(hw.rx_hz == CH_HZ);
+		hw.noise_on_aprs = 120;
+	}
+	for (unsigned i = 0; i < 100 && hw.rx_hz != APRS_HZ; i++) run(25);
+	CHECK(hw.rx_hz == APRS_HZ);
+	c.listen_voice = false;
+	aprs_set_cfg(&c, now);
+	run(25);
+	CHECK(hw.rx_hz == CH_HZ && !aprs_rx_listening());
+	run(50); // let the audio mux release the stream before the next test
+	fake_tap.caps = 0;
+}
+
 static void test_rx_stream(void)
 {
 	fake_tap.caps = AUDIO_TAP_FM_RX;
@@ -2132,6 +2253,7 @@ int main(void)
 
 	test_home_repeat();
 	test_stations_digi_igate();
+	test_voice_listen();
 	test_rx_stream();
 	test_rx_board_only();
 	test_station_range();

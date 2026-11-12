@@ -234,6 +234,7 @@ typedef struct {
 	uint8_t units;			// 0 US (default), 1 Metric; was reserved9
 	char aprs_comment[44];		// saved override, including an empty comment; APRS2_COMMENT marks it
 	uint8_t aprs_my_frequency;	// include the voice frequency in beacons; default off
+	uint8_t aprs_listen_voice;	// time-shared receive, default off
 } settings_t;
 
 // Pages: settings_t is stored as records of SETTINGS_PAGE_BYTES each (settings-store.md 2.1). Only the pages its size

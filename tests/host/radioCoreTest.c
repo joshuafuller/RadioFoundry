@@ -181,8 +181,18 @@ static void fake_gps_enable(bool on)
 	gps_enabled = on;
 }
 
+#if CONFIG_APRS_RX && CONFIG_DUAL_WATCH
+static bool aprs_rx_start(void) { return true; }
+static void aprs_rx_stop(void) {}
+static uint16_t aprs_rx_read(int16_t *buf, uint16_t n) { (void)buf; (void)n; return 0; }
+static hal_afsk_t aprs_receive;
+#endif
+
 const board_t board = {
 	.name = "fake",
+#if CONFIG_APRS_RX && CONFIG_DUAL_WATCH
+	.afsk = &aprs_receive,
+#endif
 	.caps = CAP_GPS,
 	.gps_enable = fake_gps_enable,
 	.gps_present = fake_gps_present,
@@ -204,6 +214,8 @@ const board_t board = {
 	.vocoder = &fake_vocoder,
 	.flash = &sim_flash,		// no map until test_factory_reset: RAM only, as on a radio without one
 };
+
+void fmt_units_refresh(void) {} // storage refreshes display units; this harness has no display
 
 // ---- fake codeplug ----
 #define NCH 8
@@ -1174,6 +1186,37 @@ static void dmr_start(bool codec)
 	req(RREQ_ZONE_POS, 3);		// channel 4: DMR, CC 2, TS 1, talk target TG 201, listen list 1
 	run(50);
 }
+
+#if CONFIG_APRS_RX && CONFIG_DUAL_WATCH
+static void test_aprs_voice_dmr(void)
+{
+	aprs_receive = (hal_afsk_t){ .rx_start = aprs_rx_start, .rx_stop = aprs_rx_stop,
+		.rx_read = aprs_rx_read, .rx_rate_hz = 8000 };
+	dmr_start(true);
+	aprs_cfg_t c;
+	aprs_get_cfg(&c);
+	c.rx_on = c.listen_voice = true;
+	aprs_set_cfg(&c, now);
+	run(25);
+	uint32_t voice_hz = sm.view.ch.rx_hz;
+	// A decoded DMR call prevents leaving even when the analog carrier reading is quiet.
+	hear_call(true, 201, 9991234, 2, 1, false);
+	CHECK(sm.view.state == RS_RX);
+	run(250);
+	CHECK(hw.rx_hz == voice_hz && hw_mode == RADIO_MODE_DMR);
+	uint8_t lc[9];
+	mk_lc(lc, true, 201, 9991234);
+	burst_lc(lc, 2, true);
+	for (unsigned i = 0; i < 100 && hw_mode != RADIO_MODE_FM; i++) run(25);
+	CHECK(hw_mode == RADIO_MODE_FM && hw.rx_hz == aprs_cfg_freq(&c) && !sm.dmr_running);
+	CHECK(sm.view.ch.rx_hz == voice_hz && sm.view.ch.mode == RADIO_MODE_DMR);
+	req(RREQ_PTT, 1);
+	CHECK(hw_mode == RADIO_MODE_DMR && hw.rx_hz == voice_hz && sm.dmr_running && sm.ptt);
+	CHECK(sm.aprs_phase == 0 && sm.view.state != RS_TX_DENIED);
+	req(RREQ_PTT, 0);
+	memset(&aprs_receive, 0, sizeof aprs_receive);
+}
+#endif
 
 static void test_dmr_rx(void)
 {
@@ -4777,10 +4820,12 @@ static void test_factory_reset(void)
 	CHECK(sim_flash.write(reset_map.native_addr + 0x2000u, magic, 4));
 	settings_begin()->squelch = 5;
 	settings_end(now);
+	uint32_t write_units = sim_flash_units();
 	CHECK(settings_flush());
+	write_units = sim_flash_units() - write_units;
 	n_ev = 0;
 	CHECK(ui_svc_factory_reset());
-	sim_flash_cut_after(436);	// the settings records (page 1: 176 + 4 bytes, page 0: 252 + 4) go in, the native erase fails
+	sim_flash_cut_after(write_units);	// save all settings pages before cutting power at the native erase
 	storage_job_poll();
 	sim_flash_power_on();
 	CHECK(n_ev == 1 && strstr(last_ev.text, "native") != NULL);
@@ -5247,8 +5292,15 @@ static void test_volume_step_of(void)
 	}
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
+#if CONFIG_APRS_RX && CONFIG_DUAL_WATCH
+	if (argc == 2 && strcmp(argv[1], "--aprs-voice") == 0) {
+		test_aprs_voice_dmr();
+		printf("# APRS DMR voice: %d checks, %s\n", checks, failures ? "FAILED" : "PASSED");
+		return failures != 0;
+	}
+#endif
 	test_tx_limit_op();
 	test_startup();
 	test_persist();
@@ -5313,6 +5365,9 @@ int main(void)
 #endif
 #if CONFIG_APRS_RX
 	test_dmr_aprs_position();
+#if CONFIG_DUAL_WATCH
+	test_aprs_voice_dmr();
+#endif
 #endif
 	test_power_off_ars();
 #if CONFIG_VFO_DMR

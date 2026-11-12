@@ -455,6 +455,9 @@ typedef struct {
 	uint32_t aprs_rand;		// p-persistence
 	aprs_rf_job_t aprs_job;
 #endif
+#if CONFIG_APRS_RX && CONFIG_DUAL_WATCH
+	uint32_t aprs_rx_hz;
+#endif
 	bool tx_no_ptt;		// on the air without PTT (a DMR data burst list): not the user's transmission, no "after PTT"
 } radio_sm_t;
 

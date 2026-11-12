@@ -830,6 +830,10 @@ msgid "Emergency"
 msgstr "Emergencia"
 
 #: core/ui/ui_aprs.c
+msgid "{Listen on voice channels|Listen on voice}"
+msgstr "{Escuchar en canales de voz|Escuchar en voz}"
+
+#: core/ui/ui_aprs.c
 msgid "NMEA on USB"
 msgstr "NMEA por USB"
 
@@ -1407,6 +1411,10 @@ msgstr "{No escucha: sin receptor|Sin receptor APRS}"
 #: core/ui/ui_aprs_home.c
 msgid "{Not listening: voice channel|APRS off: voice channel}"
 msgstr "{No escucha: canal de voz|APRS no: canal de voz}"
+
+#: core/ui/ui_aprs_home.c
+msgid "Listening: time share"
+msgstr "Escucha: alternada"
 
 #: core/ui/ui_aprs_home.c
 msgid "Not listening: radio busy"

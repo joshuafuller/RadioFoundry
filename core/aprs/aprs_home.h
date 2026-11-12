@@ -5,7 +5,7 @@
 #include "aprs/aprs.h"
 
 typedef enum { APRS_LISTEN_OFF, APRS_LISTEN_UNAVAILABLE, APRS_LISTEN_CHANNEL,
-	APRS_LISTEN_BUSY, APRS_LISTEN_FAILED, APRS_LISTEN_ON } aprs_listen_t;
+	APRS_LISTEN_BUSY, APRS_LISTEN_FAILED, APRS_LISTEN_ON, APRS_LISTEN_SHARED } aprs_listen_t;
 // The retained repeat event belongs to the last successfully transmitted RF packet.
 typedef struct {
 	bool sent;

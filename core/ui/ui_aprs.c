@@ -57,7 +57,7 @@ enum { AP_SEND, AP_AUTO, AP_FREQ, AP_POWER, AP_PATH, AP_INTERVAL, AP_SMART, AP_V
 #if CONFIG_APRS_BEACON
 	AP_STOP, AP_DMR, AP_EMERGENCY,
 #endif
-	AP_COUNT };
+	AP_LISTEN_VOICE, AP_COUNT };
 
 // The rows this build shows, in order: the packet rows only with the AX.25 backend (CONFIG_APRS_AFSK), "Send via"
 // only when there is a choice (both backends built)
@@ -101,6 +101,9 @@ static const uint8_t settings_rows[] = {
 	AP_KISS,
 #if CONFIG_APRS_TUNE
 	AP_MY_FREQ,
+#endif
+#if CONFIG_APRS_RX && CONFIG_DUAL_WATCH
+	AP_LISTEN_VOICE,
 #endif
 #if CONFIG_APRS_BEACON
 	AP_EMERGENCY,
@@ -391,6 +394,7 @@ static void aprs_item(uint16_t i, ui_item_t *it)
 #if CONFIG_APRS_BEACON
 		TRN("Stop all APRS TX"), "DMR", TRN("Emergency"),
 #endif
+		TRN(TEXT_ALT_OPEN "Listen on voice channels" TEXT_ALT_NEXT "Listen on voice" TEXT_ALT_CLOSE),
 	};
 	aprs_view_t v;
 	aprs_cfg_t c;
@@ -505,6 +509,7 @@ static void aprs_item(uint16_t i, ui_item_t *it)
 #if CONFIG_APRS_TUNE
 	case AP_MY_FREQ: sb_str(&b, c.my_frequency ? TR("On") : TR("Off")); break;
 #endif
+	case AP_LISTEN_VOICE: sb_str(&b, c.listen_voice ? TR("On") : TR("Off")); break;
 	case AP_KISS: sb_str(&b, c.kiss ? TR("On") : TR("Off")); break;
 #if CONFIG_APRS_RX
 	case AP_RECENT: sb_u32(&b, ui_svc_aprs_packet_count(), 1); break;
@@ -731,6 +736,11 @@ static void aprs_select(uint16_t i, bool hold)
 #if CONFIG_APRS_TUNE
 	case AP_MY_FREQ: c.my_frequency = !c.my_frequency; break;
 #endif
+	case AP_LISTEN_VOICE:
+		c.listen_voice = !c.listen_voice;
+		ui_svc_aprs_set_cfg(&c);
+		ui_dirty();
+		return;
 	case AP_KISS: c.kiss = !c.kiss; break;
 #if CONFIG_APRS_RX
 	case AP_OBJECTS: ui_push(SCR_APRS_OBJECTS, 0); return;

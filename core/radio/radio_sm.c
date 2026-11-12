@@ -358,7 +358,7 @@ static void reset_tone(radio_sm_t *sm)
 }
 
 // The APRS job's phases (aprs_phase)
-enum { APRS_RF_OFF = 0, APRS_RF_LISTEN, APRS_RF_KEYUP, APRS_RF_SEND };
+enum { APRS_RF_OFF = 0, APRS_RF_LISTEN, APRS_RF_KEYUP, APRS_RF_SEND, APRS_RF_RECEIVE };
 
 // A broadcast station is listened to, not squelched: the state stays RX (so the screen shows the level and the LED is on)
 // whatever the signal, and the audio plays. A scan keeps the squelch to stop on stations
@@ -556,6 +556,12 @@ static bool listen_band(uint32_t hz)
 
 static void tune(radio_sm_t *sm, uint32_t now_ms)
 {
+#if CONFIG_APRS_RX && CONFIG_DUAL_WATCH
+	if (sm->aprs_phase == APRS_RF_RECEIVE) {
+		sm->aprs_phase = APRS_RF_OFF;
+		if (sm->scan.kind == SCAN_APRS) scan_end(&sm->scan);
+	}
+#endif
 	sm->retune_pending = sm->retune_due = false;	// this tune is the one they wait for
 #if CONFIG_SFR_CWID
 	cw_cancel(sm);		// the repeater's ID: the board is set up for the channel below
@@ -3473,11 +3479,11 @@ void radio_sm_shown_view(const radio_sm_t *sm, radio_view_t *v) { (void)sm; (voi
 #define APRS_KEYUP_MS		25	// carrier up before the tones (the preamble flags follow)
 #define APRS_SEND_MAX_MS	6000u	// longer than any tone buffer (4096 symbols = 3.4 s)
 
-static bool aprs_can_start(const radio_sm_t *sm)
+static bool aprs_can_start(const radio_sm_t *sm, bool receive)
 {
 	if (sm->aprs_phase != APRS_RF_OFF || sm->ptt || sm->hotspot || (sm->view.state != RS_IDLE && !(sm->view.state == RS_RX && bcast_listening(sm))) ||
-	    sm->view.monitor || sm->power_off_req || sm->set.tx_inhibit || sm->batt.level == BATT_CRITICAL || board.afsk == NULL ||
-	    board.afsk->tx_start == NULL) {
+	    sm->view.monitor || sm->power_off_req || (!receive && (sm->set.tx_inhibit || sm->batt.level == BATT_CRITICAL || board.afsk == NULL ||
+	    board.afsk->tx_start == NULL))) {
 		return false;
 	}
 #if CONFIG_SCAN
@@ -3533,19 +3539,22 @@ static void aprs_rf_end(radio_sm_t *sm, aprs_rf_result_t r, uint32_t now_ms)
 	if (phase == APRS_RF_SEND) {
 		board.afsk->tx_stop();
 	}
-	if (phase >= APRS_RF_KEYUP) {
+	if (phase == APRS_RF_KEYUP || phase == APRS_RF_SEND) {
 		board.radio->tx_off();
 		sm->tx_end_ms = now_ms;
 	}
 	sm->aprs_phase = APRS_RF_OFF;
 	sm->view.state = RS_IDLE;
-	aprs_rf_done(r, now_ms);
+	if (phase != APRS_RF_RECEIVE) aprs_rf_done(r, now_ms);
 	tune(sm, now_ms);	// the channel again (DMR set up again if it was DMR)
 }
 
 static void aprs_rf_abort(radio_sm_t *sm, uint32_t now_ms)
 {
 	aprs_rf_end(sm, APRS_RF_ABORTED, now_ms);
+#if CONFIG_APRS_RX && CONFIG_DUAL_WATCH
+	if (sm->scan.kind == SCAN_APRS) scan_end(&sm->scan);
+#endif
 }
 
 static void aprs_rf_start(radio_sm_t *sm, uint32_t now_ms)
@@ -3634,12 +3643,68 @@ static void aprs_rf_service(radio_sm_t *sm, const radio_status_t *st, uint32_t n
 static inline void aprs_rf_abort(radio_sm_t *sm, uint32_t now_ms) { (void)sm; (void)now_ms; }
 #endif
 
+#if CONFIG_APRS_RX && CONFIG_DUAL_WATCH
+// Use dual watch's settle/carrier/hold timing without changing the selected voice channel.
+static bool aprs_watch_poll(radio_sm_t *sm, uint32_t now_ms)
+{
+	aprs_cfg_t c;
+	aprs_get_cfg(&c);
+	bool away = sm->aprs_phase == APRS_RF_RECEIVE;
+	bool enabled = c.listen_voice && c.rx_on && aprs_can_receive() && !sm->view.am && !sm->view.bcast &&
+		!sm->ptt && !sm->hotspot && !sm->view.monitor && !sm->power_off_req && !scan_on(&sm->scan) &&
+		(sm->view.ch.mode == RADIO_MODE_FM || sm->view.ch.mode == RADIO_MODE_DMR) &&
+		aprs_cfg_freq(&c) != sm->view.ch.rx_hz && board_in_band(aprs_cfg_freq(&c), false);
+	if (!enabled || (away && sm->aprs_rx_hz != aprs_cfg_freq(&c))) {
+		if (away) aprs_rf_abort(sm, now_ms);
+		if (sm->scan.kind == SCAN_APRS) scan_end(&sm->scan);
+		return false;
+	}
+	if (!away && !aprs_can_start(sm, true)) {
+		if (sm->scan.kind == SCAN_APRS) scan_end(&sm->scan);
+		return false;
+	}
+	if (sm->scan.kind != SCAN_APRS) {
+		const scan_cfg_t cfg = { .dwell_ms = 750, .resume = SCAN_RESUME_CARRIER };
+		scan_begin(&sm->scan, SCAN_APRS, &cfg, now_ms);
+	}
+	radio_status_t st;
+	board.radio->status(&st);
+	uint8_t sq = away ? RADIO_SQUELCH_DEFAULT : sm->view.squelch;
+	bool carrier = st.carrier || sq == 0 || st.noise < radio_sm_squelch_open_below(sq);
+	bool active = carrier || (away && sm->scan.heard && now_ms - sm->scan.heard_ms <= 100);
+	if (scan_poll(&sm->scan, now_ms, active, carrier, false) == SCAN_ACT_NEXT) {
+		if (away) {
+			aprs_rf_end(sm, APRS_RF_ABORTED, now_ms);
+			sm->scan.cfg.dwell_ms = 750;
+		} else {
+			static const subtone_t none = { TONE_NONE, 0 };
+			if (sm->board_mode == RADIO_MODE_DMR) dmr_end(sm);
+			if (sm->board_mode != RADIO_MODE_FM) {
+				sm->board_mode = RADIO_MODE_FM;
+				board.radio->set_mode(RADIO_MODE_FM);
+			}
+			sm->aprs_rx_hz = aprs_cfg_freq(&c);
+			sm->aprs_phase = APRS_RF_RECEIVE;
+			if (!board.radio->rx(sm->aprs_rx_hz, c.narrow ? RADIO_BW_12K5 : RADIO_BW_25K, &none)) {
+				aprs_rf_abort(sm, now_ms);
+				return false;
+			}
+			sm->scan.cfg.dwell_ms = 250;
+			outputs(sm);
+		}
+		scan_tuned(&sm->scan, now_ms);
+	}
+	return true;
+}
+#endif
+
 #if CONFIG_APRS
 // Every poll, before anything else: the engine, the "after PTT" trigger, a transmission to start
 static void aprs_poll(radio_sm_t *sm, uint32_t now_ms)
 {
 #if CONFIG_APRS_BEACON && CONFIG_APRS_AFSK
-	if (aprs_tx_stopped()) aprs_rf_abort(sm, now_ms);
+	if (aprs_tx_stopped() && sm->aprs_phase != APRS_RF_RECEIVE && sm->aprs_phase != APRS_RF_OFF)
+		aprs_rf_abort(sm, now_ms);
 #endif
 #if CONFIG_APRS_BEACON && CONFIG_APRS_DMR
 	if (aprs_tx_stopped() && aprs_dmr_cancel()) { dmr_end(sm); tune(sm, now_ms); }
@@ -3655,10 +3720,19 @@ static void aprs_poll(radio_sm_t *sm, uint32_t now_ms)
 	aprs_radio_t r;
 	memset(&r, 0, sizeof(r));
 #if CONFIG_APRS_AFSK
-	r.can_rf = aprs_can_start(sm);
+#if CONFIG_APRS_RX && CONFIG_DUAL_WATCH
+	r.time_share = aprs_watch_poll(sm, now_ms);
+#endif
+	r.can_rf = aprs_can_start(sm, false);
 	r.fm_rx = sm->aprs_phase == APRS_RF_OFF && sm->view.ch.mode == RADIO_MODE_FM && !sm->hotspot &&
 		  sm->view.state != RS_TX;
 	r.rx_hz = sm->view.ch.rx_hz;
+#if CONFIG_APRS_RX && CONFIG_DUAL_WATCH
+	if (sm->aprs_phase == APRS_RF_RECEIVE) {
+		r.fm_rx = true;
+		r.rx_hz = sm->aprs_rx_hz;
+	}
+#endif
 #endif
 #if CONFIG_DMR
 	r.on_dmr = sm->dmr_running && !sm->hotspot;
@@ -5856,7 +5930,11 @@ static bool save_allowed(const radio_sm_t *sm, uint32_t now_ms)
 		return false;
 	}
 #if CONFIG_APRS_AFSK
-	if (sm->aprs_phase != APRS_RF_OFF || aprs_rf_pending() || aprs_rx_listening()) {
+	if (sm->aprs_phase != APRS_RF_OFF || aprs_rf_pending() || aprs_rx_listening()
+#if CONFIG_APRS_RX && CONFIG_DUAL_WATCH
+	    || sm->scan.kind == SCAN_APRS
+#endif
+	) {
 		return false;	// a sleeping receiver misses packets
 	}
 #endif
