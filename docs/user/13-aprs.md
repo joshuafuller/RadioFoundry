@@ -323,9 +323,12 @@ Received weather uses these same display units.
 ## Home status and the APRS hub
 
 On builds with the APRS Home feature, enable **Settings > Display > APRS line** (off by default).
+The bottom row shows **APRS TX on** or **APRS TX off**. A mono arrival keeps the voice target visible by omitting its preview.
+Station ranges say **No own pos** when your position is unavailable.
 Below the channel controls, Home shows when APRS last sent and when the next timed beacon is due, or why it
 cannot send or listen. Receiving does not need your position. A second line, when there is room, shows
 **Repeated by** and the digipeater's callsign, or the station count and nearest known distance in the selected display units.
+While listening and unblocked, **Repeated by** comes first so it remains visible on short screens.
 A repeat means the radio heard its last packet repeated; it does not confirm delivery to the internet.
 Voice activity and notifications take priority. Large-text mode and dual watch keep their existing layouts.
 
@@ -351,7 +354,7 @@ Reopen Weather or change Sort to refresh its station list.
 
 Select a station to read temperature, wind, gust and report age, then scroll to rain for the last hour,
 last 24 hours and since midnight, humidity, pressure and luminosity. Units follow Settings > Display > Units; US is the default. Luminosity is shown in W/m².
-**Unknown** means the report did not provide that measurement. A reported zero is shown as zero.
+Measurements the report did not provide are omitted. A reported zero is shown as zero.
 Report age is how long ago your radio received the weather, not the age of the station's observation.
 
 Reports stay in a small memory table until replaced or the radio restarts. A new report replaces that station's

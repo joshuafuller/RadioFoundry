@@ -1478,6 +1478,16 @@ static void test_weather(void)
 		// Every truncated prefix is safe, including truncated numeric fields.
 		for (size_t n = 0; n < strlen(cases[i].text); n++) aprs_parse(&dst, (const uint8_t *)cases[i].text, n, &p);
 	}
+	const char *missing[] = { "", "c...s...g...t...r...p...P...h..b.....L..." };
+	for (unsigned i = 0; i < sizeof missing / sizeof missing[0]; i++) {
+		aprs_wx_parse(missing[i], strlen(missing[i]), false, &p.wx);
+		CHECK(p.wx.temp_f == APRS_WX_TEMP_UNKNOWN && p.wx.wind_dir == APRS_WX_UNKNOWN &&
+		      p.wx.wind_mph == APRS_WX_UNKNOWN && p.wx.gust_mph == APRS_WX_UNKNOWN &&
+		      p.wx.rain_hour == APRS_WX_UNKNOWN && p.wx.rain_day == APRS_WX_UNKNOWN &&
+		      p.wx.rain_midnight == APRS_WX_UNKNOWN && p.wx.humidity == APRS_WX_UNKNOWN &&
+		      p.wx.pressure == UINT32_MAX && p.wx.luminosity == APRS_WX_UNKNOWN,
+		      "all missing weather fields keep their typed sentinel");
+	}
 	const char *full = "_10090556c000s001g005t010P012p034r056h00b10132l123";
 	aprs_parse(&dst, (const uint8_t *)full, strlen(full), &p);
 	CHECK(p.wx.gust_mph == 5 && p.wx.rain_midnight == 12 && p.wx.rain_day == 34 && p.wx.rain_hour == 56 &&

@@ -12,6 +12,9 @@
 #include "ui/ui_screens.h"
 #include "ui/ui_svc.h"
 
+// This renderer test has no APRS service.
+const char *ui_aprs_tx_label(void) { return "APRS TX off"; }
+
 static int fails;
 #define CHECK(c) do { if (!(c)) { printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #c); fails++; } } while (0)
 

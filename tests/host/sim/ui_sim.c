@@ -442,7 +442,7 @@ static struct {
 	bool reordered;		// a packet moves the second station to the front
 	aprs_packet_t packet;
 	uint8_t listening;
-	bool repeat;
+	bool repeat, rf_active, wx_unknown, wx_zero;
 	bool no_pos;		// "aprs:nopos": no position of our own (no GPS fix, no fixed position)
 	aprs_cfg_t cfg;
 	char comment[APRS_COMMENT_MAX + 1];
@@ -485,6 +485,7 @@ bool ui_svc_aprs_view(aprs_view_t *v)
 	v->lon = -841000000;
 	v->next_s = aprs_sim.cfg.tx_on ? 245 : 0xFFFFu;
 	v->rf_sent = aprs_sim.sent;
+	v->rf_active = aprs_sim.rf_active;
 	v->stations = 2;
 	v->messages = aprs_sim.message ? 1 : 0;
 	v->unread = aprs_sim.message && !aprs_sim.message_read ? 1 : 0;
@@ -625,6 +626,11 @@ bool ui_svc_aprs_wx_station(uint8_t i, aprs_wx_station_t *out)
 			.rain_hour = 2, .rain_day = 10, .rain_midnight = 0, .humidity = 64, .pressure = 10132,
 			.luminosity = APRS_WX_UNKNOWN },
 	};
+	if (aprs_sim.wx_unknown) {
+		memset(&out->wx, 0xFF, sizeof out->wx);
+		out->wx.temp_f = APRS_WX_TEMP_UNKNOWN;
+	}
+	if (aprs_sim.wx_zero) memset(&out->wx, 0, sizeof out->wx);
 	memcpy(out->call, s.call, sizeof out->call);
 	return true;
 }
@@ -3093,6 +3099,8 @@ static bool run_token(char *t, char *err, size_t len)
 		}
 		if (strcmp(arg, "notlistening") == 0) {
 			aprs_sim.listening = APRS_LISTEN_OFF;
+			ui_dirty();
+			advance(200);
 			return true;
 		}
 		if (!strcmp(arg, "objects")) aprs_sim.objects = true;
@@ -3107,7 +3115,11 @@ static bool run_token(char *t, char *err, size_t len)
 		if (strcmp(arg, "radar") == 0 && !aprs_sim.radar) aprs_sim.radar = 1;
 		if (strcmp(arg, "radarmany") == 0) aprs_sim.radar = 2;
 		aprs_sim.no_pos = strcmp(arg, "nopos") == 0;
-		aprs_sim.repeat = strcmp(arg, "repeat") == 0;
+		if (!strcmp(arg, "repeat")) aprs_sim.repeat = true;
+		if (!strcmp(arg, "sending")) aprs_sim.rf_active = true;
+		if (!strcmp(arg, "wxunknown")) aprs_sim.wx_unknown = true;
+		if (!strcmp(arg, "wxzero")) aprs_sim.wx_zero = true;
+		if (!strcmp(arg, "txon")) aprs_sim.cfg.tx_on = true;
 		if (strncmp(arg, "listen", 6) == 0)
 			aprs_sim.listening = (uint8_t)atoi(arg + 6);
 		if (aprs_sim.no_pos)

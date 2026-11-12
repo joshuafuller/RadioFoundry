@@ -60,6 +60,13 @@ static __attribute__((noinline)) uint32_t nearest_station(void)
 }
 #endif
 
+const char * __attribute__((noinline)) ui_aprs_tx_label(void)
+{
+	aprs_cfg_t c;
+	ui_svc_aprs_cfg(&c);
+	return c.tx_on ? TR("APRS TX on") : TR("APRS TX off");
+}
+
 void ui_aprs_status(char *out, size_t len, bool second)
 {
 	status_t v;
@@ -70,12 +77,16 @@ void ui_aprs_status(char *out, size_t len, bool second)
 	if (!v.available)
 		return;
 	ui_svc_aprs_home(&h);
-	if (second) {
-		if (h.digi[0]) {
-			sb_str(&b, TR("Repeated by "));
-			sb_str(&b, h.digi);
-			return;
-		}
+	// On short Home layouts the first line is all that fits. Prefer repeat evidence
+	// to the older local send, but keep a current blocked/not-listening reason first.
+	bool repeated = h.digi[0] && h.listening == APRS_LISTEN_ON && !v.rf_active &&
+		!(v.tx_on && (!v.pos_valid || (v.via == APRS_VIA_RF && v.block != APRS_OK)));
+	if ((!second && repeated) || (second && h.digi[0] && !repeated)) {
+		sb_str(&b, TR("Repeated by "));
+		sb_str(&b, h.digi);
+		return;
+	}
+	if (second && !repeated) {
 #if CONFIG_APRS_RX
 		uint32_t nearest = nearest_station();
 		sb_u32(&b, v.stations, 1);
@@ -91,7 +102,7 @@ void ui_aprs_status(char *out, size_t len, bool second)
 		sb_str(&b, TR("APRS sending"));
 	} else if (v.tx_on && (!v.pos_valid || (v.via == APRS_VIA_RF && v.block != APRS_OK))) {
 		sb_str(&b, blocked(!v.pos_valid ? APRS_NO_POSITION : v.block));
-	} else if (h.sent) {
+	} else if (h.sent && h.listening == APRS_LISTEN_ON) {
 		sb_str(&b, TR("APRS sent "));
 		sb_age_long(&b, ui_st.now_ms - h.sent_ms);
 		if (v.next_s != 0xFFFFu) {

@@ -628,7 +628,7 @@ msgstr " su "
 msgid " (sending)"
 msgstr " (invio)"
 
-#: core/ui/ui_aprs.c core/ui/ui_aprs_objects.c
+#: core/ui/ui_aprs.c core/ui/ui_aprs_list.c core/ui/ui_aprs_objects.c
 msgid "No position"
 msgstr "Nessuna posizione"
 
@@ -1176,6 +1176,14 @@ msgid "Not sending: no position"
 msgstr "Non invia: posizione assente"
 
 #: core/ui/ui_aprs_home.c
+msgid "APRS TX on"
+msgstr "TX APRS attiva"
+
+#: core/ui/ui_aprs_home.c
+msgid "APRS TX off"
+msgstr "TX APRS spenta"
+
+#: core/ui/ui_aprs_home.c
 msgid "Repeated by "
 msgstr "Ripetuto da "
 
@@ -1266,6 +1274,10 @@ msgstr "Solo digipeater"
 #: core/ui/ui_aprs_list.c
 msgid " hidden"
 msgstr " nascosti"
+
+#: core/ui/ui_aprs_list.c
+msgid "No own pos"
+msgstr "No pos."
 
 #: core/ui/ui_aprs_list.c core/ui/ui_aprs_thread.c core/ui/ui_gps.c core/ui/ui_menus.c core/ui/ui_screens.c
 msgid " of "

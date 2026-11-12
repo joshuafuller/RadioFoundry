@@ -8,6 +8,7 @@
 #include "fmt.h"
 #include "i18n.h"
 #include "ui_svc.h"
+#include "ui_svc_aprs.h"
 #include "config.h"
 
 ui_layout_t ui_layout;
@@ -1762,7 +1763,11 @@ void ui_draw_home(const radio_view_t *v, const ui_state_t *s)
 		draw_activity(v, s);
 	}
 	ui_draw_banner(s);
+#if CONFIG_APRS_HOME
+	ui_draw_bottom(s, s->aprs_lines[0][0] ? ui_aprs_tx_label() : home_hint(v, s));
+#else
 	ui_draw_bottom(s, home_hint(v, s));
+#endif
 }
 
 #if CONFIG_DUAL_WATCH
@@ -2334,6 +2339,13 @@ void ui_draw_banner(const ui_state_t *s)
 		nt = wrap_lines(f, bn->title, w - 4, 2, title, false);
 	}
 	int nx = bn->text[0] ? wrap_lines(f, bn->text, w - 4, 2, text, bn->kind == UI_BANNER_MESSAGE) : 0;
+#if CONFIG_APRS_RX
+	// A short APRS arrival yields its preview before it can cover the voice target.
+	if (bn->kind == UI_BANNER_APRS && gfx_height() <= 64) {
+		nt = 1;
+		nx = 0;
+	}
+#endif
 	int pad = gfx_height() >= UI_TALL_PX ? 2 : 1;
 	int h = (nt + nx + 1) * f->h + 2 * pad;
 	int y = L->hint_y - h;
