@@ -33,6 +33,16 @@ enum { K_BEACON, K_STATUS, K_MSG, K_ACK, K_HOST, K_GATE, K_DIGI };
 
 static uint8_t rf_block(void);
 
+#if CONFIG_APRS_RX
+// Main RAM: the CPU-only aprs_s block must not grow into the CCM stack reserve.
+static struct {
+	aprs_packet_t packets[APRS_RECENT_PACKETS];
+	aprs_dedup_t dedup;
+	uint32_t serial;
+	uint8_t next, count;
+} traffic;
+#endif
+
 // --- Configuration ---
 
 static const uint32_t region_hz[APRS_REGION_COUNT] = {
@@ -460,6 +470,9 @@ void aprs_ax25_view(aprs_view_t *v)
 
 void aprs_ax25_init(uint32_t now_ms)
 {
+#if CONFIG_APRS_RX
+	memset(&traffic, 0, sizeof traffic);
+#endif
 	aprs_s.host_tokens = HOST_BURST;
 	aprs_s.host_refill_ms = now_ms;
 	aprs_s.msg_seq = (uint16_t)(now_ms % 900u);
@@ -720,6 +733,53 @@ static void message_in(const ax25_frame_t *f, const aprs_parsed_t *p)
 	}
 }
 
+static void packet_in(const ax25_frame_t *f, const aprs_parsed_t *p)
+{
+	if (aprs_dedup_seen(&traffic.dedup, aprs_frame_hash(f), aprs_s.now, APRS_DEDUP_MS))
+		return;
+	aprs_packet_t *r = &traffic.packets[traffic.next];
+	memset(r, 0, sizeof *r);
+	r->serial = ++traffic.serial;
+	r->ms = aprs_s.now;
+	addr_text(&f->src, r->call);
+	r->type = p->type;
+	r->direct = aprs_s.st[0].direct;
+	r->has_pos = p->has_pos;
+	r->lat = p->pos.lat;
+	r->lon = p->pos.lon;
+	r->course = p->pos.course;
+	r->speed_kn = p->pos.speed_kn;
+	memcpy(r->name, p->name, sizeof r->name);
+	memcpy(r->addressee, p->addressee, sizeof r->addressee);
+	char me[AX25_CALL_LEN + 4];
+	addr_text(&aprs_s.me, me);
+	r->to_us = p->type == APRS_T_MESSAGE && aprs_s.me_ok && strcmp(p->addressee, me) == 0;
+	r->truncated = f->info_len > sizeof r->info;
+	r->len = r->truncated ? sizeof r->info : f->info_len;
+	memcpy(r->info, f->info, r->len);
+	traffic.next = (uint8_t)((traffic.next + 1u) % APRS_RECENT_PACKETS);
+	if (traffic.count < APRS_RECENT_PACKETS)
+		traffic.count++;
+}
+
+uint8_t aprs_packet_count(void)
+{
+	LOCK();
+	uint8_t n = traffic.count;
+	UNLOCK();
+	return n;
+}
+
+bool aprs_packet(uint8_t i, aprs_packet_t *out)
+{
+	LOCK();
+	bool ok = i < traffic.count;
+	if (ok)
+		*out = traffic.packets[(traffic.next + APRS_RECENT_PACKETS - 1u - i) % APRS_RECENT_PACKETS];
+	UNLOCK();
+	return ok;
+}
+
 void aprs_rx_frame(const uint8_t *frame, size_t n, uint32_t now_ms)
 {
 	ax25_frame_t f;
@@ -740,6 +800,7 @@ void aprs_rx_frame(const uint8_t *frame, size_t n, uint32_t now_ms)
 	}
 	aprs_parse(&f.dst, f.info, f.info_len, &p);
 	station_update(&f, &p);
+	packet_in(&f, &p);
 	if (p.type == APRS_T_MESSAGE && aprs_s.me_ok) {
 		message_in(&f, &p);
 	}

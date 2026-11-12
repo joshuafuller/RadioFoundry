@@ -13,6 +13,7 @@
 #include "i18n.h"
 #include "config.h"
 #include "board.h"
+#include "aprs/aprs_fmt.h"
 
 // The services when APRS isn't built (and in the UI simulator): nothing there
 #define WEAK __attribute__((weak))
@@ -38,7 +39,11 @@ WEAK bool ui_svc_aprs_station(uint8_t i, aprs_station_t *out) { (void)i; (void)o
 WEAK bool ui_svc_aprs_station_find(const char *call, aprs_station_t *out) { (void)call; (void)out; return false; }
 WEAK bool ui_svc_aprs_range(const aprs_station_t *s, uint32_t *m, uint16_t *deg) { (void)s; (void)m; (void)deg; return false; }
 
-enum { AP_SEND, AP_AUTO, AP_FREQ, AP_POWER, AP_PATH, AP_INTERVAL, AP_SMART, AP_VIA, AP_KISS, AP_HEARD, AP_DECAY, AP_COUNT };
+enum { AP_SEND, AP_AUTO, AP_FREQ, AP_POWER, AP_PATH, AP_INTERVAL, AP_SMART, AP_VIA, AP_KISS, AP_HEARD, AP_DECAY,
+#if CONFIG_APRS_RX
+	AP_RECENT,
+#endif
+	AP_COUNT };
 
 // The rows this build shows, in order: the packet rows only with the AX.25 backend (CONFIG_APRS_AFSK), "Send via"
 // only when there is a choice (both backends built)
@@ -56,6 +61,9 @@ static const uint8_t rows[] = {
 #endif
 	AP_KISS,
 #if CONFIG_APRS_AFSK
+#if CONFIG_APRS_RX
+	AP_RECENT,
+#endif
 	AP_HEARD,
 #endif
 
@@ -165,7 +173,11 @@ static void aprs_item(uint16_t i, ui_item_t *it)
 {
 	static const char *const names[] = { TRN("Send position now"), TRN("Automatic beacons"), TRN("Frequency"),
 					     TRN("Power"), TRN("Path"), TRN("Interval"), TRN("SmartBeaconing"),
-					     TRN("Send via"), TRN("KISS on USB"), TRN("Stations heard"), TRN("Decay") };
+					     TRN("Send via"), TRN("KISS on USB"), TRN("Stations heard"), TRN("Decay")
+#if CONFIG_APRS_RX
+					     , TRN("Recent packets")
+#endif
+	};
 	aprs_view_t v;
 	aprs_cfg_t c;
 	bool built = ui_svc_aprs_view(&v);
@@ -230,6 +242,9 @@ static void aprs_item(uint16_t i, ui_item_t *it)
 	case AP_SMART: sb_str(&b, c.smart ? TR("On") : TR("Off")); break;
 	case AP_VIA: sb_str(&b, tr(via_names[c.via < APRS_VIA_COUNT ? c.via : 0])); break;
 	case AP_KISS: sb_str(&b, c.kiss ? TR("On") : TR("Off")); break;
+#if CONFIG_APRS_RX
+	case AP_RECENT: sb_u32(&b, ui_svc_aprs_packet_count(), 1); break;
+#endif
 	case AP_HEARD:
 		if (!CONFIG_APRS_RX) {
 			it->flags |= UI_ITEM_DIM;
@@ -303,6 +318,9 @@ static void aprs_select(uint16_t i, bool hold)
 	case AP_SMART: c.smart = !c.smart; break;
 	case AP_VIA: c.via = (uint8_t)((c.via + 1u) % APRS_VIA_COUNT); break;
 	case AP_KISS: c.kiss = !c.kiss; break;
+#if CONFIG_APRS_RX
+	case AP_RECENT: ui_push(SCR_APRS_PACKETS, 0); return;
+#endif
 	case AP_HEARD:
 		if (!CONFIG_APRS_RX) {
 			ui_toast(TR("This radio can't receive APRS"));
@@ -337,15 +355,6 @@ const ui_scr_def_t ui_aprs_screen = {
 
 #if CONFIG_APRS_RX
 static char station_call[AX25_CALL_LEN + 4];
-
-void ui_aprs_open_station(const char *call)
-{
-	str_copy(station_call, sizeof station_call, call);
-	ui_push(SCR_APRS_STATION, 0);
-}
-#endif
-
-#if CONFIG_APRS_RX
 void ui_aprs_station_open(const char *call)
 {
 	str_copy(station_call, sizeof station_call, call);
@@ -360,7 +369,7 @@ static void heard_select(uint16_t i, bool hold)
 #if CONFIG_APRS_RX
 	aprs_station_t s;
 	if (ui_svc_aprs_station((uint8_t)i, &s)) {
-		ui_aprs_open_station(s.call);
+		ui_aprs_station_open(s.call);
 	}
 #else
 	ui_push(SCR_APRS_STATION, i);
@@ -535,3 +544,175 @@ const ui_scr_def_t ui_aprs_station_screen = {
 	.name = "aprs-station", .flags = SF_LIST | SF_FIELD, .prefix = TRN("Heard"), .hint = TRN("OK choose  Back"),
 	.count = station_count, .item = station_item, .select = station_select, .title = station_title,
 };
+
+#if CONFIG_APRS_RX
+WEAK uint8_t ui_svc_aprs_packet_count(void) { return 0; }
+WEAK bool ui_svc_aprs_packet(uint8_t i, aprs_packet_t *out) { (void)i; (void)out; return false; }
+WEAK bool ui_svc_aprs_listening(void) { return false; }
+WEAK bool ui_svc_aprs_can_receive(void) { return false; }
+
+const char *ui_aprs_kind(uint8_t type, bool to_us)
+{
+	switch (type) {
+	case APRS_T_POSITION: case APRS_T_MICE: return TR("position");
+	case APRS_T_STATUS: return TR("status");
+	case APRS_T_WEATHER: return TR("weather");
+	case APRS_T_MESSAGE: return to_us ? TR("message to you") : TR("message");
+	case APRS_T_OBJECT: return TR("object");
+	case APRS_T_ITEM: return TR("item");
+	case APRS_T_TELEMETRY: return TR("telemetry");
+	case APRS_T_QUERY: return TR("query");
+	case APRS_T_THIRD_PARTY: return TR("third party");
+	default: return TR("packet");
+	}
+}
+
+static aprs_packet_t packet_selected; // A ring overwrite cannot change the open packet.
+
+static uint16_t packets_count(void) { return ui_svc_aprs_packet_count(); }
+static void packets_item(uint16_t i, ui_item_t *it)
+{
+	aprs_packet_t p;
+	if (!ui_svc_aprs_packet((uint8_t)i, &p))
+		return;
+	sbuf_t b;
+	sb_init(&b, it->label, sizeof it->label);
+	sb_str(&b, p.call);
+	sb_str(&b, "  ");
+	sb_str(&b, ui_aprs_kind(p.type, p.to_us));
+	ui_sb_age(it->value, sizeof it->value, ui_st.now_ms - p.ms);
+}
+
+static const char *packets_body(void)
+{
+	if (ui_svc_aprs_listening())
+		return NULL;
+	if (!ui_svc_aprs_can_receive())
+		return TR("This radio can't receive APRS");
+	aprs_cfg_t c;
+	ui_svc_aprs_cfg(&c);
+	if (!c.rx_on)
+		return TR("Not listening: receive off");
+	if (ui_view()->state == RS_TX)
+		return TR("Not listening: transmitting");
+	aprs_view_t v;
+	ui_svc_aprs_view(&v);
+	if (ui_view()->ch.mode != RADIO_MODE_FM || ui_view()->ch.rx_hz != v.freq_hz)
+		return TR("Not listening: on voice channel");
+	return TR("Not listening: audio unavailable");
+}
+
+static void packets_select(uint16_t i, bool hold)
+{
+	(void)hold;
+	if (ui_svc_aprs_packet((uint8_t)i, &packet_selected))
+		ui_push(SCR_APRS_PACKET, 0);
+}
+
+const ui_scr_def_t ui_aprs_packets_screen = {
+	.name = "aprs-packets", .flags = SF_LIST | SF_FIELD, .prefix = TRN("Recent packets"),
+	.hint = TRN("OK open  Back"), .empty = TRN("Nothing heard yet"),
+	.count = packets_count, .item = packets_item, .select = packets_select, .body = packets_body,
+};
+
+// Up to sixteen displayed characters per raw row, including complete byte escapes.
+static uint8_t packet_raw_end(uint8_t start)
+{
+	uint8_t width = 0;
+	while (start < packet_selected.len) {
+		uint8_t c = packet_selected.info[start];
+		uint8_t n = c >= 32 && c <= 126 && c != '\\' ? 1 : 4;
+		if (width + n > 16)
+			break;
+		width += n;
+		start++;
+	}
+	return start;
+}
+
+static uint16_t packet_count(void)
+{
+	uint16_t n = 4u + (packet_selected.name[0] != 0) + (packet_selected.addressee[0] != 0) +
+		(packet_selected.has_pos ? 2u : 0u) + packet_selected.truncated;
+	if (packet_selected.has_pos) {
+		n += packet_selected.course != APRS_COURSE_NONE;
+		n += packet_selected.speed_kn != APRS_SPEED_NONE;
+	}
+	for (uint8_t at = 0; at < packet_selected.len; at = packet_raw_end(at))
+		n++;
+	return n;
+}
+
+static void packet_item(uint16_t i, ui_item_t *it)
+{
+	const aprs_packet_t *p = &packet_selected;
+	const char *label = "";
+	sbuf_t b;
+	sb_init(&b, it->value, sizeof it->value);
+	if (i == 0) {
+		label = ui_aprs_kind(p->type, p->to_us);
+	} else if (i == 1) {
+		label = TR("Heard");
+		ui_sb_age(it->value, sizeof it->value, ui_st.now_ms - p->ms);
+	} else if (i == 2) {
+		label = p->direct ? TR("Direct") : TR("Via digipeater");
+	} else {
+		i -= 3;
+		if (p->name[0]) {
+			if (i-- == 0) { label = p->name; goto done; }
+		}
+		if (p->addressee[0]) {
+			if (i-- == 0) { label = TR("To"); sb_str(&b, p->addressee); goto done; }
+		}
+		if (p->has_pos) {
+			if (i < 2) {
+				label = i == 0 ? TR("Latitude") : TR("Longitude");
+				sb_degrees(&b, i == 0 ? p->lat : p->lon);
+				goto done;
+			}
+			i -= 2;
+		}
+		if (p->has_pos && p->course != APRS_COURSE_NONE && i-- == 0) {
+			label = TR("Course");
+			sb_u32(&b, p->course, 1);
+			sb_compass(&b, p->course);
+			goto done;
+		}
+		if (p->has_pos && p->speed_kn != APRS_SPEED_NONE && i-- == 0) {
+			label = TR("Speed");
+			sb_u32(&b, ((uint32_t)p->speed_kn * 1852u + 500u) / 1000u, 1);
+			sb_str(&b, " km/h");
+			goto done;
+		}
+		if (i-- == 0) { label = TR("Raw"); goto done; }
+		uint8_t at = 0;
+		while (i-- != 0 && at < p->len)
+			at = packet_raw_end(at);
+		if (at >= p->len) {
+			label = TR("[truncated]");
+		} else {
+			sb_init(&b, it->label, sizeof it->label);
+			uint8_t end = packet_raw_end(at);
+			for (; at < end; at++) {
+				uint8_t c = p->info[at];
+				if (c >= 32 && c <= 126 && c != '\\') {
+					sb_chr(&b, (char)c);
+				} else {
+					static const char hex[] = "0123456789ABCDEF";
+					sb_str(&b, "\\x");
+					sb_chr(&b, hex[c >> 4]);
+					sb_chr(&b, hex[c & 15]);
+				}
+			}
+			return;
+		}
+	}
+done:
+	str_copy(it->label, sizeof it->label, label);
+}
+static const char *packet_title(void) { return packet_selected.call; }
+const ui_scr_def_t ui_aprs_packet_screen = {
+	.name = "aprs-packet", .flags = SF_LIST | SF_FIELD, .prefix = TRN("Packet"), .hint = TRN("Back"),
+	.count = packet_count, .item = packet_item, .title = packet_title,
+};
+#endif

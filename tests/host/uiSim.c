@@ -81,6 +81,11 @@ static const struct { const char *name, *script; } gallery[] = {
 #endif
 	{ "caller_actions", "call:9991234,91,g wait:11000 ctx" },
 	{ "compose", "call:9991234,91,g wait:11000 ctx 3" },
+	{ "aprs_arrival", "aprs:packet" },
+	{ "aprs_packets", "aprs:packet wait:8000 ok 6 8 up up ok" },
+	{ "aprs_packet", "aprs:packet wait:8000 ok 6 8 up up ok ok down down down down" },
+	{ "aprs_packets_empty", "ok 6 8 up up ok" },
+	{ "aprs_packets_not_listening", "aprs:notlistening ok 6 8 up up ok" },
 	{ "aprs_station", "wait:600000 aprs:heard ok" },
 	{ "aprs_station_text", "aprs:heard ok up up" },
 	{ "aprs_station_evicted", "aprs:heard ok aprs:evict down" },

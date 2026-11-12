@@ -87,7 +87,7 @@ static bool radar_key(const input_event_t *ev)
 		if (ev->action == ACT_NAV_UP) dir = -1;
 		if (ev->action == ACT_SELECT && ev->gesture == GESTURE_PRESS) {
 			if (selected[0])
-				ui_aprs_open_station(selected);
+				ui_aprs_station_open(selected);
 			return true;
 		}
 	}

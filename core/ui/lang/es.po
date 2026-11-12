@@ -681,6 +681,11 @@ msgid "Decay"
 msgstr "Decaimiento"
 
 #: core/ui/ui_aprs.c
+#. requires: CONFIG_APRS_RX
+msgid "Recent packets"
+msgstr "Paquetes recientes"
+
+#: core/ui/ui_aprs.c
 msgid "NMEA on USB"
 msgstr "NMEA por USB"
 
@@ -792,6 +797,112 @@ msgstr "Paquetes"
 msgid "OK choose  Back"
 msgstr "OK elegir  Atrás"
 
+#: core/ui/ui_aprs.c
+#. requires: CONFIG_APRS_RX
+msgid "position"
+msgstr "posición"
+
+#: core/ui/ui_aprs.c
+#. requires: CONFIG_APRS_RX
+msgid "status"
+msgstr "estado"
+
+#: core/ui/ui_aprs.c
+#. requires: CONFIG_APRS_RX
+msgid "weather"
+msgstr "tiempo"
+
+#: core/ui/ui_aprs.c
+#. requires: CONFIG_APRS_RX
+msgid "message to you"
+msgstr "mensaje para ti"
+
+#: core/ui/ui_aprs.c
+#. requires: CONFIG_APRS_RX
+msgid "message"
+msgstr "mensaje"
+
+#: core/ui/ui_aprs.c
+#. requires: CONFIG_APRS_RX
+msgid "object"
+msgstr "objeto"
+
+#: core/ui/ui_aprs.c
+#. requires: CONFIG_APRS_RX
+msgid "item"
+msgstr "elemento"
+
+#: core/ui/ui_aprs.c
+#. requires: CONFIG_APRS_RX
+msgid "telemetry"
+msgstr "telemetría"
+
+#: core/ui/ui_aprs.c
+#. requires: CONFIG_APRS_RX
+msgid "query"
+msgstr "consulta"
+
+#: core/ui/ui_aprs.c
+#. requires: CONFIG_APRS_RX
+msgid "third party"
+msgstr "de terceros"
+
+#: core/ui/ui_aprs.c
+#. requires: CONFIG_APRS_RX
+msgid "packet"
+msgstr "paquete"
+
+#: core/ui/ui_aprs.c
+#. requires: CONFIG_APRS_RX
+msgid "Not listening: receive off"
+msgstr "Sin escucha: recepción apagada"
+
+#: core/ui/ui_aprs.c
+#. requires: CONFIG_APRS_RX
+msgid "Not listening: transmitting"
+msgstr "Sin escucha: transmitiendo"
+
+#: core/ui/ui_aprs.c
+#. requires: CONFIG_APRS_RX
+msgid "Not listening: on voice channel"
+msgstr "Sin escucha: canal de voz"
+
+#: core/ui/ui_aprs.c
+#. requires: CONFIG_APRS_RX
+msgid "Not listening: audio unavailable"
+msgstr "Sin escucha: audio no disponible"
+
+#: core/ui/ui_aprs.c core/ui/ui_aprs_radar.c
+msgid "OK open  Back"
+msgstr "OK abrir  Atrás"
+
+#: core/ui/ui_aprs.c core/ui/ui_menus.c
+msgid "To"
+msgstr "Para"
+
+#: core/ui/ui_aprs.c core/ui/ui_position.c
+msgid "Latitude"
+msgstr "Latitud"
+
+#: core/ui/ui_aprs.c core/ui/ui_position.c
+msgid "Longitude"
+msgstr "Longitud"
+
+#: core/ui/ui_aprs.c
+#. requires: CONFIG_APRS_RX
+msgid "Raw"
+msgstr "Original"
+
+#: core/ui/ui_aprs.c
+#. requires: CONFIG_APRS_RX
+msgid "[truncated]"
+msgstr "[truncado]"
+
+#: core/ui/ui_aprs.c
+#. requires: CONFIG_APRS_RX
+msgid "Packet"
+msgstr "Paquete"
+
 #: core/ui/ui_aprs_list.c core/ui/ui_find.c core/ui/ui_menus.c
 msgid "Recent"
 msgstr "Recientes"
@@ -855,6 +966,7 @@ msgstr "* ordenar  # filtrar  OK abrir  Atrás"
 #: core/ui/ui_aprs_list.c
 msgid "Filter"
 msgstr "Filtro"
+
 #: core/ui/ui_aprs_radar.c
 msgid "Radar"
 msgstr "Radar"
@@ -870,10 +982,6 @@ msgstr "Ajustes > Ubicación"
 #: core/ui/ui_aprs_radar.c core/ui/ui_gps.c
 msgid "No positions yet"
 msgstr "Aún sin posiciones"
-
-#: core/ui/ui_aprs_radar.c
-msgid "OK open  Back"
-msgstr "OK abrir  Atrás"
 
 #: core/ui/ui_dual.c core/ui/ui_screens.c
 msgid "No tone"
@@ -1350,10 +1458,6 @@ msgstr "No se envió: reintenta"
 #: core/ui/ui_menus.c
 msgid "Sending to "
 msgstr "Enviando a "
-
-#: core/ui/ui_menus.c
-msgid "To"
-msgstr "Para"
 
 #: core/ui/ui_menus.c
 msgid "OK send  Back"
@@ -3342,14 +3446,6 @@ msgstr "¿Codeplug de otro firmware? Crear nuevo borra contactos, indicativo e I
 #: core/ui/ui_menus.c
 msgid "Old codeplug"
 msgstr "Codeplug anterior"
-
-#: core/ui/ui_position.c
-msgid "Latitude"
-msgstr "Latitud"
-
-#: core/ui/ui_position.c
-msgid "Longitude"
-msgstr "Longitud"
 
 #: core/ui/ui_position.c
 msgid "Up to 90 N/S, 180 E/W"

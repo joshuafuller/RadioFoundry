@@ -40,6 +40,7 @@
 
 extern const ui_scr_def_t ui_find_screen;
 #if CONFIG_APRS_RX
+extern const ui_scr_def_t ui_aprs_packets_screen, ui_aprs_packet_screen;
 extern const ui_scr_def_t ui_aprs_filter_screen;
 #endif
 #if CONFIG_APRS_RX && CONFIG_UI_COLOR
@@ -6364,6 +6365,10 @@ const ui_scr_def_t *const ui_scr[SCR_COUNT] = {
 	[SCR_APRS_FILTER] = &ui_aprs_filter_screen,
 #endif
 	[SCR_ROAM] = &roam_screen, [SCR_APRS] = &ui_aprs_screen, [SCR_APRS_HEARD] = &ui_aprs_heard_screen,
+#if CONFIG_APRS_RX
+	[SCR_APRS_PACKETS] = &ui_aprs_packets_screen,
+	[SCR_APRS_PACKET] = &ui_aprs_packet_screen,
+#endif
 	[SCR_APRS_STATION] = &ui_aprs_station_screen,
 #if CONFIG_APRS_RX && CONFIG_UI_COLOR
 	[SCR_APRS_RADAR] = &ui_aprs_radar_screen,

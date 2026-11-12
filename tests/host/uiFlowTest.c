@@ -12,6 +12,7 @@
 #include <string.h>
 #include "sim/ui_sim.h"
 #include "ui/ui_app.h"
+#include "ui/ui_nav.h"
 #include "ui/ui_screens.h"
 #include "config.h"
 
@@ -613,7 +614,27 @@ static const flow_t flows[] = {
 	{ "G GPS signal page", "ok 6 2", "3", "shows=9_of_14_in_the_fix", 1, false },
 	{ "G GPS grid page", "ok 6 2", "4", "shows=FN42li", 1, false },
 	{ "G GPS pages wrap", "ok 6 2", "up down", "shows=Status", 2, false },
-	{ "A KISS on USB", "ok 6 8", "up up ok", "aprs_kiss=1", 3, false },
+	{ "A KISS on USB", "ok 6 8", "up up up ok", "aprs_kiss=1", 4, false },
+	{ "A arrival banner", "", "aprs:packet", "banner=Q4WABC-15 shows=status", 0, false },
+	{ "A arrival opens stable callsign", "aprs:packet aprs:reorder", "ctx",
+	  "screen=aprs-station shows=Q4WABC-15", 1, false },
+	{ "A arrival replaces earlier traffic", "aprs:packet aprs:packet2", "ctx",
+	  "screen=aprs-station shows=Q4WAB-9", 1, false },
+	{ "A arrival preserves message alert", "msg:9991234,Hello", "aprs:packet ctx",
+	  "screen=message", 1, false },
+	{ "A arrival timeout", "aprs:packet", "wait:8000", "banner=none", 0, false },
+	{ "A arrival during TX", "pttdown", "aprs:packet", "banner=none", 0, false },
+	{ "A TX hides arrival", "aprs:packet", "pttdown", "banner=none", 1, false },
+	{ "A arrival during callsign entry", "ok 2 ok ok", "aprs:packet",
+	  "screen=aprs-to banner=none", 0, false },
+	{ "A addressed message has no traffic banner", "", "aprs:addressed", "banner=none", 0, false },
+	{ "A packet list empty", "", "ok 6 8 up up ok", "screen=aprs-packets shows=Nothing_heard_yet", 6, false },
+	{ "A packet list not listening", "aprs:notlistening", "ok 6 8 up up ok",
+	  "screen=aprs-packets shows=Not_listening", 6, false },
+	{ "A packet detail", "aprs:packet wait:8000 ok 6 8 up up ok", "ok",
+	  "screen=aprs-packet shows=Q4WABC-15", 1, false },
+	{ "A packet snapshot survives arrival", "aprs:packet wait:8000 ok 6 8 up up ok ok", "aprs:packet2 wait:8000",
+	  "screen=aprs-packet shows=Q4WABC-15", 0, false },
 	{ "A stations heard", "", "ok 6 8 up ok", "screen=aprs-heard count=3", 5, false },
 	{ "A station message survives a newer packet", "ok 6 8 up ok ok aprs:reorder", "ok",
 	  "screen=compose shows=Q4WABC-15", 1, false },
@@ -1466,6 +1487,30 @@ static void radar_marker_checks(void)
 }
 #endif
 
+static void packet_checks(void)
+{
+	char err[300];
+	for (int g = 0; g < sim_geom_count; g++) {
+		sim_reset(&sim_geoms[g], SIM_MAP_K);
+		if (!sim_run("aprs:packet wait:8000 ok 6 8 up up ok expect:shows=status ok "
+			"expect:screen=aprs-packet down down down expect:shows=Raw down expect:shows=>hi\\x01 "
+			"down expect:shows=[truncated]", err, sizeof err)) {
+			printf("FAIL packet detail [%s]: %s\n", sim_geoms[g].name, err);
+			fails++;
+		}
+		const ui_scr_t blocked[] = { SCR_CONFIRM, SCR_TEXT, SCR_MESSAGE_TEXT, SCR_APRS_TO, SCR_DISCARD };
+		for (size_t i = 0; i < sizeof blocked / sizeof blocked[0]; i++) {
+			sim_reset(&sim_geoms[g], SIM_MAP_K);
+			ui_push(blocked[i], 0);
+			if (!sim_run("aprs:packet expect:banner=none", err, sizeof err)) {
+				printf("FAIL packet suppression %u [%s]: %s\n", blocked[i], sim_geoms[g].name, err);
+				fails++;
+			}
+		}
+	}
+}
+
+
 // A radio without a battery (CAP_NO_BATTERY), at every display class: no percentage in the status strip, no battery
 // warning, and no Battery page, Battery saver or Low battery warning in the lists (Tools keep their numbers, Battery
 // is the last one; in Settings the other rows move up). With a
@@ -1676,7 +1721,7 @@ static void station_list_checks(void)
 		"quick expect:shows=Recent aprs:reorder expect:focus=Q4WABC-15 up expect:focus=QJ4XYZ "
 		"ok expect:screen=aprs-station back expect:focus=QJ4XYZ",
 		"aprs:nopos ok 6 8 up ok expect:shows=Recent quick expect:shows=Nearest quick expect:shows=Callsign "
-		"back up ok expect:shows=Callsign",
+		"back ok expect:shows=Callsign",
 		"ok 6 8 up ok aprs:near expect:focus=Q4WABC-15 up expect:focus=QJ4XYZ",
 		"ok 6 8 up ok ctx expect:screen=aprs-filter 2 expect:count=1 expect:shows=2_hidden "
 		"ctx 1 expect:count=3 expect:focus=Q4WABC-15",
@@ -1748,6 +1793,7 @@ int main(int argc, char **argv)
 #if CONFIG_APRS_RX && CONFIG_UI_COLOR
 	radar_marker_checks();
 #endif
+	packet_checks();
 	vfo_split_dmr_checks();
 	no_battery_checks();
 #if CONFIG_VOLUME_BAR

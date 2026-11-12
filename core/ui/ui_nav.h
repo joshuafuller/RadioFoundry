@@ -37,6 +37,9 @@ typedef enum {
 	SCR_LANGUAGE,			// Settings > Display > Language: every language, those not built dimmed
 	SCR_CP_FOREIGN,			// another firmware's codeplug: what the first edit does with it (ui_svc_codeplug_answer)
 	SCR_APRS_TO,			// destination callsign editor for APRS transmission
+#if CONFIG_APRS_RX
+	SCR_APRS_PACKETS, SCR_APRS_PACKET,
+#endif
 	SCR_APRS_STATION,		// a heard station's actions
 	SCR_APRS_FILTER,		// station display filter
 	SCR_APRS_RADAR,
@@ -118,9 +121,9 @@ void ui_focus_changed(void);
 void ui_open_actions(const ui_target_t *t);
 void ui_aprs_compose(const char *call);
 void ui_aprs_list_reset(void);
-void ui_aprs_station_open(const char *call);
 #if CONFIG_APRS_RX
-void ui_aprs_open_station(const char *call);
+void ui_aprs_station_open(const char *call);
+const char *ui_aprs_kind(uint8_t type, bool to_us);
 #endif
 #if CONFIG_CONTACT_EDIT
 // The contact editor on a new contact for t: its ID, type and name (a talkgroup or ID as its name when it has none)

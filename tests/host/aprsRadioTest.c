@@ -1515,6 +1515,44 @@ static void test_proportional(void)
 	aprs_get_cfg(&c);
 	CHECK(c.decay && c.path == APRS_PATH_PROPORTIONAL);
 }
+#if CONFIG_APRS_RX
+static void test_recent_packets(void)
+{
+	reset();
+	aprs_set_test_call("Q1TST");
+	aprs_packet_t p;
+	CHECK(aprs_packet_count() == 0 && !aprs_packet(0, &p));
+	rx_line("Q1TST-7>APRS:>own");
+	CHECK(aprs_packet_count() == 0);
+	rx_line("Q4WAB-9>APRS:>hello");
+	CHECK(aprs_packet_count() == 1 && aprs_packet(0, &p));
+	CHECK(p.direct && p.type == APRS_T_STATUS && p.len == 6 && !p.truncated);
+	uint32_t serial = p.serial;
+	now += 1000;
+	rx_line("Q4WAB-9>APRS,WIDE1-1*:>hello");
+	CHECK(aprs_packet_count() == 1 && aprs_packet(0, &p) && p.serial == serial);
+	now += 30000;
+	rx_line("Q4WAB-9>APRS,WIDE1-1*:>hello");
+	CHECK(aprs_packet_count() == 2 && aprs_packet(0, &p) && !p.direct && p.serial != serial);
+	rx_line("Q4WAB-9>APRS::Q1TST-7  :hello{01");
+	CHECK(aprs_packet(0, &p) && p.to_us && p.type == APRS_T_MESSAGE);
+	CHECK(aprs_msg_count() == 1); // The normal addressed-message path still runs.
+	for (unsigned i = 0; i < APRS_RECENT_PACKETS + 2; i++) {
+		char line[120];
+		snprintf(line, sizeof line, "Q4WAB-9>APRS:>packet %u abcdefghijklmnopqrstuvwxyz0123456789", i);
+		rx_line(line);
+	}
+	CHECK(aprs_packet_count() == APRS_RECENT_PACKETS);
+	CHECK(aprs_packet(0, &p) && p.truncated && p.len == APRS_PACKET_TEXT);
+	serial = p.serial;
+	for (uint8_t i = 0; i < APRS_RECENT_PACKETS; i++) {
+		CHECK(aprs_packet(i, &p) && p.serial == serial - i);
+	}
+	CHECK(!aprs_packet(APRS_RECENT_PACKETS, &p));
+	reset();
+	CHECK(aprs_packet_count() == 0);
+}
+#endif
 
 int main(void)
 {
@@ -1545,6 +1583,7 @@ int main(void)
 	test_codeplug_path();
 	test_rf_failures();
 #if CONFIG_APRS_RX
+	test_recent_packets();
 	test_stations_digi_igate();
 	test_rx_stream();
 	test_rx_board_only();

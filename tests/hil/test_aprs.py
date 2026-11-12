@@ -612,7 +612,9 @@ def test_aprs_rx_on_air(radio, sdr_bench, pytestconfig):
     radio.go_home()
     if radio.screen() == "hotspot":
         skip("state", "the radio is in hotspot mode")
-    src, program = bench_frame(call, _aprs(radio).get("aprs.call"))
+    before = _aprs(radio)
+    src, program = bench_frame(call, before.get("aprs.call"),
+                               f"{BENCH_RX_INFO} {_n(before, 'aprs.rx_frames')}")
     L = radio.link
     with radio.vfo_session(), aprs_session(radio) as s:
         L.vfo_set(hz)
@@ -636,6 +638,20 @@ def test_aprs_rx_on_air(radio, sdr_bench, pytestconfig):
         assert _n(v, "aprs.rx_frames") == _n(v0, "aprs.rx_frames") + 1, f"one frame expected: {v}"
         assert _n(v, "aprs.rx_bad") == _n(v0, "aprs.rx_bad"), f"the frame was refused (rx_bad): {v}"
         assert _n(v, "aprs.stations") >= 1, f"the station isn't listed: {v}"
+        radio.wait_for(lambda x: x.get("ui.banner") == src, timeout=3,
+                       sections=("link",), what="arrival banner for the decoded sender")
+        radio.press("context")
+        radio.wait_for(lambda x: x.get("ui.screen") == "aprs-station", sections=("link",),
+                       what="arrival banner opens station detail")
+        radio.go_home()
+        for key in ("ok", "6", "8", "up", "up", "ok"):
+            radio.press(key)
+        radio.wait_for(lambda x: x.get("ui.screen") == "aprs-packets" and _n(x, "ui.count") > 0,
+                       sections=("link",), what="recent packets contains the decoded packet")
+        radio.press("ok")
+        radio.wait_for(lambda x: x.get("ui.screen") == "aprs-packet", sections=("link",),
+                       what="recent packet detail opens")
+        radio.go_home()
 
 
 def kiss_frames(data):

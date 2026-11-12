@@ -748,6 +748,12 @@ static void banner_open(void)
 	uint8_t kind = b->kind;
 	uint16_t msg = b->msg;
 	b->kind = UI_BANNER_NONE;
+#if CONFIG_APRS_RX
+	if (kind == UI_BANNER_APRS) {
+		ui_aprs_station_open(b->title);
+		return;
+	}
+#endif
 	if (kind == UI_BANNER_MESSAGE)
 		ui_push(SCR_MESSAGE, msg);
 #if CONFIG_ZONE_SHARE
@@ -757,6 +763,47 @@ static void banner_open(void)
 	else
 		ui_open_actions(&t);
 }
+
+#if CONFIG_APRS_RX
+static uint32_t aprs_packet_seen;
+
+static bool aprs_banner_blocked(void)
+{
+	ui_scr_t scr = stack[sp].scr;
+	return ptt_held || view->state == RS_TX || ui_st.entry || scr == SCR_TEXT || scr == SCR_MESSAGE_TEXT ||
+		scr == SCR_APRS_TO || scr == SCR_CONFIRM || scr == SCR_DISCARD || scr == SCR_EMERGENCY ||
+		scr == SCR_ZONEDEL || scr == SCR_CP_FOREIGN || scr == SCR_DMR_ID;
+}
+
+static void aprs_arrival(void)
+{
+	static aprs_packet_t p;
+	if (aprs_banner_blocked() && ui_st.banner.kind == UI_BANNER_APRS) {
+		ui_st.banner.kind = UI_BANNER_NONE;
+		dirty = true;
+	}
+	if (!ui_svc_aprs_packet(0, &p) || p.serial == aprs_packet_seen)
+		return;
+	aprs_packet_seen = p.serial;
+	dirty = true;
+	// Addressed messages retain their inbox alert path; routine traffic never replaces another alert.
+	if (p.to_us || aprs_banner_blocked() ||
+	    (ui_st.banner.kind != UI_BANNER_NONE && ui_st.banner.kind != UI_BANNER_APRS) || now - p.ms >= BANNER_MS)
+		return;
+	char text[UI_BANNER_TEXT];
+	sbuf_t b;
+	sb_init(&b, text, sizeof text);
+	sb_str(&b, ui_aprs_kind(p.type, false));
+	aprs_station_t s;
+	uint32_t m;
+	uint16_t deg;
+	if (ui_svc_aprs_station_find(p.call, &s) && ui_svc_aprs_range(&s, &m, &deg)) {
+		sb_str(&b, "  ");
+		sb_range(&b, m, deg);
+	}
+	banner(UI_BANNER_APRS, false, 0, p.call, text);
+}
+#endif
 
 // --- VFO frequency entry (digits on Home in the VFO; task-flows.md 12) ---
 
@@ -1820,6 +1867,9 @@ void ui_app_init(void)
 	recent_seen_ms = 0;
 	recent_tx = false;
 	ev_head = ev_tail = 0;
+#if CONFIG_APRS_RX
+	aprs_packet_seen = 0;
+#endif
 	sp = 0;
 	stack[0].scr = SCR_HOME;
 	for (uint8_t id = 0; id < UI_SET_COUNT; id++)
@@ -2286,6 +2336,9 @@ bool ui_app_tick(const radio_view_t *v, uint32_t now_ms)
 	}
 #endif
 
+#if CONFIG_APRS_RX
+	aprs_arrival();
+#endif
 	while (ev_tail != ev_head) {
 		ui_event_t ev = events[ev_tail];
 		ev_tail = (uint8_t)((ev_tail + 1u) % UI_EVENTS);
