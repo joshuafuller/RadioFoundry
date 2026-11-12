@@ -165,3 +165,19 @@ In USB network mode the radio does both without the helper. APRS programs connec
 port 8001 directly ([Services on the radio](15-usb-network.md#services-on-the-radio)). The radio logs in to an
 APRS-IS server itself ([APRS-IS from the radio](15-usb-network.md#aprs-is-from-the-radio)). KISS on USB must be on
 for both.
+
+### Tune to a station's voice frequency
+
+When a station advertises a voice frequency, its detail list offers **Tune to**, followed by the frequency and
+tone. Select it to listen there in FM. Any advertised offset and transmit tone are applied together. Missing
+an offset means simplex. An unsupported frequency or tone shows a reason and leaves the channel unchanged.
+
+Tuning returns to Home and is temporary. Press Back on Home to undo it, or select another channel. It does not
+transmit or save a channel. On a single receiver you leave the APRS frequency while listening to voice.
+
+### My frequency in my beacon
+
+This APRS setting is **Off** by default. Turn it on to put your current voice frequency and tone at the start of
+position beacon comments. Changing channels updates the next beacon; it does not send one immediately. Your
+existing comment follows if it fits. Digital channels and inverted DCS do not advertise an FM frequency.
+These controls require a build with `CONFIG_APRS_TUNE`.

@@ -396,6 +396,7 @@ static inline void settings_set_crash_contact(settings_t *s, uint16_t num)
 #define SETTINGS_APRS_KISS		0x20u	// KISS TNC on the host port
 #define SETTINGS_APRS_NARROW		0x40u	// 12.5 kHz on the APRS frequency
 #define SETTINGS_APRS_RX		0x80u	// receive on the APRS frequency (boards that can)
+#define SETTINGS_APRS2_MY_FREQUENCY	0x40u
 #define SETTINGS_APRS2_IGATE		0x01u	// RF -> APRS-IS
 #define SETTINGS_APRS2_IGATE_TX		0x02u	// APRS-IS -> RF (messages to local stations)
 #define SETTINGS_APRS2_MESSAGING	0x04u	// we take messages ('=' / '@' positions, acks)

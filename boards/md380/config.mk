@@ -12,6 +12,7 @@ CONFIG_DISPLAY_INSET_LEFT ?= 2
 # not written
 CONFIG_FM_TX_TONES ?= n
 CONFIG_DTMF ?= n
+CONFIG_APRS_TUNE ?= n
 CONFIG_APRS_RX ?= n
 # SFR needs CRC_MCU_Control, which the HR_C5000 lacks (docs/spec/sfr.md); the split duplex glue is written for the
 # HR_C6000 and HR_C7000 only

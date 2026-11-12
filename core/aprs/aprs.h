@@ -19,6 +19,7 @@
 #include <stddef.h>
 #include "config.h"
 #include "aprs/ax25.h"
+#include "aprs/aprs_freq.h"
 #include "position/position.h"
 
 #define APRS_TOCALL		"APZRDF"	// destination: the experimental APZ block (docs/spec/aprs.md 4.2)
@@ -46,6 +47,7 @@ typedef enum { APRS_VIA_RF, APRS_VIA_DMR, APRS_VIA_BOTH, APRS_VIA_COUNT } aprs_v
 typedef struct {
 	bool tx_on;		// automatic beacons (manual "send now" works without)
 	uint8_t region;		// aprs_region_t
+	bool my_frequency;	// occupies existing alignment padding
 	uint32_t freq_hz;	// APRS_REGION_CUSTOM's frequency
 	bool narrow;		// 12.5 kHz on the APRS frequency
 	uint8_t ssid;
@@ -132,6 +134,10 @@ typedef struct {
 	uint16_t course, speed_kn;
 	uint8_t type;		// aprs_type_t of the last packet
 	uint16_t count;
+
+#if CONFIG_APRS_TUNE
+	aprs_freq_t frequency;
+#endif
 	char text[24];		// comment / status (truncated)
 } aprs_station_t;
 

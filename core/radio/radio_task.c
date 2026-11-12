@@ -309,6 +309,13 @@ radio_vfo_copy_t radio_req_vfo_copy_checked(void)
 	}
 	return r;
 }
+#if CONFIG_APRS_TUNE
+bool radio_req_fm_tune(uint32_t hz, int16_t offset, uint16_t tone_index, bool narrow)
+{
+	radio_req_t req = {RREQ_FM_TUNE, (int32_t)hz, radio_fm_tune_arg(offset, tone_index, narrow)};
+	return requests != NULL && xQueueSend(requests, &req, 0) == pdTRUE;
+}
+#endif
 void radio_req_vfo_set(uint32_t hz) { post(RREQ_VFO_SET, (int32_t)hz, 0); }
 void radio_req_vfo_tx(uint32_t hz) { post(RREQ_VFO_TX, (int32_t)hz, 0); }
 void radio_req_vfo_step_size(uint32_t hz) { post(RREQ_VFO_STEP_SIZE, (int32_t)hz, 0); }

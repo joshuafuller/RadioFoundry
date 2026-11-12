@@ -71,7 +71,7 @@ typedef struct {
 	uint32_t cp_serial;
 	char info[AX25_INFO_MAX + 1];	// scratch for information fields (under the lock)
 #if CONFIG_APRS_RX
-	aprs_station_t st[APRS_STATIONS];
+
 	uint8_t nst;
 	aprs_msg_t msgs[APRS_MESSAGES];
 	uint8_t nmsg;

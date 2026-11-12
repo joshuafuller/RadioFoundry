@@ -71,6 +71,7 @@
 #include "hotspot/hotspot.h"
 #include "stubentry/stub_entry.h"
 #include "ui/ui_svc_aprs.h"
+#include "radio/tones.h"
 
 #define TICK_MS		50
 #define PRESS_MS	150
@@ -425,6 +426,7 @@ static struct {
 	uint32_t message_ms;
 	bool evicted;
 	bool no_speed;
+	bool frequency, bad_frequency;
 	bool reordered;		// a packet moves the second station to the front
 	bool no_pos;		// "aprs:nopos": no position of our own (no GPS fix, no fixed position)
 	aprs_cfg_t cfg;
@@ -486,6 +488,12 @@ bool ui_svc_aprs_station(uint8_t i, aprs_station_t *out)
 	out->course = aprs_sim.no_speed || i != 0 ? 0xFFFFu : 40;
 	out->sym_table = i == 0 ? '/' : 0;
 	out->sym_code = i == 0 ? '>' : 0;
+#if CONFIG_APRS_TUNE
+	if (aprs_sim.frequency) {
+		out->frequency = (aprs_freq_t){.hz = aprs_sim.bad_frequency ? 999000000 : 146520000,
+			.tone_kind = 'T', .tone = 100};
+	}
+#endif
 	out->count = 3;
 	strcpy(out->text, i == 0 ? "On the road" : "At home");
 	out->pos_ms = 0;	// the position heard at start, the packets since (heard_ms) without one
@@ -1232,6 +1240,19 @@ void radio_req_vfo_step(int8_t dir)
 	changed();
 }
 // As the radio core: off the VFO, the VFO opens on the frequency (Find's Tune VFO)
+#if CONFIG_APRS_TUNE
+bool radio_req_fm_tune(uint32_t hz, int16_t offset, uint16_t tone_index, bool narrow)
+{
+	view.ch.rx_hz = hz;
+	view.ch.tx_hz = hz + offset * 10000;
+	view.ch.mode = RADIO_MODE_FM;
+	view.ch.tx_tone = tones_picker(tone_index);
+	view.ch.bw = narrow ? RADIO_BW_12K5 : RADIO_BW_25K;
+	view.temporary = true;
+	changed();
+	return true;
+}
+#endif
 void radio_req_vfo_set(uint32_t hz)
 {
 	retune();
@@ -2496,6 +2517,7 @@ static bool check(const char *kv, char *err, size_t len)
 	else if (strcmp(key, "pos_lat") == 0) snprintf(got, sizeof got, "%d", (int)ui_svc_setting_get(UI_SET_POS_FIXED_LAT));
 	else if (strcmp(key, "pos_lon") == 0) snprintf(got, sizeof got, "%d", (int)ui_svc_setting_get(UI_SET_POS_FIXED_LON));
 	else if (strcmp(key, "pos_dmrgps") == 0) snprintf(got, sizeof got, "%d", (int)ui_svc_setting_get(UI_SET_POS_DMR_CALLS));
+	else if (strcmp(key, "aprs_myfreq") == 0) snprintf(got, sizeof got, "%u", aprs_sim.cfg.my_frequency);
 	else if (strcmp(key, "aprs_kiss") == 0) snprintf(got, sizeof got, "%u", aprs_sim.cfg.kiss);
 #if CONFIG_DMR_ROAMING
 	else if (strcmp(key, "roam") == 0) snprintf(got, sizeof got, "%u", view.roam.state);	// RROAM_STATE_*
@@ -2834,6 +2856,8 @@ static bool run_token(char *t, char *err, size_t len)
 		aprs_sim.no_pos = strcmp(arg, "nopos") == 0;
 		aprs_sim.reordered = strcmp(arg, "reorder") == 0;
 		aprs_sim.evicted = strcmp(arg, "evict") == 0;
+		aprs_sim.frequency = strcmp(arg, "freq") == 0 || strcmp(arg, "badfreq") == 0;
+		aprs_sim.bad_frequency = strcmp(arg, "badfreq") == 0;
 		aprs_sim.no_speed = strcmp(arg, "nospeed") == 0;
 		if (strcmp(arg, "heard") == 0) {
 			ui_push(SCR_APRS_HEARD, 0);

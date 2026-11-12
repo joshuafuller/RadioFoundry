@@ -9,6 +9,7 @@
 #include <string.h>
 #include "ui_nav.h"
 #include "ui_svc_aprs.h"
+#include "ui_aprs_tune.h"
 #include "fmt.h"
 #include "i18n.h"
 #include "config.h"
@@ -38,7 +39,11 @@ WEAK bool ui_svc_aprs_station(uint8_t i, aprs_station_t *out) { (void)i; (void)o
 WEAK bool ui_svc_aprs_station_find(const char *call, aprs_station_t *out) { (void)call; (void)out; return false; }
 WEAK bool ui_svc_aprs_range(const aprs_station_t *s, uint32_t *m, uint16_t *deg) { (void)s; (void)m; (void)deg; return false; }
 
-enum { AP_SEND, AP_AUTO, AP_FREQ, AP_POWER, AP_PATH, AP_INTERVAL, AP_SMART, AP_VIA, AP_KISS, AP_HEARD, AP_COUNT };
+enum { AP_SEND, AP_AUTO, AP_FREQ, AP_POWER, AP_PATH, AP_INTERVAL, AP_SMART, AP_VIA, AP_KISS, AP_HEARD,
+#if CONFIG_APRS_TUNE
+AP_MY_FREQ,
+#endif
+AP_COUNT };
 
 // The rows this build shows, in order: the packet rows only with the AX.25 backend (CONFIG_APRS_AFSK), "Send via"
 // only when there is a choice (both backends built)
@@ -52,6 +57,9 @@ static const uint8_t rows[] = {
 	AP_VIA,
 #endif
 	AP_KISS,
+#if CONFIG_APRS_TUNE
+	AP_MY_FREQ,
+#endif
 #if CONFIG_APRS_AFSK
 	AP_HEARD,
 #endif
@@ -155,7 +163,11 @@ static void aprs_item(uint16_t i, ui_item_t *it)
 {
 	static const char *const names[] = { TRN("Send position now"), TRN("Automatic beacons"), TRN("Frequency"),
 					     TRN("Power"), TRN("Path"), TRN("Interval"), TRN("SmartBeaconing"),
-					     TRN("Send via"), TRN("KISS on USB"), TRN("Stations heard") };
+					     TRN("Send via"), TRN("KISS on USB"), TRN("Stations heard"),
+#if CONFIG_APRS_TUNE
+					     TRN("My frequency in my beacon"),
+#endif
+	};
 	aprs_view_t v;
 	aprs_cfg_t c;
 	bool built = ui_svc_aprs_view(&v);
@@ -206,6 +218,9 @@ static void aprs_item(uint16_t i, ui_item_t *it)
 	case AP_INTERVAL: sb_str(&b, tr(interval_names[interval_index(c.interval_s)])); break;
 	case AP_SMART: sb_str(&b, c.smart ? TR("On") : TR("Off")); break;
 	case AP_VIA: sb_str(&b, tr(via_names[c.via < APRS_VIA_COUNT ? c.via : 0])); break;
+#if CONFIG_APRS_TUNE
+	case AP_MY_FREQ: sb_str(&b, c.my_frequency ? TR("On") : TR("Off")); break;
+#endif
 	case AP_KISS: sb_str(&b, c.kiss ? TR("On") : TR("Off")); break;
 	case AP_HEARD:
 		if (!CONFIG_APRS_RX) {
@@ -264,6 +279,9 @@ static void aprs_select(uint16_t i, bool hold)
 	case AP_INTERVAL: c.interval_s = intervals[(interval_index(c.interval_s) + 1u) % N_INTERVALS]; break;
 	case AP_SMART: c.smart = !c.smart; break;
 	case AP_VIA: c.via = (uint8_t)((c.via + 1u) % APRS_VIA_COUNT); break;
+#if CONFIG_APRS_TUNE
+	case AP_MY_FREQ: c.my_frequency = !c.my_frequency; break;
+#endif
 	case AP_KISS: c.kiss = !c.kiss; break;
 	case AP_HEARD:
 		if (!CONFIG_APRS_RX) {
@@ -336,7 +354,7 @@ const ui_scr_def_t ui_aprs_heard_screen = {
 };
 
 #if CONFIG_APRS_RX
-enum { ST_MESSAGE, ST_RANGE, ST_HEARD, ST_PATH, ST_POS_AGE, ST_SPEED, ST_COURSE, ST_SYMBOL, ST_TEXT, ST_PACKETS, ST_COUNT };
+enum { ST_MESSAGE, ST_TUNE, ST_RANGE, ST_HEARD, ST_PATH, ST_POS_AGE, ST_SPEED, ST_COURSE, ST_SYMBOL, ST_TEXT, ST_PACKETS, ST_COUNT };
 
 // Resolve optional rows from the current record; no copy of the engine's station table lives in the UI.
 static uint8_t station_row(uint16_t i, const aprs_station_t *s)
@@ -344,6 +362,13 @@ static uint8_t station_row(uint16_t i, const aprs_station_t *s)
 	uint32_t m;
 	uint16_t deg;
 	for (uint8_t row = 0; row < ST_COUNT; row++) {
+		if (row == ST_TUNE) {
+#if CONFIG_APRS_TUNE
+			if (!s->frequency.hz) continue;
+#else
+			continue;
+#endif
+		}
 		if ((row == ST_RANGE && !ui_svc_aprs_range(s, &m, &deg)) ||
 		    (row == ST_POS_AGE && (!s->has_pos || s->pos_ms == s->heard_ms)) ||
 		    (row == ST_SPEED && (!s->has_pos || s->speed_kn == 0xFFFFu)) ||
@@ -390,6 +415,12 @@ static void station_item(uint16_t i, ui_item_t *it)
 	uint32_t m;
 	uint16_t deg;
 	switch (station_row(i, &s)) {
+	case ST_TUNE:
+#if CONFIG_APRS_TUNE
+		ui_aprs_tune_item(&s.frequency, it);
+		return;
+#endif
+		break;
 	case ST_RANGE:
 		label = TR(TEXT_ALT_OPEN "Distance" TEXT_ALT_NEXT "Dist" TEXT_ALT_NEXT "" TEXT_ALT_CLOSE);
 		if (ui_svc_aprs_range(&s, &m, &deg)) {
@@ -443,6 +474,13 @@ static void station_select(uint16_t i, bool hold)
 		bool found = ui_svc_aprs_station_find(station_call, &s);
 		ui_aprs_compose(found ? s.call : station_call);
 	}
+#if CONFIG_APRS_TUNE
+	else {
+		aprs_station_t s;
+		if (ui_svc_aprs_station_find(station_call, &s) && station_row(i, &s) == ST_TUNE)
+			ui_aprs_tune(&s.frequency);
+	}
+#endif
 }
 #else
 static uint16_t station_count(void) { return 1; }

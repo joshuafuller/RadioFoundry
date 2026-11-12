@@ -114,14 +114,14 @@ sfrTest: $(SFRSRC) $(CORE)/dmr/sfr.h
 	$(CC) $(CFLAGS) -DHAS_SFR -o $@ $(SFRSRC)
 
 # APRS protocol layers (AX.25, HDLC, AFSK, KISS, formats, NMEA and its satellites, beacon triggers, iGate rules)
-TESTS   += aprsTest
+TESTS   += aprsTest aprsFreqTest
 NMEALIB := $(CORE)/position/nmea.c $(CORE)/position/nmea_sky.c
 POSLIB  := $(CORE)/position/position.c $(NMEALIB)
 APRSLIB := $(CORE)/aprs/ax25.c $(CORE)/aprs/hdlc.c $(CORE)/aprs/afsk.c $(CORE)/aprs/kiss.c $(CORE)/aprs/aprs_fmt.c \
-           $(CORE)/aprs/aprs_beacon.c $(CORE)/aprs/aprs_igate.c
+           $(CORE)/aprs/aprs_beacon.c $(CORE)/aprs/aprs_igate.c $(CORE)/aprs/aprs_freq.c
 
 aprsTest: aprsTest.c $(APRSLIB) $(NMEALIB) $(wildcard $(CORE)/aprs/*.h)
-	$(CC) $(CFLAGS) -o $@ aprsTest.c $(APRSLIB) $(NMEALIB) -lm
+	$(CC) $(CFLAGS) -I$(ROOT)/hal -o $@ aprsTest.c $(APRSLIB) $(NMEALIB) $(CORE)/radio/tones.c -lm
 
 run: $(TESTS)
 	./dmrFecTest
@@ -488,7 +488,7 @@ i18nTestDefault: i18nTest.c $(I18N) $(LANG_H) $(wildcard $(CORE)/ui/*.h $(CORE)/
 # the long-press rules; uiSim renders screens to PNG (make ui-gallery: docs/ux/screens/, contact sheets in
 # docs/ux/screens/sheets/). Built without the __attribute__ override above so the weak service stubs
 # (ui_svc_stub.c) give way to the simulator's.
-UIAPP   := $(UI) $(CORE)/ui/ui_app.c $(CORE)/ui/ui_menus.c $(CORE)/ui/ui_find.c $(CORE)/ui/ui_aprs.c $(CORE)/ui/ui_position.c $(CORE)/ui/ui_gps.c $(CORE)/ui/ui_dual.c $(CORE)/radio/tones.c \
+UIAPP   := $(UI) $(CORE)/ui/ui_app.c $(CORE)/ui/ui_menus.c $(CORE)/ui/ui_find.c $(CORE)/ui/ui_aprs.c $(CORE)/ui/ui_aprs_tune.c $(CORE)/aprs/aprs_freq.c $(CORE)/ui/ui_position.c $(CORE)/ui/ui_gps.c $(CORE)/ui/ui_dual.c $(CORE)/radio/tones.c \
            $(CORE)/codeplug/codeplug_talk.c $(CORE)/codeplug/zone_edit.c $(CORE)/codeplug/zone_shift.c $(CORE)/radio/radio_am.c \
            $(CORE)/radio/radio_bcast.c sim/ui_sim.c sim/ui_png.c
 # The About page's data header, as the firmware build makes it (tools/gen_about.py; the STM32F4 list stands in)
@@ -1417,3 +1417,7 @@ run-webctlassets: httpAssetsTestWebctl
 	./httpAssetsTestWebctl out/http_webctl
 	python3 -I $(ROOT)/tools/gen_http_assets.py --check out/http_webctl $(WEBCTL_ASSETS)
 .PHONY: run-webctlassets
+
+# Frequency grammar, exact-length fuzz inputs, and the beacon prefix.
+aprsFreqTest: aprsFreqTest.c $(CORE)/aprs/aprs_freq.c $(CORE)/radio/tones.c
+	$(CC) $(CFLAGS) -I$(ROOT)/hal -o $@ $^ -lm

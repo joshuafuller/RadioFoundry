@@ -446,3 +446,6 @@ iGate, USB, broadcast FM, air band AM, `FONT_XL`, `AUDIO_PROBE` (`boards/db25d/c
 |---|---:|---:|---:|
 | DMR only (hotspot, VFO and network off) | 295,460 | 139,952 (25,472 free) | 19,024 (33,888 free) |
 | default (hotspot, PPP, gateway, every service but USRP, 3 TCP connections; no split duplex) | 362,364 | 150,080 (15,344 free) | 28,584 (24,328 free) |
+
+Advertised APRS voice frequencies, temporary tuning and the beacon frequency prefix are controlled by
+`CONFIG_APRS_TUNE` (see [APRS](spec/aprs.md#14-advertised-voice-frequency)). Hardware validation is pending.

@@ -478,3 +478,8 @@ source = ["tools/rfoundry/rfoundry"]
 [feature.audio_probe]
 switch = "AUDIO_PROBE"
 spec = "docs/spec/usb-audio.md"
+
+[feature.aprs_tune]
+switch = "APRS_TUNE"
+spec = "docs/spec/aprs.md"
+source = ["core/aprs/aprs_freq.c", "core/ui/ui_aprs_tune.c"]

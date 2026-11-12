@@ -62,10 +62,10 @@ static void cw_cancel(radio_sm_t *sm);
 #if CONFIG_ZONE_SHARE
 #include "dmr/zone_share_api.h"
 #endif
-#if CONFIG_AM_RX
+#if CONFIG_AM_RX || CONFIG_APRS_TUNE
 #include "radio/radio_am.h"	// air band AM receive (docs/spec/airband-and-broadcast.md 3)
 #endif
-#if CONFIG_BCAST_FM
+#if CONFIG_BCAST_FM || CONFIG_APRS_TUNE
 #include "radio/radio_bcast.h"	// broadcast FM receive (docs/spec/airband-and-broadcast.md 4)
 #endif
 #if CONFIG_APRS_AFSK
@@ -239,6 +239,11 @@ bool radio_view_wakes(const radio_view_t *v)
 	}
 }
 
+#if CONFIG_APRS_TUNE
+static radio_sm_t *tune_owner;
+static channel_t tune_previous;
+#endif
+
 static bool same_tone(const subtone_t *a, const subtone_t *b)
 {
 	return a->type == b->type && (a->type == TONE_NONE || a->value == b->value);
@@ -279,6 +284,9 @@ static void set_temporary(radio_sm_t *sm)
 	}
 	sm->view.temp = t;
 	sm->view.temporary = t != 0;
+#if CONFIG_APRS_TUNE
+	sm->view.temporary |= tune_owner == sm;
+#endif
 }
 
 // Back to the channel's own settings. Returns whether the receiver needs retuning (bandwidth, RX tone, mode, color
@@ -287,6 +295,14 @@ static bool clear_temporary(radio_sm_t *sm)
 {
 	bool retune = (sm->view.temp & (RADIO_TEMP_BW | RADIO_TEMP_RX_TONE | RADIO_TEMP_MODE | RADIO_TEMP_CC |
 					RADIO_TEMP_TS)) != 0;
+#if CONFIG_APRS_TUNE
+	if (tune_owner == sm) {
+		sm->view.ch = tune_previous;
+		if (sm->view.vfo) sm->vfo_ch = tune_previous;
+		tune_owner = NULL;
+		retune = true;
+	}
+#endif
 	sm->temp_power = false;
 	sm->temp_squelch = false;
 	sm->temp_ts = 0;
@@ -618,6 +634,9 @@ static void set_zone(radio_sm_t *sm, uint16_t index, const zone_t *z)
 // A channel change: the channel's own settings, temporary changes dropped (P7)
 static void set_channel(radio_sm_t *sm, uint16_t pos, const channel_t *ch)
 {
+#if CONFIG_APRS_TUNE
+	tune_owner = NULL;
+#endif
 	sm->view.ch = *ch;
 	sm->view.ch.name[CODEPLUG_NAME_LEN] = '\0';
 #if !CONFIG_SUBTONE
@@ -681,6 +700,9 @@ static void vfo_set_hz(radio_sm_t *sm, uint32_t hz)
 
 static void enter_vfo(radio_sm_t *sm, uint32_t now_ms)
 {
+#if CONFIG_APRS_TUNE
+	tune_owner = NULL;
+#endif
 	if (!sm->vfo_seeded) {
 		bool keep = !sm->view.vfo && board_in_band(sm->view.ch.rx_hz, false);
 		uint32_t hz = keep ? sm->view.ch.rx_hz : vfo_default_hz();
@@ -3635,6 +3657,9 @@ static void aprs_poll(radio_sm_t *sm, uint32_t now_ms)
 	r.on_dmr = sm->dmr_running && !sm->hotspot;
 	r.own_dmr_id = sm->own_id;
 #endif
+#if CONFIG_APRS_TUNE
+	aprs_freq_channel(sm->view.ch.rx_hz, sm->view.ch.tx_tone, sm->view.ch.mode == RADIO_MODE_FM);
+#endif
 	aprs_tick(&r, now_ms);
 #if CONFIG_APRS_AFSK
 	if (r.can_rf && aprs_rf_pending()) {
@@ -4934,6 +4959,9 @@ static const hal_audio_t *pcm_audio(void)
 
 void radio_sm_init(radio_sm_t *sm, uint32_t now_ms)
 {
+#if CONFIG_APRS_TUNE
+	tune_owner = NULL;
+#endif
 	settings_t st;
 	settings_read(&st);	// a zone add or delete a power cut interrupted is settled first (radio_core_start)
 #if CONFIG_POSITION
@@ -5093,7 +5121,7 @@ static bool retunes(uint8_t type)
 	switch (type) {
 	case RREQ_CH_STEP: case RREQ_ZONE_POS: case RREQ_ZONE: case RREQ_VFO: case RREQ_VFO_STEP: case RREQ_VFO_SET:
 	case RREQ_VFO_TX: case RREQ_BANDWIDTH: case RREQ_TONE: case RREQ_MODE: case RREQ_DMR_TS: case RREQ_DMR_CC: case RREQ_VFO_COPY:
-	case RREQ_VFO_SFR:
+	case RREQ_VFO_SFR: case RREQ_FM_TUNE:
 		return true;
 	default:
 		return false;
@@ -5363,6 +5391,30 @@ void radio_sm_request(radio_sm_t *sm, const radio_req_t *req, uint32_t now_ms)
 		sm->retune_due = true;	// radio_sm_poll: once the trim stops changing
 		sm->retune_due_ms = now_ms + RADIO_RETUNE_SETTLE_MS;
 		break;
+#if CONFIG_APRS_TUNE
+	case RREQ_FM_TUNE: {
+		uint16_t ti = (uint16_t)(req->arg2 & 0x7FFFu);
+		int16_t offset = (int16_t)(req->arg2 >> 16);
+		int64_t tx = (int64_t)req->arg + (int64_t)offset * 10000;
+		subtone_t tone = tones_picker(ti);
+		if (busy || ti >= (CONFIG_SUBTONE ? TONES_PICKER_COUNT : 1) ||
+		    !board_in_band((uint32_t)req->arg, false) || tx <= 0 || tx > UINT32_MAX ||
+		    !board_in_band((uint32_t)tx, true) || radio_am_band((uint32_t)req->arg) ||
+		    radio_bcast_band((uint32_t)req->arg)) break;
+		if (tune_owner != sm) tune_previous = sm->view.ch;
+		tune_owner = sm;
+		sm->view.ch.rx_hz = (uint32_t)req->arg;
+		sm->view.ch.tx_hz = (uint32_t)tx;
+		sm->view.ch.mode = RADIO_MODE_FM;
+		sm->view.ch.bw = req->arg2 & 0x8000u ? RADIO_BW_12K5 : RADIO_BW_25K;
+		sm->view.ch.tx_tone = tone;
+		sm->view.ch.rx_tone = (subtone_t){TONE_NONE, 0};
+		if (sm->view.vfo) sm->vfo_ch = sm->view.ch;
+		set_temporary(sm);
+		tune(sm, now_ms);
+		break;
+	}
+#endif
 	case RREQ_BANDWIDTH:
 		if (busy || sm->view.ch.mode != RADIO_MODE_FM || (req->arg != RADIO_BW_12K5 && req->arg != RADIO_BW_25K) ||
 				req->arg == sm->view.ch.bw) {

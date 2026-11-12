@@ -669,6 +669,10 @@ msgid "Stations heard"
 msgstr "Estaciones oídas"
 
 #: core/ui/ui_aprs.c
+msgid "My frequency in my beacon"
+msgstr "Mi frecuencia en mi baliza"
+
+#: core/ui/ui_aprs.c
 msgid "NMEA on USB"
 msgstr "NMEA por USB"
 
@@ -763,6 +767,30 @@ msgstr "Paquetes"
 #: core/ui/ui_aprs.c
 msgid "OK choose  Back"
 msgstr "OK elegir  Atrás"
+
+#: core/ui/ui_aprs_tune.c
+msgid "Tune to"
+msgstr "Sintonizar"
+
+#: core/ui/ui_aprs_tune.c
+msgid "This radio can't receive that frequency"
+msgstr "Esta radio no puede recibir esa frecuencia"
+
+#: core/ui/ui_aprs_tune.c
+msgid "This radio can't transmit on that frequency"
+msgstr "Esta radio no puede transmitir en esa frecuencia"
+
+#: core/ui/ui_aprs_tune.c
+msgid "This radio can't use that tone"
+msgstr "Esta radio no puede usar ese tono"
+
+#: core/ui/ui_aprs_tune.c
+msgid "Radio busy"
+msgstr "Radio ocupada"
+
+#: core/ui/ui_aprs_tune.c
+msgid "Tuned for now. Back to undo"
+msgstr "Cambio temporal. Atrás para deshacer"
 
 #: core/ui/ui_dual.c core/ui/ui_screens.c
 msgid "No tone"

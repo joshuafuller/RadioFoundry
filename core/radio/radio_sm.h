@@ -162,8 +162,14 @@ typedef enum {
 	RREQ_VFO_TX,		// arg: the VFO's TX Hz, 0 = simplex (its RX frequency)
 	RREQ_WAKE,		// radio_task.c: tick now (a DMR transmission ended: dmr_call_set_wake); never radio_sm_request
 	RREQ_VOLUME_HOLD,	// arg: 1 hold the level and ignore the knob (keys locked), 0 follow it again
+	RREQ_FM_TUNE,		// arg: RX Hz; arg2: radio_fm_tune_arg
 	RREQ_VFO_SFR,		// the VFO's SFR role (CONFIG_SFR): arg = byte A, as a channel's (sfr.h); VFO only
 } radio_req_type_t;
+
+static inline uint32_t radio_fm_tune_arg(int16_t offset, uint16_t tone_index, bool narrow)
+{
+	return ((uint32_t)(uint16_t)offset << 16) | (narrow ? 0x8000u : 0) | tone_index;
+}
 
 // RREQ_TONE's argument: which (RADIO_TONE_*) in bits 25:24, the tone type in 23:16, the value in 15:0
 static inline int32_t radio_tone_arg(uint8_t which, subtone_t t)
