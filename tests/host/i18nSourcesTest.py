@@ -14,7 +14,7 @@ keys, languages = i18n.tables(["core/ui/ui_aprs_wx.c"])
 assert i18n.fnv1a(b"Temperature") in full
 assert i18n.fnv1a(b"Temperature") not in keys
 assert i18n.fnv1a(b"OK choose  Back") in keys  # Also used by other screens.
-for code, _, _, _, blob, offsets in languages:
+for code, _, _, _, _, _, blob, offsets, _ in languages:
     assert i18n.lookup(keys, blob, offsets, b"Temperature") is None
     assert i18n.lookup(keys, blob, offsets, b"OK choose  Back") is not None, code
 excluded = ["CONFIG_APRS_RX", "core/ui/ui_aprs_home.c"] + [
@@ -25,9 +25,9 @@ for text in (b"Mobiles only", b"Set your position to see the radar", b"No object
              b"Delivered (acked)", b"Not listening: off"):
     assert i18n.fnv1a(text) in full, text
     assert i18n.fnv1a(text) not in keys, text
-    for code, _, _, _, blob, offsets in languages:
+    for code, _, _, _, _, _, blob, offsets, _ in languages:
         assert i18n.lookup(keys, blob, offsets, text) is None, (code, text)
 for text in (b"No position", b"OK choose  Back"):
-    for code, _, _, _, blob, offsets in languages:
+    for code, _, _, _, _, _, blob, offsets, _ in languages:
         assert i18n.lookup(keys, blob, offsets, text) is not None, (code, text)
 print("i18nSourcesTest PASSED")

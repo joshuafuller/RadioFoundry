@@ -480,6 +480,14 @@ msgstr "Teclas desbloq."
 msgid "Talk target: DMR channels only"
 msgstr "Destino: solo canales DMR"
 
+#: core/ui/ui_app.c core/ui/ui_menus.c
+msgid "Talkgroup name first"
+msgstr "Nombre del grupo primero"
+
+#: core/ui/ui_app.c
+msgid "Talkgroup number first"
+msgstr "Número del grupo primero"
+
 #: core/ui/ui_app.c
 msgid "Volume: use the knob"
 msgstr "Volumen: usa la perilla"
@@ -818,8 +826,8 @@ msgid "Repeat"
 msgstr "Repetición"
 
 #: core/ui/ui_aprs.c
-msgid "My frequency in my beacon"
-msgstr "Mi frecuencia en mi baliza"
+msgid "{My frequency in my beacon|My frequency|My freq}"
+msgstr "{Mi frecuencia en mi baliza|Mi frecuencia|Mi frec.}"
 
 #: core/ui/ui_aprs.c
 msgid "Stop all APRS TX"
@@ -2151,8 +2159,8 @@ msgid "Write..."
 msgstr "Escribir..."
 
 #: core/ui/ui_menus.c
-msgid "Request acknowledgment"
-msgstr "Pedir confirmación"
+msgid "{Request acknowledgment|Request ACK}"
+msgstr "{Solicitar confirmación|Solicitar ACK}"
 
 #: core/ui/ui_menus.c
 msgid "Include position"
@@ -3227,6 +3235,10 @@ msgid "JetBrains Mono font: OFL-1.1"
 msgstr "Fuente JetBrains Mono: OFL-1.1"
 
 #: core/ui/ui_menus.c
+msgid "Noto Sans CJK SC font: OFL-1.1"
+msgstr "Fuente Noto Sans CJK SC: OFL-1.1"
+
+#: core/ui/ui_menus.c
 msgid "AMBE+2 codec: DVSI (stock)"
 msgstr "Códec AMBE+2: DVSI (original)"
 
@@ -3617,6 +3629,10 @@ msgstr "VFO/Canal"
 #: core/ui/ui_menus.c
 msgid "Call back"
 msgstr "Rellamar"
+
+#: core/ui/ui_menus.c
+msgid "TG name / number"
+msgstr "Nombre / número TG"
 
 #: core/ui/ui_menus.c
 msgid "Channel"
@@ -4297,10 +4313,6 @@ msgstr "Privada para ti"
 #: core/ui/ui_screens.c
 msgid "Private to "
 msgstr "Privada a "
-
-#: core/ui/ui_screens.c
-msgid "Reply→ "
-msgstr "Resp→ "
 
 #: core/ui/ui_screens.c
 msgid "Sending ID"

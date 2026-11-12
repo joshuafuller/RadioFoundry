@@ -58,3 +58,7 @@ MAXIMAL_SKIP := NET_PPP
 CONFIG_LANG_ES ?= n
 CONFIG_RX_EXT ?= n
 BOARD_NOT_WRITTEN += RX_EXT	# no receive range in its chip documents (a PLL and an IF chain, no single receiver chip)
+
+# The 128x64 layout uses 5x8/6x12 text; the CJK face needs 16 px lines (docs/build-config.md).
+BOARD_UNSUPPORTED += LANG_ZH	# a Chinese line needs 16 px; this layout has no room
+BOARD_UNSUPPORTED += LANG_DEFAULT_ZH	# needs LANG_ZH

@@ -389,7 +389,7 @@ static void aprs_item(uint16_t i, ui_item_t *it)
 #endif
 		TRN("My beacon"), TRN("Weather"), TRN("Settings"), TRN("My position"), TRN("Local TX"), TRN("Repeat"),
 #if CONFIG_APRS_TUNE
-					     TRN("My frequency in my beacon"),
+					     TRN(TEXT_ALT_OPEN "My frequency in my beacon" TEXT_ALT_NEXT "My frequency" TEXT_ALT_NEXT "My freq" TEXT_ALT_CLOSE),
 #endif
 #if CONFIG_APRS_BEACON
 		TRN("Stop all APRS TX"), "DMR", TRN("Emergency"),

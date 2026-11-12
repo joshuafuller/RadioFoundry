@@ -11,6 +11,7 @@
 //   ptt / ptt:<ms>      PTT pressed for 1 s / ms (counted); pttdown ... pttup holds it
 //   mondown ... monup   the monitor key held (FM: the squelch held open)
 //   datatx / dataend    DMR data goes out without PTT (ARS, SMS, IP): the view says TX; it ends
+//   aprstx / aprsend    an APRS RF beacon keys the transmitter / returns to the selected channel
 //   dtmf:<digits>       during TX: the radio core has sent these DTMF digits (the TX screen's DTMF line)
 //   wait:<ms>           time passes
 //   reboot              power off and on: the screens start over, the settings stay
@@ -886,6 +887,28 @@ bool ui_svc_codeplug_answer(uint8_t answer)
 		sim_rec.codeplug_writes++;
 	if (answer != UI_CP_CANCEL)
 		sim_foreign = false;
+	return true;
+}
+
+// The settings past the stub's RAM table (UI_SET_RAM_COUNT): the firmware keeps them in the codeplug
+// (ui_svc_storage.c); here they are plain values
+static int32_t sim_late[UI_SET_COUNT - UI_SET_RAM_COUNT];
+
+int32_t ui_svc_setting_get(uint8_t id)
+{
+	return id >= UI_SET_RAM_COUNT && id < UI_SET_COUNT ? sim_late[id - UI_SET_RAM_COUNT] : ui_svc_ram_get(id);
+}
+
+bool ui_svc_setting_set(uint8_t id, int32_t value)
+{
+	if (id < UI_SET_RAM_COUNT || id >= UI_SET_COUNT) {
+		bool ok = ui_svc_ram_set(id, value);
+#if CONFIG_UNITS
+		if (ok && id == UI_SET_UNITS) fmt_units_refresh();
+#endif
+		return ok;
+	}
+	sim_late[id - UI_SET_RAM_COUNT] = value;
 	return true;
 }
 
@@ -2520,6 +2543,7 @@ static const struct { const char *name; uint8_t action; } keys[] = {
 	{ "homekey", ACT_HOME_ZONE }, { "copykey", ACT_COPY_VFO },
 	{ "dualkey", ACT_DUAL_WATCH }, { "abkey", ACT_AB },	// dual watch's side key functions
 	{ "vfokey", ACT_VFO_TOGGLE },		// a VFO/MR key in the board's key map, or a side key set to VFO/Channel
+	{ "labelkey", ACT_TALK_LABEL },
 	{ "volkey", ACT_VOLUME },
 	{ "0", ACT_DIGIT_0 }, { "1", ACT_DIGIT_1 }, { "2", ACT_DIGIT_2 }, { "3", ACT_DIGIT_3 }, { "4", ACT_DIGIT_4 },
 	{ "5", ACT_DIGIT_5 }, { "6", ACT_DIGIT_6 }, { "7", ACT_DIGIT_7 }, { "8", ACT_DIGIT_8 }, { "9", ACT_DIGIT_9 },
@@ -2528,7 +2552,7 @@ static const struct { const char *name; uint8_t action; } keys[] = {
 static bool on_map(uint8_t action, bool lng)
 {
 	if ((action >= ACT_POWER && action <= ACT_VOLUME) || action == ACT_VFO_TOGGLE || action == ACT_DUAL_WATCH ||
-	    action == ACT_AB || action == ACT_TALK_TARGET)
+	    action == ACT_AB || action == ACT_TALK_TARGET || action == ACT_TALK_LABEL)
 		// any side key can be set to send these; the few-key map has none, but a radio with side keys and no QUICK key
 		// is the case the key lock needs on it
 		return board.side_key_count != 0 || cur_map == SIM_MAP_F;
@@ -2822,6 +2846,14 @@ static bool run_token(char *t, char *err, size_t len)
 		view.tx_elapsed_ms = 0;
 		changed();
 		advance(1500);
+		return true;
+	}
+	if (strcmp(t, "aprstx") == 0 || strcmp(t, "aprsend") == 0) {
+		bool on = strcmp(t, "aprstx") == 0;
+		view.state = on ? RS_TX : RS_IDLE;
+		view.aprs_tx = on;
+		changed();
+		advance(200);
 		return true;
 	}
 	if (strcmp(t, "dtmf") == 0 && arg != NULL) {

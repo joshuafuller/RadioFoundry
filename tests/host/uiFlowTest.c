@@ -133,8 +133,8 @@ static const flow_t flows[] = {
 	{ "S freq trim: OK leaves", "trim ok 7 up ok up ok", "ok", "screen=group shows=Freq_trim", 1, false },
 	{ "S no freq trim without the hook", "", "ok 7 up ok", "hides=Freq_trim", 4, false },
 #if CONFIG_UNITS
-	{ "S units default and select Metric", "", "ok 7 2 up up up ok", "shows=Metric", 7, false },
-	{ "S units return to US", "ok 7 2 up up up ok", "ok", "shows=US", 1, false },
+	{ "S units default and select Metric", "", "ok 7 2 up up up up ok", "shows=Metric", 8, false },
+	{ "S units return to US", "ok 7 2 up up up up ok", "ok", "shows=US", 1, false },
 #endif
 	// Settings > Display > Language, the last row (i18n.h; set78 = UI_SET_LANGUAGE, 'e' << 8 | 's' = 25971 Spanish,
 	// 'e' << 8 | 'n' = 25966 English picked; 0 never picked)
@@ -643,6 +643,10 @@ static const flow_t flows[] = {
 	{ "A Smart disables interval", "ok 6 8 0 6 ok ok ok ok ok", "5", "aprs_interval=0 toast=SmartBeaconing_sets_timing", 1, false },
 	{ "A Smart disables decay", "ok 6 8 0 6 ok ok ok ok ok", "8", "aprs_decay=0 toast=SmartBeaconing_sets_timing", 1, false },
 	{ "A send via DMR", "ok 6 8 0 7", "ok ok ok ok ok", "aprs_via=1", 5, false },
+	{ "A APRS RF keeps Home with a TX APRS pill", "", "aprstx",
+	  "screen=home shows=TX_APRS shows=SENDING hides=144.390 hides=0:00 hides=left_of", 0, false },
+	{ "A APRS RF returns to the channel", "aprstx", "aprsend",
+	  "screen=home hides=TX_APRS hides=SENDING", 0, false },
 	// Settings > Location: what every position report sends (the position service; ui_position.c). The page opens on
 	// Answer GPS requests (no GPS here: the rows above are dimmed); the position rows follow it
 	{ "L position source", "ok 7 5 down", "ok", "pos_source=1 shows=GPS", 1, false },
@@ -928,6 +932,15 @@ static const flow_t flows[] = {
 static const flow_t flows_mono[] = {
 	{ "2 Right steps to the next zone on Home", "", "right", "zone=1 screen=home", 1, false },
 	{ "2 Left steps back a zone", "right", "left", "zone=0 screen=home", 1, false },
+	// The talk line on the smallest display (#336): an icon, not "PTT->" or "Reply->", so the label keeps its room
+	{ "2 the talk line: an arrow, no PTT word", "", "", "screen=home shows=TG_3100_USA hides=PTT", 0, false },
+	{ "4 reply window: a long label is cut, not dropped", "call:3101234,201,g", "", "shows=TG_201_Main_O hides=Reply", 0, false },
+	// The side key's TG name / number (Settings > Display > Talkgroup name first): the name leads. The choice is saved,
+	// so the next flow starts with it and turns it back off
+	{ "4 a side key puts the TG name first", "call:3101234,201,g", "labelkey",
+	  "shows=Main_Ops hides=TG_201_Main toast=Talkgroup_name_first", 1, false },
+	{ "4 kept, and pressed again: the number first", "call:3101234,201,g", "labelkey",
+	  "shows=TG_201_Main toast=Talkgroup_number_first", 1, false },
 #if CONFIG_UI_COLOR
 	{ "S theme on a monochrome screen: dimmed", "", "ok 7 2 down down ok", "toast=Colors_are_for set7=0", 6, false },
 	{ "S highlight color on a monochrome screen: dimmed", "", "ok 7 2 down down down ok",
@@ -985,8 +998,10 @@ static const flow_t flows_k[] = {
 	  "set47=17 shows=VFO/Channel", 1, false },
 	{ "K top key hold: call back last", "ok 7 8 up ok ok ok ok ok ok ok ok ok ok ok", "ok", "set47=12 shows=Call_back",
 	  1, false },
-	{ "K top key hold wraps to default", "ok 7 8 up ok ok ok ok ok ok ok ok ok ok ok ok ok ok", "ok", "set47=0", 1,
+	{ "K top key hold wraps to default", "ok 7 8 up ok ok ok ok ok ok ok ok ok ok ok ok ok ok ok", "ok", "set47=0", 1,
 	  false },
+	{ "K top key hold: TG name / number after call back", "ok 7 8 up ok ok ok ok ok ok ok ok ok ok ok ok", "ok",
+	  "set47=19 shows=TG_name", 1, false },
 	{ "K a key set to power", "", "powerkey", "power=5", 1, false },
 	{ "K a key set to power, long", "", "long:powerkey", "power=5", 1, false },
 	{ "K a key set to the next zone", "", "zone+", "zone=1", 1, false },
@@ -1483,7 +1498,7 @@ static void weather_checks(void)
 		"aprs:wxzero ok 6 8 4 down ok expect:count=11 expect:shows=0 "
 		"down expect:shows=0_mph down down down down expect:shows=0.00_in "
 		"down down down expect:shows=0% down expect:shows=0.00_inHg down expect:shows=0_W/m2",
-		"ok 7 2 up up up ok long:back ok 6 8 4 down ok expect:shows=-22 "
+		"ok 7 2 up up up up ok long:back ok 6 8 4 down ok expect:shows=-22 "
 		"down expect:shows=13_km/h down down expect:shows=24_km/h down down expect:shows=0.5_mm "
 		"down down down down expect:shows=1013_hPa",
 	};
@@ -1503,7 +1518,7 @@ static void weather_checks(void)
 static void station_checks(void)
 {
 	static const struct { const char *name, *script; } cases[] = {
-		{ "metric units", "ok 7 2 up up up ok long:back ok 6 8 1 ok down expect:shows=14.5_km_NE "
+		{ "metric units", "ok 7 2 up up up up ok long:back ok 6 8 1 ok down expect:shows=14.5_km_NE "
 		  "down down down expect:shows=19_km/h" },
 		{ "position", "wait:600000 ok 6 8 1 ok expect:screen=aprs-station expect:count=15 "
 		  "down expect:shows=9.0_mi_NE down expect:shows=1m down expect:shows=Direct "

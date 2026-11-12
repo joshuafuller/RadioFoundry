@@ -344,6 +344,9 @@ typedef enum {
 #if CONFIG_APRS_HOME
 	UI_SET_APRS_LINE,	// Home APRS status (settings_t.knob_flags bit 1), default off
 #endif
+	UI_SET_RAM_COUNT,	// the ids up to here have a slot in ui_svc_ram_get/set's table; those after live elsewhere only
+	// Home's talk line: the talkgroup's name first, 1 on (Settings > Display; updown_home bit 7, ui_svc_storage.c)
+	UI_SET_LABEL_FIRST = UI_SET_RAM_COUNT,
 	UI_SET_COUNT
 } ui_setting_t;
 
