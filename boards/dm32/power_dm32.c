@@ -57,7 +57,21 @@ static int8_t volume(void)
 {
 #if RFOUNDRY_KNOB_ADC0
 	unsigned raw = hrc_adc_read(KNOB_ADC_CH);
+#ifdef KNOB_CURVE
+	// The knob's raw reading at 0, 10, ... 100 % of its travel (a log-taper pot): interpolate back to travel, so equal
+	// turns give equal volume steps
+	static const uint16_t curve[11] = KNOB_CURVE;
+	if (raw >= curve[10]) {
+		return 100;
+	}
+	unsigned i = 0;
+	while (raw >= curve[i + 1]) {
+		i++;
+	}
+	return (int8_t)(i * 10u + (raw - curve[i]) * 10u / (curve[i + 1] - curve[i]));
+#else
 	return (int8_t)(raw >= KNOB_RAW_FULL ? 100u : raw * 100u / KNOB_RAW_FULL);
+#endif
 #else
 	return -1;
 #endif
