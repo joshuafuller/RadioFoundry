@@ -66,9 +66,42 @@ static uint32_t bcd8(uint32_t v)
 	return r;
 }
 
+// Byte fields span 0..255 (PA drive x16 <= 4080); no narrower factory limits are documented.
+// Frequencies must be ordered within each band's range before interpolation or K calculation.
+static bool image_sane(const uint8_t *in)
+{
+	if (memcmp(in, header, sizeof header) != 0) {
+		return false;
+	}
+	for (unsigned t = 0; t < 4; t++) {
+		uint32_t lo = t < 2 ? 40000000u : 13600000u;
+		uint32_t hi = t < 2 ? 48000000u : 17400000u;
+		uint32_t previous = 0;
+		for (unsigned i = 0; i < 5; i++) {
+			uint32_t f = rd32(in + OFF_FREQ_TABLES + t * 20 + i * 4);
+			if (f < lo || f > hi || f <= previous) {
+				return false;
+			}
+			previous = f;
+		}
+	}
+	return true;
+}
+
+static void derive_k(uint8_t *out)
+{
+	uint32_t kv = 0, ku = 0;
+	for (int i = 0; i < 5; i++) {
+		kv += (rd32(out + OFF_FREQ_TABLES + 2 * 20 + 4 * i) / 100000u) * out[OFF_VHF_MOD + i];
+		ku += (rd32(out + OFF_FREQ_TABLES + 4 * i) / 100000u) * out[OFF_UHF_MOD + i];
+	}
+	wr32(out + OFF_K_VHF, kv / 5u);
+	wr32(out + OFF_K_UHF, ku / 5u);
+}
+
 bool bf_cal_parse(const uint8_t *sector, uint32_t sector_len, uint8_t out[BF_CAL_LEN])
 {
-	if (sector == NULL || sector_len < 0x300u + 0x50u) {
+	if (out == NULL || sector == NULL || sector_len < 0x300u + 0x50u) {
 		return false;
 	}
 	memcpy(out + 0x000, sector + 0x000, 0x108);
@@ -76,23 +109,27 @@ bool bf_cal_parse(const uint8_t *sector, uint32_t sector_len, uint8_t out[BF_CAL
 	memcpy(out + 0x11D, sector + 0x300, 0x050);
 	for (int i = 0; i < 20; i++) {
 		uint8_t *p = out + OFF_FREQ_TABLES + 4 * i;
+		for (unsigned b = 0; b < 4; b++) {
+			if ((p[b] & 15u) > 9 || (p[b] >> 4) > 9) {
+				return false;
+			}
+		}
 		wr32(p, bcd8(rd32(p)));
 	}
-	// K = mean over the five points of freq_MHz x modulation point: table 2 with the VHF points, table 0 with the UHF
-	uint32_t kv = 0, ku = 0;
-	for (int i = 0; i < 5; i++) {
-		kv += (rd32(out + OFF_FREQ_TABLES + 2 * 20 + 4 * i) / 100000u) * out[OFF_VHF_MOD + i];
-		ku += (rd32(out + OFF_FREQ_TABLES + 0 * 20 + 4 * i) / 100000u) * out[OFF_UHF_MOD + i];
+	if (!image_sane(out)) {
+		return false;
 	}
-	wr32(out + OFF_K_VHF, kv / 5u);
-	wr32(out + OFF_K_UHF, ku / 5u);
+	derive_k(out);
 	return true;
 }
 
 void bf_cal_set_image(const uint8_t in[BF_CAL_LEN], bool ok)
 {
 	memcpy(image, in, BF_CAL_LEN);
-	valid = ok;
+	valid = ok && image_sane(image);
+	if (valid) {
+		derive_k(image);
+	}
 }
 
 // The three pieces of the page into a buffer laid out as the page (only the first 0x350 bytes), then decoded
@@ -116,6 +153,7 @@ bool bf_cal_load(const hal_flash_t *flash, uint32_t copy_addr)
 	for (uint32_t a = CAL_PAGE_FIRST; a < CAL_PAGE_END; a += CAL_PAGE_SIZE) {
 		uint8_t id = 0;
 		if (flash->read(a + CAL_PAGE_SIZE - 1u, &id, 1) && id == CAL_PAGE_MARKER) {
+			source = "invalid";
 			if (read_factory(flash, a)) {
 				valid = true;
 				source = "factory";
@@ -124,9 +162,10 @@ bool bf_cal_load(const hal_flash_t *flash, uint32_t copy_addr)
 		}
 	}
 	if (!valid && copy_addr != 0 && flash->read(copy_addr, image, BF_CAL_LEN) &&
-		memcmp(image + OFF_HEADER, header, sizeof header) == 0) {
+		image_sane(image)) {
 		valid = true;
 		source = "copy";
+		derive_k(image);
 	}
 	return valid;
 }

@@ -6,6 +6,7 @@
 // own row lookup at its TX points (hardware-dm1801pro.md 6.4)
 #include <stdio.h>
 #include <string.h>
+#include "fuzz.h"
 #include "cal/baofeng/baofeng_cal.h"
 
 static int failures;
@@ -69,6 +70,8 @@ static void build_page(void)
 		page[0xDA + i] = (uint8_t)(120 + i);
 		put32(&page[0x300 + 0 * 20 + 4 * i], uhf_bcd[i]);
 		put32(&page[0x300 + 2 * 20 + 4 * i], vhf_bcd[i]);
+		put32(&page[0x314 + 4 * i], uhf_bcd[i]);
+		put32(&page[0x33C + 4 * i], vhf_bcd[i]);
 	}
 	page[0x200] = 0x5A;				// first byte of the +0x200 piece
 	page[0xFFF] = 2;				// logical block ID of the calibration page
@@ -178,6 +181,67 @@ static void test_tx_byte(void)
 	CHECK(bf_cal_tx_byte(145500000u, BF_ROW_MOD) == 0);		// no calibration
 }
 
+static void test_validation(void)
+{
+	uint8_t img[BF_CAL_LEN];
+	static const uint32_t bad[] = { 0, 0xFFFFFFFF, 0x39999999, 0x48000001, 0x4000000A };
+	have_page = true;
+	have_copy = false;
+	flash.size = 16u << 20;
+	for (unsigned i = 0; i < sizeof bad / sizeof bad[0]; i++) {
+		build_page();
+		put32(page + 0x300, bad[i]);
+		CHECK(!bf_cal_load(&flash, 0));
+		CHECK(!bf_cal_valid() && strcmp(bf_cal_source(), "invalid") == 0);
+		CHECK(bf_cal_tx_center() == 128 && bf_cal_modcal(435000000u) == 0x4D4D);
+		CHECK(bf_cal_power_level(435000000u, 8) == 1408);
+	}
+	for (unsigned t = 0; t < 4; t++) {
+		build_page();
+		put32(page + 0x300 + 20 * t + 4, t < 2 ? 0x40000000 : 0x13600000);
+		CHECK(!bf_cal_parse(page, sizeof page, img)); // duplicate point
+		build_page();
+		put32(page + 0x300 + 20 * t, t < 2 ? 0x39999999 : 0x13599999);
+		CHECK(!bf_cal_parse(page, sizeof page, img));
+		build_page();
+		put32(page + 0x300 + 20 * t + 16, t < 2 ? 0x48000001 : 0x17400001);
+		CHECK(!bf_cal_parse(page, sizeof page, img));
+		build_page();
+		put32(page + 0x300 + 20 * t + 16, t < 2 ? 0x48000000 : 0x17400000);
+		CHECK(bf_cal_parse(page, sizeof page, img));
+	}
+	build_page();
+	page[1] = 0x41;
+	CHECK(!bf_cal_parse(page, sizeof page, img));
+	build_page();
+	CHECK(bf_cal_parse(page, sizeof page, copy));
+	have_page = false;
+	have_copy = true;
+	put32(copy + 0x11D, 0);
+	CHECK(!bf_cal_load(&flash, COPY_ADDR));
+	// Every documented byte-field value is representable; valid input must keep derived drive in the DAC range.
+	fuzz_t f;
+	fuzz_init(&f, 0x3621);
+	for (long n = 0; n < fuzz_iters(1000); n++) {
+		build_page();
+		page[0x16] = (uint8_t)fuzz_next(&f);
+		for (unsigned i = 0; i < 5; i++) {
+			page[0x17 + i] = (uint8_t)fuzz_next(&f);
+			page[0xA6 + i] = (uint8_t)fuzz_next(&f);
+			for (unsigned j = 0; j < 3; j++) {
+				page[0x40 + j * 5 + i] = (uint8_t)fuzz_next(&f);
+				page[0xD0 + j * 5 + i] = (uint8_t)fuzz_next(&f);
+			}
+		}
+		CHECK(bf_cal_parse(page, sizeof page, img));
+		bf_cal_set_image(img, true);
+		CHECK(bf_cal_valid());
+		CHECK(bf_cal_power_level(136000000u + fuzz_next(&f) % 38000001u, 8) <= 4095);
+		CHECK(bf_cal_power_level(400000000u + fuzz_next(&f) % 80000001u, 8) <= 4095);
+	}
+	printf("baofengCalTest: %ld seeded calibration cases plus rejection boundaries\n", fuzz_iters(1000));
+}
+
 int main(void)
 {
 	// Nothing in flash: no calibration, fallbacks
@@ -213,6 +277,7 @@ int main(void)
 	CHECK(!bf_cal_load(&flash, COPY_ADDR));
 
 	test_tx_byte();
+	test_validation();
 
 	if (failures) {
 		printf("baofengCalTest: %d failures\n", failures);

@@ -17,7 +17,7 @@ typedef struct {
 // copy of the image may be (the board's), 0 for none. Needs the flash initialized
 bool bf_cal_load(const hal_flash_t *flash, uint32_t copy_addr);
 bool bf_cal_valid(void);
-const char *bf_cal_source(void);	// "factory", "copy" or "none"
+const char *bf_cal_source(void);	// "factory", "copy", "invalid" (rejected factory page) or "none"
 uint8_t bf_cal_tx_center(void);		// 128 without calibration
 // Modulation balance (RF_MOD_BIAS_CTRL low half) for a TX frequency in Hz; 0x4D4D without calibration
 uint16_t bf_cal_modcal(uint32_t hz);

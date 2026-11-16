@@ -1246,6 +1246,13 @@ Read three pieces into a 0x175-byte working image:
 | 0x16D | 4 | computed K_VHF = (Σ over the 5 points of (freq_MHz × VHF modulation point)) / 5, freq from table 2, freq_MHz = 10 Hz units / 100000 (integer) |
 | 0x171 | 4 | computed K_UHF, same with table 0 and the UHF points |
 
+The shared reader rejects a wrong header, non-decimal BCD frequency digits, or any frequency table that is not
+strictly increasing within 400–480 MHz (UHF) or 136–174 MHz (VHF). Decoded fallback copies receive the same
+header and frequency checks; K is recomputed rather than trusted. TX center and modulation use the full byte
+range; PA drive bytes multiplied by 16 are at most 4080, within the 12-bit DAC range. No narrower factory byte
+limits are established here. Rejected factory data reports `cal invalid` in debug-link diagnostics and uses the
+existing uncalibrated defaults unless a valid decoded copy is available. No flash writes occur.
+
 ### 11.3 How the values are used
 
 | Register / output | Formula |
