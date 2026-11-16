@@ -566,10 +566,10 @@ def check_univ_load(image, load, window=None):
 # pins, nothing echoed but 0).
 C7_BOARDS = {b.id: {"id": b.stub["id"], "name": b.model, "names": tuple(b.debuglink_names), "latch": b.stub["latch"],
                     "key": b.stub["key"], "nand": b.stub["nand"], "progmem": b.stub["progmem"], "protect": b.protect,
-                    "write_test": b.stub.get("write_test")}
+                    "write_test": b.stub.get("write_test"), "first_stage": bool(b.first_stage)}
              for b in rfoundryboards.BOARDS.values() if b.stub and b.stub["tool"] == "stubtool"}
 GENERIC = {"id": 0, "name": "HR_C7000 radio", "names": (), "latch": 255, "key": 255, "nand": False, "progmem": 0x100000,
-           "protect": [], "write_test": None}
+           "protect": [], "write_test": None, "first_stage": False}
 # This tool's memory names as board.toml [[flash.protect]] names them
 PROTECT_MEM = {"progmem": "progmem", "q128": "data", "nand": "nand"}
 CFG_UART_THIS = 3                        # CONFIG uart field: answer only on the UART the CONFIG came in on
@@ -1358,7 +1358,8 @@ class Radio:
         self.check_write_range(mem, APP_START, end, app=True)
         self.check_id(mem)
         # The application alone over a first stage leaves the radio in its update loader (white screen, red LED)
-        if not replace_stage and self.read_flash(mem, APP_START, 4) == STAGE_MAGIC and image[:4] != STAGE_MAGIC:
+        if (self.profile["first_stage"] and not replace_stage
+                and self.read_flash(mem, APP_START, 4) == STAGE_MAGIC and image[:4] != STAGE_MAGIC):
             raise DumpError("this radio has RadioFoundry's first stage at 0x%X and the image does not start with it: write the "
                             "install image (rfoundry_<board>_install.bin), not the application alone (--replace-stage "
                             "writes it anyway)" % APP_START)
@@ -2747,6 +2748,14 @@ def self_test():
             radio.images["progmem"] = bytes(pm)
             nw, nk = r.write_image(bytes(pm[APP_START:APP_START + 4 * SECTOR]))
             check(nk == 4, "an install image over a first stage is written")
+        else:
+            pm = bytearray(radio.images["progmem"])
+            pm[APP_START:APP_START + 4] = STAGE_MAGIC
+            radio.images["progmem"] = bytes(pm)
+            app = images["progmem"][APP_START:APP_START + 4 * SECTOR]
+            nw, nk = r.write_image(app)
+            check(nw == 1 and radio.images["progmem"][APP_START:APP_START + len(app)] == app,
+                  "%s without a first stage accepts an application over the same first word" % prof["name"])
         check(r.mem_size("progmem") == prof["progmem"], "the %s's program flash is %d KB" % (prof["name"], prof["progmem"] >> 10))
         if prof["nand"]:
             out = io.BytesIO()

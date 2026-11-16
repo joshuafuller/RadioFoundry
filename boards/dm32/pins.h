@@ -4,6 +4,9 @@
 #ifndef DM32_PINS_H
 #define DM32_PINS_H
 
+// Meter-calibrated ADC counts per 10 V (hardware-dm32.md 3.7).
+#define BAT_RAW_PER_10V		832u
+
 #define PIN_FD_CLK		0x07	// FD6818 serial clock (bit-banged)
 #define PIN_FD_DATA		0x08	// FD6818 serial data, bidirectional
 #define PIN_GPS_RXD		0x09	// UART1 RXD (peripheral)

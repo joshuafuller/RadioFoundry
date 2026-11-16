@@ -5,6 +5,10 @@
 #define DM36_PINS_H
 #include "../dm32/pins.h"
 
+// Unverified inherited placeholder; replace from a meter reading (hardware-dm36.md 9.3).
+#undef BAT_RAW_PER_10V
+#define BAT_RAW_PER_10V          832u
+
 #undef PIN_GPS_RXD
 #undef PIN_GPS_POWER
 #undef GPS_POWER_ON_LEVEL
