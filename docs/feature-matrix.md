@@ -215,7 +215,6 @@ clock`; ? = not known yet). No driver reads the clock yet ([radio-features.md](s
 | `HOSTLINK` | ● | ● | ● | ● | ● | ● | ● | ● |
 | `USB_NETWORK` | ✕ | ● | ✕ | ✕ | ● | ● | ● | ✕ |
 | `NET_PPP` | ● | ○ | ● | ● | ○ | ○ | ○ | ● |
-| `BT_MODULE_TRANSPORT` | ○ | ○ | ○ | ○ | ○ | ○ | ○ | ○ |
 | `HOTSPOT` | ● | ● | ● | ● | ● | ● | ● | ● |
 | `HOTSPOT_SPLIT` | ● | ● | ● | … | … | ● | ● | ● |
 | `DEBUGLINK` | ● | ● | ● | ● | ● | ● | ● | ● |
@@ -271,6 +270,7 @@ clock`; ? = not known yet). No driver reads the clock yet ([radio-features.md](s
 | `CONTACT_EDIT` | ● | ● | ● | ● | ● | ● | ● | ● |
 | `VOLUME_BAR` | ● | ● | ● | ● | ● | ● | ● | ● |
 | `VOLUME_ENCODER` | ✕ | ● | ● | ● | ● | ● | ● | ● |
+| `BT_MODULE_TRANSPORT` | ○ | ○ | ○ | ○ | ○ | ○ | ○ | ○ |
 | Voltage reading (board, no switch) | Battery | Battery | Battery | None | Battery | Battery | Supply | Battery |
 | Clock kept through power-off (board, no switch) | Yes | ? | Yes | ? | ? | ? | ? | Yes |
 <!-- end generated -->

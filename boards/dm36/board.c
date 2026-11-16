@@ -31,13 +31,13 @@ static bool rx_ext_on;
 #if CONFIG_BT_MODULE_TRANSPORT
 static void bt_enable(bool on)
 {
-	hrc_pin_write(PIN_BT_ENABLE, on);
+	hrc_pin_out(PIN_BT_ENABLE, on);
 }
 
 static bool bt_start(void)
 {
 	// UART3 function selection; physical traces still need the owner-authorized bench check.
-	IO_DIPLEX0 &= ~(0xFu << 13);
+	IO_DIPLEX1 &= ~(1u << 20);
 	hrc_module_uart_configure(BT_UART_BASE, IRQ_UART3, BT_UART_BAUD);
 	return hrc_module_uart_stream.start();
 }

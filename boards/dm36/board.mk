@@ -2,7 +2,10 @@
 # Copyright (c) 2026 The RadioFoundry Authors
 # Board wiring and layout: docs/spec/hardware-dm36.md.
 include boards/dm32/board.mk
-BOARD_DIRS := boards/dm36 $(BOARD_DIRS)
+BOARD_DIRS := boards/dm36 $(filter-out drivers/bcast/rda5807m drivers/bus/i2c_gpio,$(BOARD_DIRS))
+# No open-firmware codeplug: reads beyond the data chip fail without touching stock data.
+MCU_DEFS := $(filter-out -DCODEPLUG_OPENFW_%,$(MCU_DEFS))
+MCU_DEFS += -DCODEPLUG_OPENFW_EEPROM_BASE=0x1000000u -DCODEPLUG_OPENFW_FLASH_BASE=0x1000000u
 # The inherited knob-mod option doesn't apply: this knob is an encoder (hardware-dm36.md 5.1)
 BUILD_OPTIONS :=
 KNOB_VALUES :=

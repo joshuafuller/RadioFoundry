@@ -616,7 +616,44 @@
      50380800
     ]
    ],
-   "protect": [],
+   "protect": [
+    {
+     "mem": "data",
+     "start": 0,
+     "end": 823296,
+     "what": "radio-owned header and native codeplug pool, including factory calibration (hardware-dm36.md 10)"
+    },
+    {
+     "mem": "data",
+     "start": 823296,
+     "end": 1347584,
+     "what": "dense radio-owned data (hardware-dm36.md 10)"
+    },
+    {
+     "mem": "data",
+     "start": 1376256,
+     "end": 1531904,
+     "what": "boot images (hardware-dm36.md 10)"
+    },
+    {
+     "mem": "data",
+     "start": 1572864,
+     "end": 2072576,
+     "what": "radio-owned tables and fonts (hardware-dm36.md 10)"
+    },
+    {
+     "mem": "data",
+     "start": 2101248,
+     "end": 2613248,
+     "what": "radio-owned data and voice prompts (hardware-dm36.md 10)"
+    },
+    {
+     "mem": "data",
+     "start": 7192576,
+     "end": 7241728,
+     "what": "sparse radio-owned sectors (hardware-dm36.md 10)"
+    }
+   ],
    "keep_codec_supported": false,
    "first_stage": null,
    "codec_tool": "hrc7000_codec",
@@ -649,7 +686,10 @@
    "loader_keys": "PTT + SK1 (reported)",
    "loader_sign": "",
    "bootloader_steps": [
-    "Build only: do not flash; the update container and recovery are unverified."
+    "With the owner supervising, verify complete program- and data-flash backups and the recovery procedure before any write.",
+    "Enter the SoC boot ROM and load the universal stub with this board profile; do not use the stock updater.",
+    "Confirm the target, image bounds and readback plan; write only the reviewed application at program offset 0xC000, preserving 0x0000-0xBFFF.",
+    "Keep data flash read-only. Read back and compare the application before attempting a supervised first boot."
    ],
    "stock_download": null,
    "key_sha256": null,

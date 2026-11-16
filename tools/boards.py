@@ -602,7 +602,8 @@ class Board:
         self.app_region = layout["flash"]	# (start, end) of MEMORY FLASH in the build's LDSCRIPT
         self.source_names = names		# board_t .name: [(literal, macro)]
         self.pins = pins			# pins.h integer defines
-        self.flash_map = fmap or {}		# hal_flash_map_t: FLASH_MAP_FIELDS
+        self.flash_read_only = "-DBOARD_FLASH_READ_ONLY" in mk.get("MCU_DEFS", "").split()
+        self.flash_map = {} if self.flash_read_only else fmap or {}		# hal_flash_map_t: FLASH_MAP_FIELDS
         self.write_floor = 0			# hrc_flash_cfg_t .write_floor (write_floor()), set by the loader
         # config.mk BOARD_UNSUPPORTED: {switch: reason}, in the build's order (make's value decides the set)
         reasons = unsupported or {}
@@ -894,7 +895,7 @@ def load(root=ROOT, only=None):
                          {**unsupported_reasons(os.path.join(root, "config", "features.mk")),
                           **unsupported_reasons(os.path.join(root, "platform", plat.id, "config.mk")),
                           **unsupported_reasons(os.path.join(bdir, "config.mk"))}, flash_map(srcs))
-        out[bid].write_floor = write_floor(srcs)
+        out[bid].write_floor = 0xFFFFFFFF if out[bid].flash_read_only else write_floor(srcs)
         out[bid].volts = source_volts(srcs)
         out[bid].nand_geo = nand_geometry(srcs) if out[bid].nand else None
         nw = {**not_written_reasons(os.path.join(root, "platform", plat.id, "config.mk")),
@@ -1153,7 +1154,11 @@ def check(root=ROOT):
             bad("order %d is also the %s's" % (d["order"], orders[d["order"]]))
         orders.setdefault(d["order"], bid)
         fm = b.flash_map
-        if b.codeplug() is None:
+        if b.flash_read_only:
+            # With no map, core readers use the build's fallback bases; keep those outside the chip too.
+            if any(a < d["flash"]["backup"]["spi_size"] for a in openfw_bases(b.mk.get("MCU_DEFS"))):
+                bad("read-only board's fallback codeplug bases must be outside data flash")
+        elif b.codeplug() is None:
             bad("no hal_flash_map_t with openfw_eeprom and openfw_end in boards/%s/*.c" % bid)
         elif fm.get("openfw_flash", fm["openfw_eeprom"] + OPENFW_FLASH_OFFSET) - fm["openfw_eeprom"] \
                 != OPENFW_FLASH_OFFSET:
@@ -1943,6 +1948,18 @@ def self_test():
                 os.makedirs(os.path.dirname(os.path.join(tmp, p)), exist_ok=True)
                 open(os.path.join(tmp, p), "w").close()
         ok(check(tmp) == [], "the copied registry is consistent: %s" % check(tmp)[:3])
+        for b in load(tmp).values():
+            if b.flash_read_only:
+                ok(b.codeplug() is None and b.map_areas() == [] and b.write_floor == 0xFFFFFFFF,
+                   "read-only board has no inherited writable map")
+                path_mk = os.path.join(tmp, "boards", b.id, "board.mk")
+                original_mk = open(path_mk, encoding="utf-8").read()
+                with open(path_mk, "a", encoding="utf-8") as f:
+                    f.write("\nMCU_DEFS := $(filter-out -DCODEPLUG_OPENFW_%,$(MCU_DEFS))\n")
+                ok(any("fallback codeplug bases" in p for p in check(tmp)),
+                   "read-only board refuses fallback reads in stock data")
+                with open(path_mk, "w", encoding="utf-8") as f:
+                    f.write(original_mk)
         one = board_dirs(tmp)[0]
         path = os.path.join(tmp, "boards", one, "board.toml")
         good = open(path, encoding="utf-8").read()

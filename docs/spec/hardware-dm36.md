@@ -466,6 +466,9 @@ line-out byte written at codec offset `0x1F` (measured from dump).
 | 9 | `0x0F` | `0xB28F` | `0x2E` | `0xB1` | (measured from dump) |
 | 10 | `0x0F` | `0xB28F` | `0x2E` | `0xB1` | (measured from dump) |
 
+RadioFoundry applies this ladder for both FM and codec audio, including saturation at levels 8–10.
+Level 0 remains the explicit software mute.
+
 None of user levels 1–10 switches off the audio amplifier. GPIO `0x35` is gated by audio-path state, not by a
 volume-level threshold (measured from dump). Electrical gain in dB remains unverified.
 
@@ -530,6 +533,10 @@ dump).
 There is no second ID-2 page in the 200-page pool. The stock first-match scan therefore selects the sole page at
 `0x00078000`; there is no duplicate-page ordering ambiguity in this dump (measured from dump).
 
+RadioFoundry validates the reconstructed image before using it: header, decimal BCD digits, and four strictly
+increasing frequency tables within the bands above. Invalid calibration uses the shared safe defaults and reports
+`cal invalid` through the debug-link diagnostics. The build does not read a decoded copy at `0x710000`.
+
 ### 10.2 Stock write areas and first-write rule
 
 The stock page manager can erase and rewrite physical pages anywhere in `0x001000–0x0C8FFF` while updating
@@ -579,6 +586,11 @@ differs from the DM-32UV, so a DM-32UV container must not be used (measured from
 No genuine DM-36 vendor update file was available. Its outer 256-byte file header, size rules, and any host-side
 model checks beyond the returned identity remain unknown (unverified). The bootloader logic alone does not prove
 that every correctly framed image is safe.
+
+For a supervised first RadioFoundry write, use the SoC boot ROM stub, not the stock updater. Verify full backups
+of both flashes and the recovery procedure first. Preserve program offsets `0x0000–0xBFFF`, write only the reviewed
+application at `0xC000`, and compare its readback before booting. Data flash remains read-only, with no
+open-firmware codeplug, journal, or settings allocation. No release image is offered.
 
 ## 12. Open items
 

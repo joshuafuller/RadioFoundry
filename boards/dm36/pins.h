@@ -18,6 +18,9 @@
 #define BT_UART_BASE            0x14090000u
 #define BT_UART_BAUD            115200u
 
-// 0x19/1A, 1D, 25, 29, 2C, 36, 38, 39, 3D and 52 have no verified function.
+// Board hooks keep the shared implementation independent of radio identity.
+#define BOARD_IO_HEADER "io_init.h"
+#define BOARD_VOLUME_HEADER "volume.h"
+// The control nets have known initial states, but their electrical functions remain unverified.
 // Battery ADC2/scaling, JTAG and RTC wiring remain unverified (sections 1 and 9.3).
 #endif

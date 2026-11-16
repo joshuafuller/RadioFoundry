@@ -6,3 +6,9 @@ receiveOnlyTest: $(HERE)receiveOnlyTest.c $(HERE)../bands.h $(HERE)../pins.h $(H
 	$(CC) $(CFLAGS) -I$(ROOT)/hal -I. -o $@ $<
 run-boards:: receiveOnlyTest
 	./receiveOnlyTest
+
+TESTS += preflashTest
+preflashTest: $(HERE)preflashTest.c $(HERE)../io_init.h $(HERE)../volume.h $(HERE)../pins.h $(ROOT)/drivers/input/quadrature/quadrature.c fuzz.h
+	$(CC) $(CFLAGS) -I$(dir $<).. -I. -o $@ $< $(ROOT)/drivers/input/quadrature/quadrature.c
+run-boards:: preflashTest
+	./preflashTest

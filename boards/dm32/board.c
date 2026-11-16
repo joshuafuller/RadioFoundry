@@ -6,6 +6,9 @@
 #include "dm32.h"
 #include <pins.h>
 #include "platform.h"
+#ifdef BOARD_IO_HEADER
+#include BOARD_IO_HEADER
+#endif
 #include "hrc_afsk.h"
 #include "hrc_bcast.h"
 #if CONFIG_BCAST_FM
@@ -116,6 +119,9 @@ static void io_init(void)
 	hrc_pin_in(PIN_FD_GPIO0);
 	hrc_pin_in(PIN_FD_GPIO1);
 	hrc_pin_in(PIN_FD_DATA);
+#ifdef BOARD_IO_HEADER
+	board_io_init();
+#endif
 }
 
 // Transmitter off from any context (board.h, docs/spec/crash-log.md 8; hardware-dm32.md 5): both PA selects and the PA
@@ -139,6 +145,7 @@ void board_early_init(void)
 // and the sector journal after it, the 1 MB open-firmware "flash" image at 0x720000 with room above it for the DMR ID
 // database, the native codeplug in the last 1 MB. The factory calibration is read only, so the open-firmware CPS gets
 // no calibration window
+#ifndef BOARD_FLASH_READ_ONLY
 static const hal_flash_map_t flash_map = {
 	.settings_addr = 0x711000u,
 	.settings_size = 0x008000u,	// 8 sectors
@@ -151,14 +158,16 @@ static const hal_flash_map_t flash_map = {
 	.native_addr = 0xF00000u,
 	.native_size = 0x100000u,
 };
+#endif
 static const hrc_flash_cfg_t flash_cfg = {
 	.cs_pin = PIN_FLASH_CS,
 #ifdef BOARD_FLASH_READ_ONLY
+	.map = NULL,
 	.write_floor = UINT32_MAX,	// no writable region established for this board
 #else
 	.write_floor = 0x700000u,	// hardware-dm32.md 10.1
-#endif
 	.map = &flash_map,
+#endif
 };
 
 #if CONFIG_GPS
@@ -187,7 +196,12 @@ void board_init(void)
 	lcdbus = xSemaphoreCreateRecursiveMutex();
 	dm32_power.init();
 	dm32_flash.init();
-	bf_cal_load(&hrc_flash_spi0, 0x710000u);	// other firmware may keep a decoded copy there
+	bf_cal_load(&hrc_flash_spi0,
+#ifdef BOARD_FLASH_READ_ONLY
+		0);
+#else
+		0x710000u);	// other firmware may keep a decoded copy there
+#endif
 #if CONFIG_GPS
 	hrc_gps_init(&gps_cfg);
 #endif

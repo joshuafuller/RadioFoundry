@@ -8,6 +8,9 @@
 #include "dm32.h"
 #include "config.h"
 #include <pins.h>
+#ifdef BOARD_VOLUME_HEADER
+#include BOARD_VOLUME_HEADER
+#endif
 #include "platform.h"
 #include "hal_time.h"
 #include "rf/fd6818/fd6818.h"
@@ -104,7 +107,9 @@ static bool rx_audio;		// the squelch is open (the radio's audio hook)
 // programming guide; the same word the superhet driver builds, fd6818sh_volume_word); the default step and above
 // keep the chip's own value. DMR voice and beeps: the HR_C7000's line out (dac_gain). Step 0 keeps the amplifier off
 static uint8_t vol_step = RADIO_VOLUME_DEFAULT;
+#ifndef BOARD_VOLUME_HEADER
 static int32_t vol_r53 = -1;	// the chip's 0x53 before the first change, restored at the default step
+#endif
 static bool vol_muted;
 static bool asleep;		// the receiver is powered down between listen windows (rx_sleep)
 static bool aprs_listen;	// APRS takes the HR_C7000's FM audio (aprs_listen_route)
@@ -694,6 +699,10 @@ static void vol_apply(void)
 	if (fd.bus == NULL || asleep) {
 		return;		// wake() and the next tune apply it
 	}
+
+#ifdef BOARD_VOLUME_HEADER
+	fd6818_write(&fd, 0x48, board_volume_fm(vol_step));
+#else
 	if (vol_r53 < 0) {
 		if (vol_step >= RADIO_VOLUME_DEFAULT) {
 			return;		// nothing changed yet: leave the chip's own word alone
@@ -703,6 +712,7 @@ static void vol_apply(void)
 	uint16_t w = vol_step >= RADIO_VOLUME_DEFAULT ? (uint16_t)vol_r53
 		: fd6818sh_volume_word((uint8_t)(vol_step * 15u / RADIO_VOLUME_DEFAULT));
 	fd6818_write(&fd, FD6818_REG_AUDIO_GAIN, w);
+#endif
 }
 
 // percent of the volume scale back to its step; FM: below the default step the 0x53 gain word for that level (the
@@ -718,7 +728,11 @@ static void volume(uint8_t percent)
 #endif
 	vol_muted = step == 0;
 	vol_step = (uint8_t)step;
+#ifdef BOARD_VOLUME_HEADER
+	uint8_t code = board_volume_codec(step);
+#else
 	uint8_t code = hrc7000_dac_code(hrc7000_volume_db(step, RADIO_VOLUME_DEFAULT, RADIO_VOLUME_MAX, 12));
+#endif
 	if (fd.bus != NULL) {
 		hrc7000_set_dac_gain(&modem, code);
 	} else {
