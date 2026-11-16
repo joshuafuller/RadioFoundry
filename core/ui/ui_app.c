@@ -2087,6 +2087,26 @@ void ui_app_key(const input_event_t *ev)
 		ui_svc_beep(UI_BEEP_KEY);
 	if (emergency_key(ev))
 		return;
+#if CONFIG_VOLUME_ENCODER
+	if (ev->action == ACT_ENC_STEP && (board.caps & CAP_VOLUME_ENCODER)) {
+		if (ui_st.locked && ui_st.knob_lock) {
+			ui_toast(locked_text(has_quick_key));
+			return;
+		}
+		if (ev->value == 0)
+			return;
+		int level = ui_st.volume + ev->value;
+		level = level < 1 ? 1 : level > 10 ? 10 : level;
+		ui_st.volume = (uint8_t)level;
+		ui_svc_setting_set(UI_SET_VOLUME, level);
+#if CONFIG_VOLUME_BAR
+		ui_st.volbar = (int8_t)level;
+		volbar_until = now + VOLUME_MS;
+#endif
+		wake_req = true;
+		return;
+	}
+#endif
 	// Key lock: only long QUICK (and PTT, MONITOR, emergency) get through
 	// Long * locks only from Home (principles 3): in a menu it would lock the keys mid-task, and in text entry a slow *
 	// is a delete. It unlocks from anywhere (auto lock can lock with a menu open)
@@ -2378,7 +2398,10 @@ bool ui_app_tick(const radio_view_t *v, uint32_t now_ms)
 	now = now_ms;
 	ui_st.now_ms = now_ms;
 #if CONFIG_VOLUME_BAR
-	knob_tick(v);
+#if CONFIG_VOLUME_ENCODER
+	if (!(board.caps & CAP_VOLUME_ENCODER))
+#endif
+		knob_tick(v);
 #endif
 	ui_svc_poll();
 	ui_svc_keys_poll();

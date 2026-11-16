@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 The RadioFoundry Authors
+CONFIG_VOLUME_ENCODER ?= y
 include boards/dm32/config.mk
+BOARD_UNSUPPORTED := $(filter-out VOLUME_ENCODER,$(BOARD_UNSUPPORTED))
 CONFIG_GPS ?= n
 BOARD_UNSUPPORTED += GPS # no GPS module in the photos or manual
 BOARD_NOT_WRITTEN += VIBRATE # motor drive pin unknown

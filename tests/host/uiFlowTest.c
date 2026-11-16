@@ -9,6 +9,7 @@
 // - long presses keep their one meaning on every screen: long BACK Home, long QUICK lock, long CONTEXT the talk target picker on DMR (P3);
 // - the Transmitting screen names a private call's contact and tells it apart from a group call (P2).
 #include <stdio.h>
+#include "fuzz.h"
 #include <string.h>
 #include "sim/ui_sim.h"
 #include "ui/ui_app.h"
@@ -1595,6 +1596,15 @@ static bool vol_run(const sim_geom_t *g, const char *script, const char *expect,
 static void volume_bar_checks(void)
 {
 	static const struct { const char *name, *script, *expect; } cases[] = {
+		{ "volume encoder up", "volencoder enc+", "vol=9 volbar=9 pos=3 screen=home" },
+		{ "volume encoder down", "volencoder enc-", "vol=7 volbar=7 pos=3" },
+		{ "volume encoder upper clamp", "volencoder enc+ enc+ enc+", "vol=10 volbar=10 pos=3" },
+		{ "volume encoder lower clamp", "volencoder enc- enc- enc- enc- enc- enc- enc- enc-", "vol=1 volbar=1 pos=3" },
+		{ "volume encoder over menu", "volencoder ok enc+", "vol=9 volbar=9 screen=hub focus=Contacts pos=3" },
+		{ "volume encoder bar expires", "volencoder enc+ wait:3000", "vol=9 volbar=-1 pos=3" },
+		{ "volume encoder locked default", "volencoder long:lockkey enc+", "vol=9 volbar=9 locked=1 pos=3" },
+		{ "volume encoder lock disabled", "volencoder ok 7 9 down down ok long:back long:lockkey enc+", "vol=8 volbar=-1 locked=1 pos=3" },
+		{ "channel encoder stays channel", "softvol enc+", "vol=8 volbar=-1 pos=4" },
 		{ "a turn shows the level", "knob:50 knob:75", "volbar=12 shows=Vol wake=1 screen=home" },
 		{ "power-up: none", "knob:50", "volbar=-1" },
 		{ "the same level: none", "knob:50 wait:4000 knob:50", "volbar=-1" },
@@ -1627,6 +1637,25 @@ static void volume_bar_checks(void)
 	if (!vol_run(sim_geom_find("160x128"), "quick knob:50 knob:60", "volbar_at=top", err, sizeof err)) {
 		printf("FAIL volume bar Quick 160x128 in the strip: %s\n", err);
 		fails++;
+	}
+	// Property: every detent follows a clamped random walk and never changes the channel.
+	fuzz_t f;
+	fuzz_init(&f, 0xc015);
+	for (int it = 0; it < 200; it++) {
+		char script[500] = "volencoder", expect[80], prop_err[300];
+		int level = 8;
+		for (int k = 0; k < 40; k++) {
+			bool up = fuzz_below(&f, 2) != 0;
+			strcat(script, up ? " enc+" : " enc-");
+			if (up && level < 10) level++;
+			if (!up && level > 1) level--;
+		}
+		snprintf(expect, sizeof expect, "vol=%d volbar=%d pos=3", level, level);
+		if (!vol_run(sim_geom_find("160x128"), script, expect, prop_err, sizeof prop_err)) {
+			printf("FAIL volume encoder property: %s\n", prop_err);
+			fails++;
+			break;
+		}
 	}
 	// Property: random turns and pauses against a model of the rule
 	uint32_t seed = 0x354u;

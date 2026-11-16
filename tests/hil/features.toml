@@ -132,6 +132,10 @@ spec = "docs/spec/ui.md"
 switch = "CONTACT_EDIT"
 spec = "docs/spec/ui.md"
 
+[feature.volume_encoder]
+switch = "VOLUME_ENCODER"
+spec = "docs/spec/radio-features.md"
+
 [feature.volume_bar]
 switch = "VOLUME_BAR"
 spec = "docs/spec/radio-features.md"

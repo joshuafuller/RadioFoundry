@@ -1506,7 +1506,7 @@ uint32_t ui_svc_features(void)
 {
 	return 0xFFFFFFFFu & ~(soft_volume ? 0 : UI_FEAT_VOLUME) & ~(bcast_rx ? 0 : UI_FEAT_BCAST) &
 	       ~(ref_trim ? 0 : UI_FEAT_REF_TRIM) &
-	       ~(knob_radio ? 0 : UI_FEAT_VOLUME_KNOB);
+	       ~(knob_radio || (board.caps & CAP_VOLUME_ENCODER) ? 0 : UI_FEAT_VOLUME_KNOB);
 }
 // My radio's names (ui_svc_name_*): placeholders, as the user's own would be; a save writes at once
 static char sim_names[UI_NAME_COUNT][17];
@@ -3020,6 +3020,12 @@ static bool run_token(char *t, char *err, size_t len)
 		}
 		changed();
 		step();
+		return true;
+	}
+	if (strcmp(t, "volencoder") == 0) {
+		board.caps |= CAP_VOLUME_ENCODER;
+		soft_volume = true;
+		advance(200);
 		return true;
 	}
 	if (strcmp(t, "softvol") == 0) {	// this radio has no volume knob: the board sets the speaker volume

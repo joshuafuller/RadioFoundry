@@ -63,6 +63,7 @@ is `tools/bringup.py list --radio <id>`.
 | `channel_edit` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | pass, needs re-run | not recorded |
 | `zone_edit` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | pass, needs re-run | not recorded |
 | `contact_edit` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded |
+| `volume_encoder` | ✕ | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded |
 | `volume_bar` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded |
 | `volume_lock` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded |
 | `key_assign` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded |
@@ -267,6 +268,7 @@ clock`; ? = not known yet). No driver reads the clock yet ([radio-features.md](s
 | `ZONE_EDIT` | ● | ● | ● | ● | ● | ● | ● | ● |
 | `CONTACT_EDIT` | ● | ● | ● | ● | ● | ● | ● | ● |
 | `VOLUME_BAR` | ● | ● | ● | ● | ● | ● | ● | ● |
+| `VOLUME_ENCODER` | ✕ | ● | ● | ● | ● | ● | ● | ● |
 | Voltage reading (board, no switch) | Battery | Battery | Battery | None | Battery | Battery | Supply | Battery |
 | Clock kept through power-off (board, no switch) | Yes | ? | Yes | ? | ? | ? | ? | Yes |
 <!-- end generated -->

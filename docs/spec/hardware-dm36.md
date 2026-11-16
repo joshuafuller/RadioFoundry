@@ -158,6 +158,10 @@ Normal speaker volume is an integer from 1 through 10. One accepted direction ev
 wraps at both ends and the same integer is sent to the on-screen volume display. The dB gain represented by each
 level is unknown (measured from dump), (unverified).
 
+RadioFoundry uses `CAP_VOLUME_ENCODER` and the shared [speaker volume](radio-features.md#42-speaker-volume)
+path. It clamps at 1 and 10 instead of wrapping. The existing volume overlay shows the step. Hardware validation
+is pending.
+
 ### 5.2 Keypad, side keys, and PTT
 
 The matrix wiring and scan method are the same as the

@@ -100,6 +100,11 @@ The Anytone AT-D578UV is the radio the two-receiver case is for: its hardware ha
 
 ## The volume bar
 
+The DM-36 knob changes firmware speaker volume by one step per detent, from 1 to 10. It stops at either end
+rather than wrapping. It does not change channels or move through menus; use Up and Down for those.
+It uses the volume bar and the **Knob when locked** setting. Settings > Sound > Volume still offers 0..16;
+the next knob turn brings the level into 1..10. Hardware validation is pending.
+
 On a radio whose volume knob RadioFoundry reads, turning the knob shows the volume at the bottom of the screen (at the
 top on a screen that uses its bottom row, such as Quick settings): a bar of 16 steps and the step number. It goes away 3 s after you stop turning, and the screen under it carries on (a call,
 a menu). It also turns the backlight on. On a radio without a knob, the **Volume** key opens the volume screen

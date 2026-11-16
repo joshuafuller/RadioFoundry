@@ -439,6 +439,12 @@ is dimmed ("This radio has no vibration motor") when the board has no motor (`UI
 
 ### 4.2 Speaker volume
 
+With `CONFIG_VOLUME_ENCODER`, a board with `CAP_VOLUME_ENCODER` routes encoder detents to the stored firmware speaker volume on every screen,
+leaving the channel and menu selection alone. Each detent adds or subtracts one step, clamped to 1..10 (no wrap).
+The existing volume bar shows the step for three seconds when `CONFIG_VOLUME_BAR` is enabled. Turns wake the
+backlight. Settings > Key lock > Knob when locked also applies to this encoder. Other encoders keep their
+channel and menu behavior. The volume editor retains its full 0..16 range; the next encoder turn clamps to 1..10.
+
 Where the MCU can set the speaker level, the radio core owns it. The board gives it a `hal_radio_t.volume(percent)`
 hook; `hal_power_t.volume()` says where the level comes from (`radio_volume_src_t`, the `volume.src` view key):
 

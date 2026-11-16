@@ -21,6 +21,7 @@ static bool rx_ext_on;
 #endif
 #include "bands.h"
 #include "../dm32/board_keys.h"
+#define BOARD_EXTRA_CAPS CAP_VOLUME_ENCODER
 const board_t board = {
 	.name = "Baofeng DM-36",
 #include "../dm32/board_fields.h"

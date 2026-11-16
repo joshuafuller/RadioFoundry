@@ -49,6 +49,8 @@ enum {
 	// talk permit then plays before the first burst: DMR voice keys after a short hold in which the radio still
 	// receives and the tone sounds (dmr_call_config_t.permit_hold_ms)
 	CAP_BEEP_NOT_ON_AIR = 1u << 8,
+	// The encoder is the volume knob: its steps set the firmware volume, clamped to 1..10, not channel or menu
+	CAP_VOLUME_ENCODER = 1u << 9,
 };
 
 // One band's power level names, where a board's levels give different powers per band (board_t.power_bands)
