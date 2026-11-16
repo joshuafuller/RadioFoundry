@@ -199,19 +199,42 @@ stack (measured from dump).
 
 ### 6.2 UART framing
 
-Control uses ASCII `AT` lines terminated by CR/LF. Programming data uses a length-delimited envelope
+Control uses ASCII lines terminated by CR/LF. Programming data uses a length-delimited envelope
 (measured from dump).
 
 | Direction | Frame and evidence |
 |---|---|
-| SoC to module, binary | `AT+DATA=00,` followed by an ASCII decimal payload length, CR/LF, then that many payload bytes (measured from dump) |
-| Module to SoC, binary | `+DATA:00` frame with an ASCII length followed by that many payload bytes (measured from dump) |
-| SoC to module, alternate data | `AT+ADATA=01,` frame; payload is hexadecimal text (measured from dump) |
-| Module to SoC, alternate data | `+ADATA:00` frame with an ASCII length (measured from dump) |
+| SoC to module, binary | `AT+DATA=00,<n>\r\n<payload>`; `n` is one to three ASCII decimal positions and the payload is exactly `n` bytes with no trailer (measured from dump) |
+| Module to SoC, binary | `+DATA:00,<n>\r\n<payload>`; `n` is one to three ASCII decimal positions and the payload is exactly `n` bytes with no trailer (measured from dump) |
+| SoC to module, alternate data | `AT+ADATA=01,<n>\r\n<payload>`; `n` is the original binary-byte count and the payload contains two uppercase hexadecimal characters per byte (measured from dump) |
+| Module to SoC, alternate data | `+ADATA:00,<n>\r\n<payload>` with the same receive-header rules as `DATA` (measured from dump) |
+
+The receive parser compares only the `+DATA:00` or `+ADATA:00` prefix. It then skips one byte, normally the comma,
+and interprets one, two, or three following byte positions as base-10 digits according to where CR occurs. It does
+not verify that the skipped byte is a comma or that the length positions contain `0` through `9` (measured from
+dump). The largest well-formed declared length is therefore 999 bytes (measured from dump). A declared zero does
+not complete as an empty frame: the parser enters payload state and cannot complete until its 16-bit byte counter
+wraps, so zero-length envelopes are not usable (measured from dump).
+
+The parser accumulates a control/header line only after `+` or `O`, requires LF immediately after CR to dispatch
+it, and resets its line index after the 1,024th stored byte rather than reporting an error (measured from dump).
+A malformed recognized DATA header is not rejected: arithmetic is performed on the unchecked byte positions and
+the resulting 16-bit length controls payload collection (measured from dump). Other malformed or unknown complete
+lines are ignored (measured from dump). There is no receive inactivity timeout or resynchronization search in this
+path (measured from dump). While a declared payload is being collected, every byte—including CR/LF and event-looking
+text—is payload; events are handled only after the payload count is satisfied (measured from dump).
 
 The binary `DATA` receive path feeds the same programming parser used by UART0. Replies use `AT+DATA=00` when
 Bluetooth is the selected transport. This proves an arbitrary-byte programming path; sustained PPP or KISS traffic
 has not been tested (measured from dump), (unverified).
+
+On transmit, the SoC builds the header and payload into one buffer and writes them as one polling UART operation;
+it does not wait for a prompt or reply between the header and payload (measured from dump). It then waits for an
+`OK\r\n` line, or a 25-counter timeout, before another command or envelope can be sent (measured from dump). The
+counter's wall-clock period is unverified. The builder correctly renders decimal lengths through 999, but its
+524-byte work buffer has no caller-length guard; 508 bytes is the largest three-digit payload that fits that buffer
+with its 16-byte header (measured from dump). The largest length requested by a real stock session is unverified.
+No deliberate inter-envelope delay exists beyond UART serialization and the `OK`/timeout gate (measured from dump).
 
 ### 6.3 Module command set
 
@@ -227,9 +250,75 @@ These are the complete printable commands emitted by the inspected SoC image (me
 | Audio routing | `AT+MICEN=1`, `AT+MICEN=0`, `AT+SPKEN=1`, `AT+SPKEN=0` |
 | Audio gain | `AT+MICGAIN=15`, `AT+SPKGAIN=25` |
 
-The SoC parses `READY`, `CONN`, `HOSTDEVICE`, `DISC`, `SCAN`, `SCAN:000000000000`, `LENAME:`, `VER:`,
-`PIN:`, `PTTKEY`, `PTTBATT`, `HFREQ`, `ADATA`, and `DATA` replies or events (measured from dump). `PTTKEY` and
-`PTTBATT` carry accessory PTT state and battery information to the SoC (measured from dump).
+Every module event below is a CR/LF-terminated line. Except for `OK`, the parser requires a leading `+`; token
+comparisons are prefix comparisons, so trailing text is tolerated unless a handler examines it (measured from
+dump).
+
+| Event or reply | Syntax accepted and stock action |
+|---|---|
+| Ready | `+READY\r\n`; trailing bytes before CR/LF are ignored. It marks module startup complete (measured from dump). |
+| Version | `+VER:<text>\r\n`; up to 20 bytes following the colon are retained (measured from dump). The actual identity text is unverified. |
+| Connection | `+CONN<field>,<profile>\r\n`; the parser ignores the first field, locates the first comma, and tests the following profile token. `AG` selects the audio/headset state; the data-profile token is not recoverable with sufficient confidence from this dump (measured from dump), (unverified). |
+| Host device | `+HOSTDEVICE<field>,<profile>\r\n`; field handling and audio/data profile tests mirror `CONN` (measured from dump). Exact field meanings and the data-profile token are unverified. |
+| Disconnect | `+DISC\r\n`; trailing fields, if any, are ignored. It clears connection and pending-operation state (measured from dump). |
+| Scan | `+SCAN:000000000000\r\n` is the no-device sentinel. Other accepted `+SCAN...\r\n` records contain at least three commas; the text after the third comma is retained as a result name, up to 49 bytes (measured from dump). The preceding field meanings are unverified. |
+| LE name | `+LENAME:<text>\r\n`; up to 32 bytes after the colon are retained (measured from dump). |
+| PIN | `+PIN:<text>\r\n`; up to 16 bytes after the colon are retained (measured from dump). |
+| Headset-frequency state | `+HFREQ:<value>\r\n`; `0` and `1` clear and set the stored state respectively; other values are ignored (measured from dump). |
+| Command acknowledgement | `OK\r\n`; it releases the pending-command gate. No `+` is present (measured from dump). |
+
+The dump does not establish which connection field denotes classic versus LE. Classic scan/connect/disconnect uses
+`AT+SCAN`, `AT+CONN`, and `AT+DISC`; LE scan/disconnect uses `AT+LESCAN` and `AT+LEDISC`. There is no LE-connect
+command in the image (measured from dump). Therefore bearer identity still requires a real module (unverified).
+
+### 6.4 Accessory PTT events
+
+| Event | Syntax and action |
+|---|---|
+| PTT state | `+PTTKEY:<value>\r\n`. `1` asserts the accessory PTT state and `0` releases it. `3` and `6` set two separate accessory-status indications and clear an associated counter; their external meanings are unverified. Other values are ignored (measured from dump). |
+| PTT battery | `+PTTBATT:<nn>\r\n` or `+PTTBATT:<nnn>\r\n`. Two or three decimal positions are converted to one byte and stored as the accessory battery level. Its use and 0–100 shape indicate percent, but the module's unit has not been observed (measured from dump), (unverified). |
+
+These events update accessory/UI state. They are not inserted into the programming byte stream. The stock PTT press
+is passed into the radio's normal keying path; release clears that state (measured from dump).
+
+### 6.5 Startup, connection, and audio coexistence
+
+When Bluetooth is enabled in settings, the SoC initializes UART receive state, waits 350 delay ticks, then drives
+the module-enable pin high (measured from dump). The delay tick's wall-clock duration and any module-internal delay
+after enable are unverified. The SoC waits for `+READY`; no bounded READY timeout or automatic enable-pin retry was
+identified, so a silent module can leave startup pending (measured from dump). Command waits use a 30-counter gate;
+transmit completion uses the 25-counter `OK` gate described above. Their wall-clock periods are unverified.
+
+After READY, startup commands are serialized in this order: `AT+AGHF?`, microphone gain, speaker gain,
+`AT+LENAME?`, `AT+PIN?`, then `AT+VER?` (measured from dump). The gain commands carry the saved two-digit values;
+the image defaults are `AT+MICGAIN=15` and `AT+SPKGAIN=25` (measured from dump). Each command waits for the preceding
+pending command to finish or time out (measured from dump).
+
+Classic discovery and connection use `AT+SCAN=1`/`2`, `AT+CONN=<device>`, `AT+DNAME?`/`=<name>`, and
+`AT+DISC=000000000000`; LE device management uses `AT+LESCAN=1`/`2`, `AT+LENAME?`/`=<name>`, and
+`AT+LEDISC=000000000000` (measured from dump). The exact command sequence triggered by each UI connect operation is
+unverified. Audio uses `AT+AGHF=1`/`0`, `AT+AUDIO=1`/`0`, `AT+MICEN=1`/`0`, `AT+SPKEN=1`/`0`, and the two gain
+commands; data uses `AT+DATA=00` and the independent programming transport state (measured from dump). The SoC keeps
+audio and data connection state independently and contains no mutual-exclusion teardown, so the stock application
+allows them to be active together; whether the physical module can sustain both without loss is unverified.
+
+Only UART RX, TX, and the enable pin are configured for this module. No RTS/CTS setup or separate flow-control pin
+was found (measured from dump); board-level electrical behavior remains unverified.
+
+### 6.6 Status of the transport specification's ten open measurements
+
+| Item | Status from this dump |
+|---|---|
+| 1. RX DATA grammar and event ordering | Answered for the stock SoC parser, including zero-length behavior and events during payload (measured from dump). What the module emits still needs a real module (unverified). |
+| 2. Envelope lengths and buffering | SoC RX grammar limit 999 and TX work-buffer limit 508 are answered (measured from dump). Module limits, phone fragmentation/coalescing, and buffering need a real module (unverified). |
+| 3. Phone bearer | Needs a real module (unverified). |
+| 4. BLE MTU or SPP write sizes | Needs a real module (unverified). |
+| 5. Reply, credit, and flow control | SoC waits for `OK` only after a whole transmission and has no RTS/CTS (measured from dump). Phone-side credit and stall behavior need a real module (unverified). |
+| 6. Throughput, duplex, latency, and pacing | Needs a real module (unverified). |
+| 7. Pairing and security policy | Needs a real module (unverified). |
+| 8. READY, VER, UART, and startup | Parser syntax, UART setup, enable order, and counter values are answered (measured from dump). Actual identity variants and wall-clock/restart behavior need a real module (unverified). |
+| 9. Connection fields and association | Audio profile recognition and independent audio/data state are answered (measured from dump). Exact data token, field meanings, classic/LE association, and disconnect retention need a real module (unverified). |
+| 10. PTT events and coexistence | Parser values and stock actions are answered (measured from dump). Battery units, peer association, and traffic-under-audio behavior need a real module (unverified). |
 
 The phone application's DM-36 entry uses the DM-32UV programming protocol and a BLE GATT bridge
 (reported). Service `FFE0`, characteristic `FFE1`, and baud characteristic `FF31` are app-side candidates, not a
