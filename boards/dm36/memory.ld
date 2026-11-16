@@ -1,12 +1,9 @@
 /* SPDX-License-Identifier: MIT */
 /* Copyright (c) 2026 The RadioFoundry Authors */
-/* Unverified layout, taken from the shared board sources: APP_BASE, codec windows and SRAM reservations are
- * hypotheses until the stock firmware is read (docs/spec/hardware-dm36.md). */
+/* APP_BASE is 0x0300C000; the 48 KiB stock bootloader stays outside FLASH.
+ * Keep the inherited codec flash/RAM/table windows: section 2 does not separate codec from modem/voice data. */
 __codec_slot = 0x030E8000;
 __codec_slot_end = 0x03100000;
-/* The codec window (platform/hrc7000/codec_slot.h: the slot's code runs at its start; the size is the largest code
- * among the board's codec maps; tools/boards.py reads these symbols for the codec tools) and the modem SRAM table
- * window, the union of the builds' stock table addresses */
 __codec_run_lo = 0x00043A00;
 __codec_run_hi = 0x00058000;
 __codec_tab_lo = 0x18000E48;

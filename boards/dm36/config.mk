@@ -8,3 +8,6 @@ BOARD_UNSUPPORTED += GPS_SKY # no GPS receiver
 BOARD_UNSUPPORTED += NAND_STORAGE # data flash is SPI NOR
 BOARD_NOT_WRITTEN += VOX # inherited glue has no mic_level hook
 BOARD_NOT_WRITTEN += AUDIO_PROBE # inherited glue has no audio_tap hook
+# The inherited broadcast receiver would drive unresolved GPIOs 0x19/0x1A.
+CONFIG_BCAST_FM ?= n
+BOARD_NOT_WRITTEN += BCAST_FM # receiver wiring not established

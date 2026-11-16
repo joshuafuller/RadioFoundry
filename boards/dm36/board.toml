@@ -14,28 +14,28 @@ hardware = "docs/spec/hardware-dm36.md"
 [hardware]
 bands = "136-174 / 400-470 MHz rated; build receive only"
 power = "4.4 W VHF / 4.1 W UHF (FCC); TX disabled in build"
-display = "2.0 inch color; controller and resolution unknown"
-# Placeholder for the inherited renderer, not a measured display geometry.
+display = "2.0 inch 240x320 color, ST7789-class"
+# Shared renderer; bezel-safe insets remain unverified.
 gallery = "240x320i10x5"
 clock = { rtc = "backed", note = "RTC coin cell visible in the board photo; wiring unverified" }
 
 [status]
 level = "bring-up"
-summary = "Built, never run on a radio. Inherited wiring, display and memory layout are hypotheses; transmit disabled."
+summary = "Built, never run on a radio. Spec-based wiring, display and application base; codec layout and calibration unverified; transmit disabled."
 release = "testing"
 
-# Schema placeholders only: no release, loader identity or supported codec source is known.
+# No release container or supported codec source is established.
 [flash]
 family = "serial-loader"
 keep_codec = false
 stock_versions = []
 backup = { stock = "none", rfoundry = "none", spi_size = 0x1000000 }
-notice = "Build only. Do not flash: bootloader identity, APP_BASE and pins are unverified."
+notice = "Build only. Do not flash: codec layout, update container and recovery are unverified."
 
 [flash.bootloader]
 keys = "PTT + SK1 (reported)"
-steps = ["Build only: do not flash; the bootloader identity and application base are unverified."]
-id = "UNVERIFIED-DM36"
+steps = ["Build only: do not flash; the update container and recovery are unverified."]
+id = "BFUV36-V1"
 
 [codec]
 tool = "hrc7000_codec"

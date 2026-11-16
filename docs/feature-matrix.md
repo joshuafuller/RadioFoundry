@@ -47,7 +47,7 @@ is `tools/bringup.py list --radio <id>`.
 | `vox` | not written | not recorded | not recorded | not written | not recorded | not recorded | pass, needs re-run | not written |
 | `battery_save` | pass (seed) | pass (seed) | not recorded | not recorded | not recorded | not recorded | pass, needs re-run | not recorded |
 | `am_rx` | not recorded | ✕ | not recorded | ✕ | ✕ | ✕ | ✕ | not recorded |
-| `bcast_fm` | not recorded | ✕ | not recorded | not written | ✕ | ✕ | ✕ | not recorded |
+| `bcast_fm` | not recorded | ✕ | not recorded | not written | ✕ | ✕ | ✕ | not written |
 | `rx_ext` | not recorded | not recorded | not recorded | not recorded | not written | not recorded | not written | not recorded |
 | `dmr_voice` | pass (seed) | pass (seed) | pass (seed) | pass (seed) | pass (seed) | not recorded | partial, needs re-run | not recorded |
 | `dmr_privacy` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | pass, needs re-run | not recorded |
@@ -254,7 +254,7 @@ clock`; ? = not known yet). No driver reads the clock yet ([radio-features.md](s
 | `WATCHDOG` | ● | ● | ● | ● | ● | ● | ● | ● |
 | `FAULT_TRACE` | ● | ✕ | ● | ● | ✕ | ✕ | ✕ | ● |
 | `AM_RX` | ● | ✕ | ● | ✕ | ✕ | ✕ | ✕ | ● |
-| `BCAST_FM` | ● | ✕ | ● | … | ✕ | ✕ | ✕ | ● |
+| `BCAST_FM` | ● | ✕ | ● | … | ✕ | ✕ | ✕ | … |
 | `APRS` | ● | ● | ● | ● | ● | ● | ● | ● |
 | `APRS_AFSK` | ● | ● | ● | ● | ● | ● | ● | ● |
 | `APRS_DMR` | ● | ● | ● | ● | ● | ● | ● | ● |

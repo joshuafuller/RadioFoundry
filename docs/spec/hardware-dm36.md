@@ -2,7 +2,8 @@
 <!-- Copyright (c) 2026 The RadioFoundry Authors -->
 # Baofeng DM-36 hardware
 
-This page covers the DM-36 board. It records the facts needed for a `boards/dm36` port. The DMR modem inside the
+This page covers the DM-36 board. The board files are [pins.h](../../boards/dm36/pins.h), [board.c](../../boards/dm36/board.c),
+[board.mk](../../boards/dm36/board.mk), and [memory.ld](../../boards/dm36/memory.ld). The DMR modem inside the
 SoC is covered by `modem-hrc7000.md`.
 
 Evidence labels have a narrow meaning. `(measured from dump)` means the value was established from the owner's

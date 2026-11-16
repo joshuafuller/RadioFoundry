@@ -4,6 +4,15 @@
 #include <stdio.h>
 #include "board.h"
 #include "fuzz.h"
+#include "../pins.h"
+#if defined(PIN_GPS_POWER) || defined(PIN_GPS_RXD) || defined(PIN_BCAST_SDA) || defined(PIN_BCAST_SCL)
+#error "Unresolved board nets must not inherit peripheral assignments"
+#endif
+_Static_assert(PIN_BT_ENABLE == 0x30, "Bluetooth enable");
+_Static_assert(PIN_BT_RXD == 0x0D && PIN_BT_TXD == 0x0E, "UART3 mux pins");
+_Static_assert(BT_UART_BASE == 0x14090000u && BT_UART_BAUD == 115200u, "Bluetooth UART");
+_Static_assert(PIN_ENC_A == 0x27 && PIN_ENC_B == 0x26, "Volume encoder inputs");
+_Static_assert(PIN_LCD_RESET == 0x42 && PIN_LCD_RD == 0x46 && PIN_KEY_ROW0 == 0x47, "Shared LCD bus");
 #define CONFIG_AM_RX 1
 #define CONFIG_BCAST_FM 1
 #define CONFIG_RX_EXT 1

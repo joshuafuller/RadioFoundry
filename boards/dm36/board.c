@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 The RadioFoundry Authors
-// Build-only descriptor; every inherited peripheral and pin is unverified.
+// Shared display and init match section 7; bezel insets remain unverified.
 #include "board.h"
 #include "config.h"
 #if CONFIG_GPS

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 The RadioFoundry Authors
-// PA select and DAC pins are unconfirmed.
+// PA select pins are specified; calibration and safe RF output remain unverified.
 static const band_t bands[] = {
 	{ 136000000, 174000000, false },
 	{ 400000000, 480000000, false },

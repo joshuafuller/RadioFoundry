@@ -624,11 +624,11 @@
     402656840,
     402669096
    ],
-   "loader_id": "UNVERIFIED-DM36",
+   "loader_id": "BFUV36-V1",
    "loader_keys": "PTT + SK1 (reported)",
    "loader_sign": "",
    "bootloader_steps": [
-    "Build only: do not flash; the bootloader identity and application base are unverified."
+    "Build only: do not flash; the update container and recovery are unverified."
    ],
    "stock_download": null,
    "key_sha256": null,
