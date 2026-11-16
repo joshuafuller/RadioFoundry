@@ -3,7 +3,8 @@
 
 # Bluetooth module host transport
 
-Design for bead `rf-cmh.2`; not an implemented or measured Bluetooth host link. An external AT-command module
+Design for bead `rf-cmh.2`, with the shared envelope driver implemented by `rf-cmh.9`.
+This is host-tested software, not a measured Bluetooth host link. An external AT-command module
 terminates Bluetooth and carries an ordered host byte stream over a 115200 UART. Its binary `DATA` envelope is
 separate from the host protocol. Board hardware pages supply the wiring and module evidence; see the
 [feature matrix](../feature-matrix.md) for board support.
@@ -51,9 +52,9 @@ enable polarity and electrical timing. Initialize the receive path before enabli
 |---|---|
 | Disabled | Enable inactive; host disconnected; queues and accessory state empty |
 | Starting | Configure 115200 (8N1 pending board verification), clear stale UART status, assert enable after the board's required delay, wait for a complete `READY` event |
-| Identifying | Send `AT+VER?\r\n` once; validate a complete `VER:` reply against a supported module profile |
+| Identifying | Send `AT+VER?\r\n` once; validate a complete `+VER:` reply against the module profile and wait for `OK` |
 | Idle | Module identified; no host data session; process connection and accessory events |
-| Connected | A verified data-connection event associates channel `00` with the selected peer/bearer; expose the decoded stream |
+| Connected | A profile-matched connection event or complete channel `00` DATA envelope starts the decoded stream |
 | Fault | Mark link down, discard session state, deassert enable; a new explicit enable starts again |
 
 Use provisional finite deadlines of 5 s for READY and 2 s for identity, supplied to the parser by a monotonic
@@ -61,9 +62,12 @@ clock. Timeout or an unsupported identity enters Fault; no infinite reset loop. 
 session means module restart: tear down the old session, then identify again. An ordinary `DISC` returns to Idle.
 Explicit disable from any state ends the session and deasserts enable.
 
-`CONN`, `HOSTDEVICE` and `DISC` are known event names, but their complete fields and relation to data versus audio
-connections must be established. A generic connection or an audio accessory alone must not set host connected.
-Until the profile can identify the data connection, leave data transport unavailable.
+`+CONN<field>,<profile>` and `+HOSTDEVICE<field>,<profile>` compare the token after the first comma
+against `atmodule_profile_t.data_profile`. Audio `AG` alone never connects the host. Until the data token is
+measured and set, a complete channel `00` DATA envelope starts the session. `+DISC` accepts trailing fields.
+A disconnect during a pending command faults, because its delivery and acknowledgement cannot safely be reused.
+`+READY` and `OK` are exact lines; `+VER:` retains a nonempty identity of at most 20 bytes. A profile may require
+an exact identity. NULL permits any such identity for unqualified bench use; it does not certify compatibility.
 
 Classic and LE discovery/control are distinct: `AT+SCAN` / `AT+CONN` / `AT+DISC` and
 `AT+LESCAN` / `AT+LEDISC` must not be substituted for one another. The known command list does not establish an
@@ -76,25 +80,22 @@ classic SPP exposure nor a usable BLE GATT service is assumed from the UART comm
 | Direction | Contract |
 |---|---|
 | MCU to module | ASCII `AT+DATA=00,<n>\r\n` followed immediately by exactly `n` binary bytes; decimal byte count, no sign, no payload terminator added |
-| Module to MCU | Known prefix `+DATA:00`, an ASCII decimal length, then exactly that many binary bytes; separators and any trailing CR/LF remain unverified |
+| Module to MCU | `+DATA:00,<n>\r\n<payload>`; one to three checked decimal digits, exactly `n` binary bytes, no trailer |
 | Control | ASCII lines terminated by CR/LF; recognize exact event/response tokens, not substrings inside other lines |
 
-Do **not** guess the receive grammar from the transmit grammar. A module profile must fix the delimiter between
-channel and length, the delimiter before payload, and whether a trailer exists, using an approved observation.
-Model fixtures may choose a grammar explicitly labeled synthetic; they cannot certify the physical parser.
-Do not accept several speculative grammars in production. A profile without this information cannot connect.
+The approved hardware description settles the SoC-side grammar. RadioFoundry uses that single grammar with
+stricter validation; actual module output still needs bench verification.
 
-Receive rules, once that grammar is known:
+Receive rules:
 
 - Incremental header and payload states survive arbitrary UART read boundaries, including splits inside CR/LF,
   the prefix and length digits. Drain multiple complete envelopes/events from one read.
-- Provisionally cap a control/header line at 128 bytes and a DATA payload at 1024 bytes. Parse decimal with checked
-  arithmetic before reserving space. A zero length is an empty envelope; 1 through 1024 are accepted; a larger
-  value, overflow, missing digits or malformed DATA header faults the session. These are local bounds, not claims
+- Cap a control/header line at 128 bytes and a DATA payload at 999 bytes. Check every digit and accept at most
+  three before reserving space. Zero is refused; 1 through 999 are accepted; a larger value, overflow, missing
+  digits or malformed DATA header faults the session. These are local bounds, not claims
   about module capacity. Never allocate from an untrusted length.
 - After a valid header, consume exactly the declared payload length. CR/LF, `READY`, `DISC`, `+DATA:` and AT text
-  inside it are ordinary bytes. Never scan a payload for a delimiter or event. Consume only the exact trailer
-  required by the profile; do not trim payload whitespace.
+  inside it are ordinary bytes. Never scan a payload for a delimiter or event. There is no trailer; do not trim payload whitespace.
 - Between envelopes, allow empty CR/LF lines and count/discard bounded, complete unknown text lines. A partial
   line is retained. An overlong line, UART overrun, malformed envelope or loss of framing enters Fault, rather
   than searching arbitrary binary data for a plausible prefix. No garbage reaches the host dispatcher.
@@ -127,17 +128,15 @@ Handle partial UART writes by retaining the unsent suffix. UART transmit complet
 left the MCU; it does not prove Bluetooth delivery or room in the module. Do not retry a command whose delivery
 is uncertain: duplicate stream bytes would corrupt PPP/KISS. Fail the session instead.
 
-No RTS/CTS, XON/XOFF, module credit or DATA acknowledgment contract is established. Never consume `0x11` or `0x13`
-as software flow control from a binary payload. Use verified hardware flow control only if the board and module
-both provide it. Otherwise a measured profile must specify acceptance/completion signals or a sustainable pacing
-interval and burst limit. A fixed delay alone cannot guarantee lossless delivery under arbitrary phone stalls.
-Without that profile, paced operation is experimental and sustained host service is not qualified.
+Every command, including `AT+VER?` and each DATA transmission, holds an `OK\r\n` gate. Only an OK
+received after the entire command has been written releases it. The provisional command deadline is 2 s,
+including UART stalls. Timeout faults without retry. A profile sets the TX limit, initially 20 and never above
+508 bytes. No deliberate pacing delay is added beyond the OK gate. OK is not proof of phone delivery.
 
-For the initial model, use one 20-byte command per 20 ms, with UART completion also required; model finite module
-buffers and an independently paced return path. This 1000-byte/s payload budget is a test assumption, not a safe
-hardware setting. Service RX while TX waits; use bounded queues and nonblocking driver steps, not sleeps in
-protocol engines. Size the UART ring from the longest measured service gap plus one maximum envelope/header;
-1024 bytes alone is insufficient if the task can stop servicing RX for longer than its wire time.
+There is no verified RTS/CTS or phone-side credit contract. Never consume `0x11` or `0x13` as flow control.
+The driver services RX while TX waits. Its TX queue and decoded RX queue each hold 1200 bytes, with a separate
+999-byte incomplete-envelope buffer. The platform UART ring holds 2048 bytes. These finite bounds are software
+policy, not proof that phone stalls or arbitrary task-service gaps are lossless.
 
 Backpressure must reach the producer: a full queue returns a short/zero accepted count, and the caller retains
 the suffix or fails the session. Never report bytes accepted and silently overwrite them later. On receive
@@ -170,28 +169,40 @@ not latch PTT. Audio routing/profile setup is outside this data link.
 
 ## 6. Board and shared interfaces
 
-The following additions are proposed contracts, not existing declarations:
+Implemented declarations and integration boundary:
 
 | Surface | Responsibility |
 |---|---|
 | `CAP_BT_DATA` | Board has the module/wiring for a host data transport; does not assert measured throughput, SPP, GATT or pairing security |
-| Optional `board_t.bt_module` descriptor | Raw UART `hal_stream_t`, enable callback, board startup/off timing, and a reference to the shared measured module profile; NULL when absent |
+| Optional `board_t.bt_module` descriptor | Raw UART `hal_stream_t`, enable/flush/error hooks, startup/off timing, and the module profile; NULL when absent |
 | Shared driver in `drivers/` | Lifecycle, command serialization, bounded envelope parser, queues, module profile and decoded `hal_stream_t` adapter |
-| Existing `board_t.host_port` | Selected stream adapter; `connected()` reflects the selected data session, not merely a powered UART |
+| Existing `board_t.host_port` | Cable remains selected; `atmodule_stream` can replace it once the caller supplies session teardown |
 | Existing `board_t.netif` | PPP netif when PPP is selected, as required by the existing PPP spec |
 
 The selector must propagate link-down into host-session teardown; substituting a UART whose `connected()` is
 always true is insufficient. Reuse `hal_stream_t` partial-write semantics. Keep pins, UART number and electrical
 polarity in board/platform code, and all shared protocol behavior in one driver. No board tests in `core/`.
-A future implementation needs `CONFIG_BT_MODULE_TRANSPORT` with a clean off build; PPP, KISS and debug retain
-their existing feature switches. This document adds no declarations, configuration or firmware behavior.
+`CONFIG_BT_MODULE_TRANSPORT` defaults to n everywhere. When enabled, the shared engine and adapter are built,
+and a board may supply the optional descriptor and `CAP_BT_DATA`. Merely compiling the feature does not power
+the module or change the host port. PPP, KISS and debug retain their existing feature switches and framing.
+
+`atmodule_stream_bind(module, clock_ms, end_session)` installs the single host-task adapter. A non-NULL teardown
+callback is required. The adapter calls it on restart, disconnect, fault and rebind, before exposing a new session.
+The callback must implement section 5's host protocol and gateway teardown. That firmware selection/teardown
+integration is still proposed; the board keeps the cable selected. The engine itself clears all its queues and
+flushes the raw UART, discarding the rest of a received batch at a session boundary. Its `generation` exposes
+these transitions to other users of the engine.
+
+Engine writes return a short/zero count on queue exhaustion. The stream adapter also faults on a short write,
+because existing host producers can ignore a short return. This fails the session instead of splicing a reply.
+No runtime selector, pairing UI, scan, audio setup or automatic module retry is implemented.
 
 ## 7. Open module measurements (10)
 
 1. Exact RX DATA grammar, length encoding/separators/trailer, zero-length behavior and event ordering, including
    behavior when an event occurs during a payload.
 2. Maximum accepted TX and emitted RX envelope lengths, module buffering, and whether envelopes may be split or
-   coalesced across phone reads; validate the provisional 1024-byte RX bound.
+   coalesced across phone reads; validate the 999-byte RX and 508-byte TX software bounds.
 3. Actual phone bearer: classic SPP, BLE GATT, or both; discover services/characteristics, direction and subscription
    requirements without assuming UUIDs or deriving a bearer from command names.
 4. Negotiated BLE MTU and usable write/notification sizes (or SPP write limits), including 20/244-byte trials and
@@ -211,18 +222,27 @@ their existing feature switches. This document adds no declarations, configurati
 
 ## 8. Test plan
 
-These are future tests, not results from this documentation lane.
+`tests/host/atmoduleTest.c` now covers the shared engine and stream adapter: 2,917 deterministic cases at the
+default seed, including 1,000 seeded byte-preservation/partition properties. Tests cover lengths 0/1/20/244/508/
+999/1000, every two-part split of valid boundary frames, all 256 payload bytes, event-looking payloads, checked
+headers, wrong channels, timeout boundaries, disconnect/reset flushing, identity and OK ordering, partial TX,
+queue exhaustion, accessory isolation and adapter teardown notification. A sabotage build with the TX OK gate
+removed fails the exact-byte/serialization assertion. No RF implementation is linked into this test.
 
-1. **Host tests with a fake module.** Drive the shared state machine with a virtual clock and fake UART/enable
+Remaining integration and bench plan:
+
+1. **Host tests with a fake module (engine implemented; selector pending).** Drive the shared state machine with a virtual clock and fake UART/enable
    hooks. Cover every transition, absent/late READY and VER, unexpected reset, data versus audio connection,
    and disconnect at every header/payload position. Check exact TX bytes and partial writes. Split RX at every
    byte; coalesce envelopes/events; embed all 256 byte values and event-looking text in payloads. Test lengths
-   0, 1, 20, 244, 1024, 1025, numeric overflow, missing digits, unknown channels, malformed/truncated headers,
+   0, 1, 20, 244, 508, 999, 1000, numeric overflow, missing digits, unknown channels, malformed/truncated headers,
    CR/LF splits, garbage, overrun and 499/500/501 ms gaps. Use seeded partitions/fuzzing with bounded memory and
    byte-for-byte output assertions. Exercise queue saturation, producer backpressure, command serialization,
    disconnect flushing, cable selection, no stale replay and PTT never causing a transmit call.
-2. **ATAK lab with a module model.** Place the actual envelope driver and fake module on the existing PPP byte
-   path; keep the two gateway/air processes and no-network pipe arrangement. Model the UART wire rate, finite
+2. **ATAK lab with a module model (not implemented in this lane).** Place the actual envelope driver and fake module on the existing PPP byte
+   path; keep the two gateway/air processes and no-network pipe arrangement. Exactly what remains: add the driver to the worker build, wrap both PPP serial directions in synthetic
+   `+DATA:00,<n>\r\n<payload>` / `AT+DATA=00,<n>\r\n<payload>` at 20 bytes, implement READY/VER/OK in the
+   fake module, then run the existing PPP cases through that path. Model the UART wire rate, finite
    buffers, READY/VER/events, credits or explicit pacing, phone stalls and independent directional limits.
    Test 20 and 244-byte chunks, the 556/557-byte UDP boundary, worst-case escaping, CoT both ways, parser faults,
    reconnect with fresh negotiation and absence of old traffic. Add a separate KISS/debug stream case through

@@ -25,6 +25,8 @@
 #include "hal_rx2.h"
 #include "hal_hwopt.h"
 
+struct bt_module;
+
 typedef struct {
 	uint32_t lo_hz;
 	uint32_t hi_hz;
@@ -32,6 +34,7 @@ typedef struct {
 } band_t;
 
 enum {
+	CAP_BT_DATA	= 1u << 9,
 	CAP_KEYPAD	= 1u << 0,
 	CAP_ENCODER	= 1u << 1,
 	CAP_GPS		= 1u << 2,
@@ -104,6 +107,7 @@ typedef struct {
 	const hal_dmr_modem_t *dmr;	// NULL on FM-only radios
 	const hal_audio_t *audio;
 	const hal_vocoder_t *vocoder;
+	const struct bt_module *bt_module; // optional AT module; does not select or enable it
 	const hal_stream_t *host_port;	// the link to a host computer (MMDVM hotspot, CPS); NULL if none
 	// Optional: line i of a board diagnostics page (raw readings for bench checks); false past the last line
 	bool (*diag_line)(uint8_t i, char *buf, uint8_t len);

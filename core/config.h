@@ -5,6 +5,10 @@
 #ifndef RFOUNDRY_CONFIG_H
 #define RFOUNDRY_CONFIG_H
 
+#ifndef CONFIG_BT_MODULE_TRANSPORT
+#define CONFIG_BT_MODULE_TRANSPORT 0
+#endif
+
 #ifndef CONFIG_FM
 #define CONFIG_FM			1
 #endif

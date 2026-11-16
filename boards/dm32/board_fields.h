@@ -3,7 +3,11 @@
 #ifndef BOARD_EXTRA_CAPS
 #define BOARD_EXTRA_CAPS 0
 #endif
+#ifndef BOARD_HAS_BT_MODULE
+#define BOARD_HAS_BT_MODULE 0
+#endif
 	.caps = BOARD_EXTRA_CAPS | CAP_KEYPAD | CAP_ENCODER | (CONFIG_GPS ? CAP_GPS : 0) | (CONFIG_DMR ? CAP_DMR | CAP_BEEP_NOT_ON_AIR : 0) |
+		(CONFIG_BT_MODULE_TRANSPORT && BOARD_HAS_BT_MODULE ? CAP_BT_DATA : 0) |
 		(CONFIG_AM_RX ? CAP_AM_RX : 0) | (CONFIG_BCAST_FM ? CAP_BCAST_FM : 0),
 	.bands = bands,
 	.band_count = sizeof(bands) / sizeof(bands[0]),

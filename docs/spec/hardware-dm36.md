@@ -182,10 +182,22 @@ electrical sharing has not been measured on a DM-36 (unverified).
 
 ## 6. Bluetooth module
 
-The proposed host-stream transport is specified in [Bluetooth module host transport](bt-module-transport.md).
+The host-tested envelope driver and remaining host-stream integration are specified in [Bluetooth module host transport](bt-module-transport.md).
 
 The shielded module is marked `ET25SE` and contains a Jieli chip. FCC reports cover BLE and BR/EDR. Nearby pads are
 labeled `UART0_RXD`, `UART0_TXD`, `LINEOUT`, and `AF_BIAS` (photo), (reported).
+
+`CONFIG_BT_MODULE_TRANSPORT=y` supplies `board.bt_module` and `CAP_BT_DATA`, UART3 at 115200,
+and GPIO `0x30` active high. It remains off by default. The cable stays selected and no module is powered
+just by building the switch. The descriptor uses a 20-byte TX profile, accepts a nonempty version string,
+and has no data-profile token yet. Startup/off delays of 350 ms are provisional policy, not a conversion
+of the measured stock delay ticks. UART3 mux selection and physical traces need `rf-cmh.7` verification.
+
+The driver-lane build used 208,608 bytes of static RAM with the switch off and 210,688 with it on,
+out of 211,456 bytes. The on build retains the descriptor and UART ring but discards the unused decoded
+adapter. Its 768-byte headroom is not enough to add the current adapter state statically. Before selecting
+Bluetooth, allocate its state within a verified RAM budget and implement host protocol/gateway teardown;
+the successful descriptor-only build does not qualify an active transport image.
 
 ### 6.1 SoC link
 

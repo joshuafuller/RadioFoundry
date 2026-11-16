@@ -146,6 +146,7 @@ is `tools/bringup.py list --radio <id>`.
 | `nand_storage` | ✕ | ✕ | ✕ | not recorded | ✕ | ✕ | ✕ | ✕ |
 | `codec_check` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | pass, needs re-run | not recorded |
 | `audio_probe` | not written | off | not written | not written | not written | off | off | not written |
+| `bt_module_transport` | off | off | off | off | off | off | off | off |
 <!-- end generated -->
 
 What the records don't hold yet: limits and known problems from the bring-up pages.
@@ -214,6 +215,7 @@ clock`; ? = not known yet). No driver reads the clock yet ([radio-features.md](s
 | `HOSTLINK` | ● | ● | ● | ● | ● | ● | ● | ● |
 | `USB_NETWORK` | ✕ | ● | ✕ | ✕ | ● | ● | ● | ✕ |
 | `NET_PPP` | ● | ○ | ● | ● | ○ | ○ | ○ | ● |
+| `BT_MODULE_TRANSPORT` | ○ | ○ | ○ | ○ | ○ | ○ | ○ | ○ |
 | `HOTSPOT` | ● | ● | ● | ● | ● | ● | ● | ● |
 | `HOTSPOT_SPLIT` | ● | ● | ● | … | … | ● | ● | ● |
 | `DEBUGLINK` | ● | ● | ● | ● | ● | ● | ● | ● |

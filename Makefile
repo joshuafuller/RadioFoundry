@@ -72,6 +72,10 @@ MCU_DEFS += -DRFOUNDRY_HWOPTS=$(if $(filter y,$(BOARD_HWOPTS)),1,0)
 BUILD := build/$(BOARD)$(if $(VARIANT),-$(VARIANT))$(OPTION_SUFFIX)
 TARGET := $(BUILD)/rfoundry_$(BOARD)$(OPTION_SUFFIX)
 
+ifeq ($(CONFIG_BT_MODULE_TRANSPORT),y)
+BOARD_DIRS += drivers/bt/atmodule
+endif
+
 CORE_DIRS := core/app core/radio core/ui core/input core/codeplug core/settings core/storage
 ifeq ($(CONFIG_DMR),y)
 CORE_DIRS += core/dmr/call core/dmr/ambe core/dmr/fec

@@ -1488,3 +1488,12 @@ run-webctlassets: httpAssetsTestWebctl
 	./httpAssetsTestWebctl out/http_webctl
 	python3 -I $(ROOT)/tools/gen_http_assets.py --check out/http_webctl $(WEBCTL_ASSETS)
 .PHONY: run-webctlassets
+
+ATMODULE_SRC := $(ROOT)/drivers/bt/atmodule/atmodule.c $(ROOT)/drivers/bt/atmodule/atmodule_stream.c
+TESTS += atmoduleTest
+atmoduleTest: atmoduleTest.c $(ATMODULE_SRC) $(ROOT)/drivers/bt/atmodule/atmodule.h fuzz.h
+	$(CC) $(CFLAGS) -Werror -I$(ROOT)/hal -o $@ atmoduleTest.c $(ATMODULE_SRC)
+run: run-atmodule
+run-atmodule: atmoduleTest
+	./atmoduleTest
+.PHONY: run-atmodule

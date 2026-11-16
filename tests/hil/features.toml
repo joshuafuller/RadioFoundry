@@ -498,3 +498,9 @@ source = ["tools/rfoundry/rfoundry"]
 [feature.audio_probe]
 switch = "AUDIO_PROBE"
 spec = "docs/spec/usb-audio.md"
+
+[feature.bt_module_transport]
+switch = "BT_MODULE_TRANSPORT"
+spec = "docs/spec/bt-module-transport.md"
+source = ["drivers/bt/atmodule", "platform/hrc7000/uart_module.c"]
+manual = ["Owner-authorized rf-cmh.7: verify identity, UART framing, pairing, byte carriage, stalls and reconnect before selecting this host stream."]
