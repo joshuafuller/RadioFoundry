@@ -27,7 +27,6 @@ static bool rx_ext_on;
 #endif
 #include "bands.h"
 #include "../dm32/board_keys.h"
-#define BOARD_EXTRA_CAPS CAP_VOLUME_ENCODER
 #if CONFIG_BT_MODULE_TRANSPORT
 static void bt_enable(bool on)
 {

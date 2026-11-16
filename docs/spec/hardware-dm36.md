@@ -98,7 +98,7 @@ are below.
 | PWM0, `0x140C0000` | LCD backlight on GPIO `0x0F`; same as the DM-32UV (measured from dump) |
 | ADC, `0x140D0000` | Battery and other analog inputs. The volume knob is not an ADC input (measured from dump) |
 | DAC, `0x140F0000` | PA/APC analog drive and one unresolved analog control; same arrangement as the DM-32UV (measured from dump) |
-| GPIO B, vector 46 | Volume-encoder interrupts and other GPIO B inputs (measured from dump) |
+| GPIO B, vector 46 | Channel-knob encoder interrupts and other GPIO B inputs (measured from dump; knob identified on the radio) |
 | i8080 LCD, `0x12000000` | 8-bit display bus (measured from dump) |
 
 UART register layout, divisor calculation, FIFO setup, and 8N1 configuration are described in the
@@ -133,7 +133,7 @@ are `0x40–0x5F` (measured from dump).
 | `0x23` | PTB3 | UHF PA select | output, high on | same as the DM-32UV (measured from dump) |
 | `0x24` | PTB4 | UHF LNA / RX supply | output, high on | same as the DM-32UV (measured from dump) |
 | `0x25` | PTB5 | Unknown input/control | unresolved | touched by stock logic (measured from dump), (unverified) |
-| `0x26/0x27` | PTB6/7 | Volume encoder B/A | inputs with GPIO B interrupts | (measured from dump) |
+| `0x26/0x27` | PTB6/7 | Channel-knob encoder B/A | inputs with GPIO B interrupts | (measured from dump) |
 | `0x28` | PTB8 | Keypad backlight | output, high on | same as the DM-32UV (measured from dump) |
 | `0x29` | PTB9 | Unknown input | unresolved | touched by stock logic (measured from dump), (unverified) |
 | `0x2B` | PTB11 | PTT | input, low pressed | same as the DM-32UV (measured from dump) |
@@ -196,7 +196,13 @@ values otherwise match the values above (measured from dump).
 
 ## 5. Controls
 
-### 5.1 Volume encoder
+### 5.1 Channel-knob encoder
+
+On the owner's radio (2026-11-16) the encoder on `0x26/0x27` is the channel knob, not the volume/power knob: with it
+routed to volume, turning the channel knob changed the volume and the volume knob did nothing. The stock firmware's
+use of these pins for its volume value below is kept as read from the dump; how the volume/power knob reaches the SoC
+is measured on the radio (section 9.3).
+
 
 The volume knob is a quadrature encoder, not a potentiometer read by the ADC. A is GPIO `0x27`; B is GPIO `0x26`.
 Both are GPIO B interrupt inputs on vector 46 (measured from dump).

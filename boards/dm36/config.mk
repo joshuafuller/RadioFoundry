@@ -1,10 +1,9 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 The RadioFoundry Authors
-CONFIG_VOLUME_ENCODER ?= y
 include boards/dm32/config.mk
-BOARD_UNSUPPORTED := $(filter-out VOLUME_ENCODER,$(BOARD_UNSUPPORTED))
 CONFIG_GPS ?= n
 BOARD_UNSUPPORTED += GPS # no GPS module in the photos or manual
+BOARD_UNSUPPORTED += VOLUME_ENCODER # the encoder is the channel knob (hardware-dm36.md 5.1)
 BOARD_NOT_WRITTEN += VIBRATE # motor drive pin unknown
 BOARD_UNSUPPORTED += GPS_SKY # no GPS receiver
 BOARD_UNSUPPORTED += NAND_STORAGE # data flash is SPI NOR
