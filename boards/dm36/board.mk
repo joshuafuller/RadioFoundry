@@ -15,3 +15,6 @@ LDSCRIPT := boards/dm36/memory.ld
 APP_BASE := 0x0300C000
 # No persistent write region has been established (hardware-dm36.md 10).
 MCU_DEFS += -DBOARD_FLASH_READ_ONLY
+# The volume/power knob's pot wiper is on ADC0_IN / PTC15 (measured on the radio, hardware-dm36.md 9.3): the
+# shared knob reader (the knob-mod path of the reused sources) drives the firmware volume and the volume bar
+MCU_DEFS += -DRFOUNDRY_KNOB_ADC0=1

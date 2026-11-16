@@ -492,6 +492,12 @@ volume-level threshold (measured from dump). Electrical gain in dB remains unver
 
 ### 9.3 ADC and DAC
 
+**Volume/power knob (measured on the owner's radio, 2026-11-16).** The knob is a potentiometer whose wiper reaches
+ADC0_IN / PTC15: with PTC15 still a GPIO input it read low with the knob fully down and high fully up, while the
+encoder pins and the battery channel did not change. RadioFoundry selects ADC0_IN (IO_DIPLEX2 bit 19 clear) and reads
+the knob as a percentage. The raw value at the top of the travel is not yet measured (the reader assumes about 1000
+counts of 1023).
+
 The HR_C7000 ADC is 10-bit with eight channels, as described in the
 [DM-32UV ADC section](hardware-dm32.md#37-adc-0x140d0000) (measured from dump). The volume control does not use an
 ADC channel (measured from dump). Battery channel and voltage scaling were not independently established for the
