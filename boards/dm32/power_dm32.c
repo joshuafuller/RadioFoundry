@@ -3,7 +3,7 @@
 // DM-32UV power latch and switch, battery on ADC channel C, status LEDs (docs/spec/hardware-dm32.md 3.7, 6.4, 6.5).
 // The volume knob isn't read by any firmware seen (it is on the audio amplifier), so volume() is -1.
 #include "dm32.h"
-#include "pins.h"
+#include <pins.h>
 #include "platform.h"
 #include "hal_time.h"
 #include "power/battery/battery.h"

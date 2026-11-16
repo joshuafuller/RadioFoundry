@@ -4,7 +4,7 @@
 // The keypad rows are LCD DB0-DB4: a scan takes them back from the LCD controller under the LCD bus lock. SK1 / SK2
 // pull columns 3 / 4 low with no row driven (keymatrix.h).
 #include "dm32.h"
-#include "pins.h"
+#include <pins.h>
 #include "platform.h"
 #include "hal_time.h"
 #include "input/keymatrix/keymatrix.h"

@@ -7,7 +7,7 @@
 // interrupts off (the bus's crit_enter); a frame takes about 50 us.
 #include "dm32.h"
 #include "config.h"
-#include "pins.h"
+#include <pins.h>
 #include "platform.h"
 #include "hal_time.h"
 #include "rf/fd6818/fd6818.h"

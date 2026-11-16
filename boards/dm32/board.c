@@ -4,7 +4,7 @@
 #include "board.h"
 #include "config.h"
 #include "dm32.h"
-#include "pins.h"
+#include <pins.h>
 #include "platform.h"
 #include "hrc_afsk.h"
 #include "hrc_bcast.h"
@@ -92,7 +92,12 @@ static void io_init(void)
 	hrc_pin_out(PIN_LED_GREEN, false);
 	hrc_pin_out(PIN_KEY_BACKLIGHT, false);
 	hrc_pin_out(PIN_LCD_BACKLIGHT, false);
+#ifdef PIN_GPS_POWER
 	hrc_pin_out(PIN_GPS_POWER, !GPS_POWER_ON_LEVEL);	// GPS off until something wants it
+#endif
+#ifdef PIN_BT_ENABLE
+	hrc_pin_out(PIN_BT_ENABLE, false);
+#endif
 	hrc_pin_out(PIN_LCD_RESET, true);
 	hrc_pin_out(PIN_LCD_RD, true);
 	for (uint8_t r = 0; r < KEY_ROWS; r++) {
@@ -148,7 +153,11 @@ static const hal_flash_map_t flash_map = {
 };
 static const hrc_flash_cfg_t flash_cfg = {
 	.cs_pin = PIN_FLASH_CS,
+#ifdef BOARD_FLASH_READ_ONLY
+	.write_floor = UINT32_MAX,	// no writable region established for this board
+#else
 	.write_floor = 0x700000u,	// hardware-dm32.md 10.1
+#endif
 	.map = &flash_map,
 };
 
