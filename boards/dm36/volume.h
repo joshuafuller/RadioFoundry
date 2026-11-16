@@ -2,22 +2,17 @@
 // Copyright (c) 2026 The RadioFoundry Authors
 #ifndef BOARD_VOLUME_H
 #define BOARD_VOLUME_H
+#include "radio/radio.h"	// RADIO_VOLUME_MAX
 
-// hardware-dm36.md 9.1: levels 8-10 saturate at 7; level 0 is muted by the shared amplifier gate.
-static unsigned volume_index(unsigned step)
-{
-	return step == 0 ? 0 : step > 7 ? 6 : step - 1;
-}
+// The volume/power knob is read on ADC0 and is not in the audio path (hardware-dm36.md 9.3): the firmware sets the gain
+#define BOARD_KNOB_DIGITAL
 
+// FM: the FD6818 AF gain field (register 0x48 bits 3:0, the upper bits as stock, hardware-dm36.md 9.1) spread evenly
+// over the core's steps, 1 at the lowest audible step to 15 at the top; step 0 is muted by the amplifier gate. DMR keeps
+// the shared HR_C7000 line-out curve
 static uint16_t board_volume_fm(unsigned step)
 {
-	static const uint8_t gain[] = { 2, 4, 6, 8, 12, 14, 15 };
-	return 0xB280u | gain[volume_index(step)];
-}
-
-static uint8_t board_volume_codec(unsigned step)
-{
-	static const uint8_t gain[] = { 0x8B, 0x86, 0x81, 0xB7, 0xB5, 0xB3, 0xB1 };
-	return gain[volume_index(step)];
+	unsigned s = step > RADIO_VOLUME_MAX ? RADIO_VOLUME_MAX : step;
+	return (uint16_t)(0xB280u | (s == 0 ? 1u : 1u + (s - 1u) * 14u / (RADIO_VOLUME_MAX - 1u)));
 }
 #endif

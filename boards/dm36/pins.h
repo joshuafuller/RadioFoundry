@@ -10,8 +10,8 @@
 #define BAT_RAW_PER_10V          832u
 
 // The volume/power knob on ADC0 is an audio-taper pot that tops out near raw 670 (measured 2026-11-16, hardware-dm36.md
-// 9.3): its raw reading at 0, 10, ... 100 % of travel, a standard 10 %-at-half taper scaled to 670. Refine from a sweep
-#define KNOB_CURVE { 0, 4, 10, 20, 36, 61, 100, 163, 263, 420, 660 }
+// 9.3): its raw reading at 0, 10, ... 100 % of travel, fitted to the sweep (3 % at a quarter, 12 % at half). Refine from a finer sweep
+#define KNOB_CURVE { 0, 6, 15, 29, 50, 80, 126, 194, 295, 446, 660 }
 
 #undef PIN_GPS_RXD
 #undef PIN_GPS_POWER

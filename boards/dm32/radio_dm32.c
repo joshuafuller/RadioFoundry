@@ -723,12 +723,12 @@ static void volume(uint8_t percent)
 	if (step > RADIO_VOLUME_MAX) {
 		step = RADIO_VOLUME_MAX;
 	}
-#if RFOUNDRY_KNOB_ADC0
+#if RFOUNDRY_KNOB_ADC0 && !defined(BOARD_KNOB_DIGITAL)
 	step = RADIO_VOLUME_DEFAULT;	// the knob already sets the amplifier: the chip stays at full gain under it
 #endif
 	vol_muted = step == 0;
 	vol_step = (uint8_t)step;
-#ifdef BOARD_VOLUME_HEADER
+#ifdef BOARD_VOLUME_CODEC
 	uint8_t code = board_volume_codec(step);
 #else
 	uint8_t code = hrc7000_dac_code(hrc7000_volume_db(step, RADIO_VOLUME_DEFAULT, RADIO_VOLUME_MAX, 12));

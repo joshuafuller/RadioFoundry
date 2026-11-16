@@ -9,6 +9,6 @@ run-boards:: receiveOnlyTest
 
 TESTS += preflashTest
 preflashTest: $(HERE)preflashTest.c $(HERE)../io_init.h $(HERE)../volume.h $(HERE)../pins.h $(ROOT)/drivers/input/quadrature/quadrature.c fuzz.h
-	$(CC) $(CFLAGS) -I$(dir $<).. -I. -o $@ $< $(ROOT)/drivers/input/quadrature/quadrature.c
+	$(CC) $(CFLAGS) -I$(dir $<).. -I. -I$(ROOT)/hal -o $@ $< $(ROOT)/drivers/input/quadrature/quadrature.c
 run-boards:: preflashTest
 	./preflashTest
