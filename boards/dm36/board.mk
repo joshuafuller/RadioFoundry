@@ -3,6 +3,9 @@
 # Board wiring and layout: docs/spec/hardware-dm36.md.
 include boards/dm32/board.mk
 BOARD_DIRS := boards/dm36 $(BOARD_DIRS)
+# The inherited knob-mod option doesn't apply: this knob is an encoder (hardware-dm36.md 5.1)
+BUILD_OPTIONS :=
+KNOB_VALUES :=
 MCU_DEFS += -DBOARD_EXTERNAL_DESCRIPTOR -Iboards/dm36 -Iboards/dm32
 LDSCRIPT := boards/dm36/memory.ld
 # Preserve the 48 KiB stock bootloader (hardware-dm36.md 2).
