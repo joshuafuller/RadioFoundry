@@ -50,6 +50,10 @@ If the radio runs a RadioFoundry build with the loader option, you do not need t
    yellow as above.
 4. When it is done, restart the radio with the next section.
 
+For a board whose profile uses a first stage, `--write-app` refuses an application-only image when that stage is
+already installed. Use the `_install.bin` image to preserve it. `--replace-stage` explicitly overrides this guard.
+Boards without a first stage are not subject to this signature check: a stock application can share its first word.
+
 ## Install a RadioFoundry build without entering the bootloader
 
 For a radio that already runs a RadioFoundry build with the loader option (`CONFIG_STUB_ENTRY=y`). No key presses, no

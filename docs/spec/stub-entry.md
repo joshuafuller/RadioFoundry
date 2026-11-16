@@ -17,6 +17,11 @@ debug link: a build without the debug link still offers it.
 | Platform: span and quiesce-and-jump | `hal_system_t.stub_region / enter_stub / stub_run_addr / stub_image_ok`: the HR_C7000 platform code (`platform/hrc7000`), [stub-stm32f4.md](stub-stm32f4.md) (STM32F4) |
 | Tests | `tests/host/stubEntryTest.c` (state machine), `tests/host/stubLinkTest.c` (wire bytes, both listeners) |
 
+The host tool's application-write guard applies only when the selected board profile declares a first stage
+(derived from `board.mk` `BOOT_*`). If flash starts with the stage signature and the image does not, `stubtool.py`
+requires the install image or an explicit `--replace-stage` override. The signature alone is not evidence of a
+first stage on a board without one; a stock application can start with the same word.
+
 ## 1. Wire format
 
 The stub entry speaks the debug link's framing ([debuglink.md](debuglink.md) 2) and its command `0x1A` STUB with the

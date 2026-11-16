@@ -489,7 +489,19 @@ volume-level threshold (measured from dump). Electrical gain in dB remains unver
 The HR_C7000 ADC is 10-bit with eight channels, as described in the
 [DM-32UV ADC section](hardware-dm32.md#37-adc-0x140d0000) (measured from dump). The volume control does not use an
 ADC channel (measured from dump). Battery channel and voltage scaling were not independently established for the
-DM-36; the DM-32UV channel C / ADC2 scale is a bring-up hypothesis only (unverified).
+DM-36; channel C / ADC2 remains a bring-up hypothesis (unverified).
+
+The 2026-11-16 bring-up reported `diag` battery raw 854 and 10260 mV with the inherited scale. This exceeds the
+approximately 8400 mV full voltage of the nominal 7400 mV two-cell Li-ion pack. `BAT_RAW_PER_10V` in
+`boards/dm36/pins.h` is an **unverified placeholder**, still 832 ADC counts per 10 V. It preserves the inherited
+conversion, not a calibrated reading. No precise replacement can be inferred from nominal or full pack voltage;
+the voltage display and battery percentage remain unreliable until measured.
+
+To calibrate, leave the radio on at idle and measure the pack voltage at its terminals with a meter. At the same
+time record the diagnostics (`diag`) line `bat <raw> <mV>`. Use that meter reading in millivolts to calculate
+`BAT_RAW_PER_10V = round(raw * 10000 / meter_mV)`. Replace only the DM-36 constant, record the raw count, meter
+voltage and date here, then rebuild. After the battery average settles, compare `diag` mV with the meter again.
+One paired reading establishes the scale at that voltage; it does not verify ADC linearity across the pack range.
 
 DAC B supplies PA/APC bias. PA-select GPIOs remain separate. The exact DAC calibration values and the purpose of
 the other enabled analog output have not been measured on this board (measured from dump), (unverified).
