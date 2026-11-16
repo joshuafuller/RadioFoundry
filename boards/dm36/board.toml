@@ -37,6 +37,16 @@ keys = "PTT + SK1 (reported)"
 steps = ["Build only: do not flash; the update container and recovery are unverified."]
 id = "BFUV36-V1"
 
+# The universal HR_C7000 stub's board profile: the radio's backup was read through it (hardware-dm36.md 2); no
+# data flash write test region until a writable area is established (hardware-dm36.md 10)
+[flash.stub]
+id = 4
+hold_power = false
+progmem = 0x100000
+tested = false
+# assumed from the shared translation layer (hardware-dm36.md 10); read only, unconfirmed on a DM-36
+calibration = { area = 0xC9000, page_id = 2 }
+
 [codec]
 tool = "hrc7000_codec"
 profile = "dm36-unverified"

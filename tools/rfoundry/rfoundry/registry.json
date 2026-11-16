@@ -639,7 +639,20 @@
    "dfu_layout": null,
    "original_version": null,
    "original_backup": null,
-   "stub": null,
+   "stub": {
+    "tool": "stubtool",
+    "id": 4,
+    "tested": false,
+    "latch": 255,
+    "key": 255,
+    "nand": false,
+    "progmem": 1048576,
+    "stock_console": null,
+    "calibration": {
+     "area": 823296,
+     "page_id": 2
+    }
+   },
    "build_options": [],
    "cps_radio_types": []
   },
