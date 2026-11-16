@@ -503,4 +503,4 @@ spec = "docs/spec/usb-audio.md"
 switch = "BT_MODULE_TRANSPORT"
 spec = "docs/spec/bt-module-transport.md"
 source = ["drivers/bt/atmodule", "platform/hrc7000/uart_module.c"]
-manual = ["Owner-authorized rf-cmh.7: verify identity, UART framing, pairing, byte carriage, stalls and reconnect before selecting this host stream."]
+manual = ["Owner-authorized bench check: verify identity, UART framing, pairing, byte carriage, stalls and reconnect before selecting this host stream."]

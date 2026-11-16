@@ -251,7 +251,7 @@ labeled `UART0_RXD`, `UART0_TXD`, `LINEOUT`, and `AF_BIAS` (photo), (reported).
 and GPIO `0x30` active high. It remains off by default. The cable stays selected and no module is powered
 just by building the switch. The descriptor uses a 20-byte TX profile, accepts a nonempty version string,
 and has no data-profile token yet. Startup/off delays of 350 ms are provisional policy, not a conversion
-of the measured stock delay ticks. UART3 mux selection and physical traces need `rf-cmh.7` verification.
+of the measured stock delay ticks. UART3 mux selection and physical traces need verification on the radio (the pass-through test, section 6.6).
 
 The driver-lane build used 208,608 bytes of static RAM with the switch off and 210,688 with it on,
 out of 211,456 bytes. The on build retains the descriptor and UART ring but discards the unused decoded

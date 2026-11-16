@@ -3,7 +3,7 @@
 
 # Bluetooth module host transport
 
-Design for bead `rf-cmh.2`, with the shared envelope driver implemented by `rf-cmh.9`.
+Design of the host-stream transport; the shared envelope driver implements it (`drivers/bt/atmodule/`).
 This is host-tested software, not a measured Bluetooth host link. An external AT-command module
 terminates Bluetooth and carries an ordered host byte stream over a 115200 UART. Its binary `DATA` envelope is
 separate from the host protocol. Board hardware pages supply the wiring and module evidence; see the
@@ -248,7 +248,7 @@ Remaining integration and bench plan:
    reconnect with fresh negotiation and absence of old traffic. Add a separate KISS/debug stream case through
    host dispatch; the current lab does not execute that dispatcher. A synthetic RX grammar must be named as such.
    These tests prove software against the model, not GATT negotiation, pairing or phone compatibility.
-3. **On-radio pass-through, `rf-cmh.7`.** Owner-authorized bench work first records the ten measurements above
+3. **On-radio pass-through.** Owner-authorized bench work first records the ten measurements above
    through the module UART and a controlled phone peer. Establish exact envelopes and lossless binary carriage
    before PPP/KISS. Then run bounded bidirectional byte patterns, PPP negotiation/local ping, debug over UDP,
    KISS framing without RF, disconnect during a frame, phone stalls and reconnect without replay. Record module
