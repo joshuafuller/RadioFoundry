@@ -64,6 +64,20 @@ The dump shows the same HR_C7000 architecture but does not electrically verify e
 The application sets vector base `0x00010000`. The memory-mapped peripheral ranges and shared PCM buffers are the
 same as the [DM-32UV memory map](hardware-dm32.md#2-memory-map) (measured from dump).
 
+### 2.1 Stock boot decision
+
+The bootloader samples PTT on GPIO `0x2B` and a second boot key on GPIO `0x29`. Both inputs must be low to enter
+the updater. If either input is high, execution transfers directly to `0x0300C000` (measured from dump). The
+updater initially drives the red and green LEDs low, so both are off; it does not initialize the display
+(measured from dump). The display state inherited from power-on is unverified.
+
+There is no installed-application magic-word, header, length, checksum, CRC, program-flash flag, data-flash flag,
+or signature check before that transfer (measured from dump). The CRC-16 check belongs only to blocks received
+during an update (measured from dump). Therefore, the only bootloader-enforced image condition is executable
+CK803S code at `0x0300C000` (measured from dump). A blank, corrupt, or incompatible application is still entered;
+its subsequent fault, hang, or visible state is unverified, and the bootloader does not automatically remain in
+update mode (measured from dump).
+
 The dump does not separate proprietary codec code from the other copied modem/voice material. Do not reserve a
 smaller codec subrange from this evidence alone (unverified).
 
@@ -143,6 +157,43 @@ are `0x40–0x5F` (measured from dump).
 Pins not listed above have no board assignment established by the dump (unverified). The application uses the same
 GPIO-bank register layout as the [DM-32UV](hardware-dm32.md#39-gpio-banks-and-the-pin-index-scheme) (measured from dump).
 
+### 4.1 Boot mux, pulls, directions, and levels
+
+The common register setup matches the DM-32UV except that UART3 selection clears bit 20 of `IO_DIPLEX1`
+(measured from dump). The values below include the later per-pin direction changes made during application
+initialization (measured from dump).
+
+| Register | DM-36 final value | DM-32UV value | Evidence |
+|---|---:|---:|---|
+| `IO_DIPLEX0` | `0xFFFDFD80` | `0xFFFDFD80` | (measured from dump) |
+| `IO_DIPLEX1` | `0xFFEFFE07` | `0xFFFFFE07` | (measured from dump) |
+| `IO_DIPLEX2` | `0x0FC80100` | `0x0FC80100` | (measured from dump) |
+| `IOMGR_REN_REG0` | `0xFEFBFFEF` | `0xFEFBFFEF` after masking | (measured from dump) |
+| `IOMGR_REN_REG1` | `0x00FFFFFF` | `0x00FFFFFF` | (measured from dump) |
+| `IOMGR_REN_REG2` | `0x0FFFFF70` | `0x0FFFFF70` after masking | (measured from dump) |
+| final `GPIOA_DDR` | `0x270604E0` | `0x070604E0` before board-specific pin setup | (measured from dump) |
+| final `GPIOB_DDR` | `0x23A0D01F` | `0x00A0D01F` before board-specific pin setup | (measured from dump) |
+| final `GPIOC_DDR` | `0x00047FC4` | `0x00007FC4` before board-specific pin setup | (measured from dump) |
+
+The requested DM-36-specific pins have these states after their observed initialization. “Input” means the
+firmware does not drive an initial level; the external sampled level was not captured (unverified).
+
+| GPIO | Stock direction | Initial driven level | DM-32UV comparison | Evidence |
+|---|---|---|---|---|
+| `0x19` | output | low | no corresponding DM-32UV initialization | (measured from dump) |
+| `0x1A` | output | low | no corresponding DM-32UV initialization | (measured from dump) |
+| `0x1D` | output | high | no corresponding DM-32UV initialization | (measured from dump) |
+| `0x25` | input | not driven; sampled level unverified | no corresponding DM-32UV assignment | (measured from dump), (unverified) |
+| `0x29` | input | not driven; low is the boot-key asserted state; sampled level unverified | no corresponding DM-32UV assignment | (measured from dump), (unverified) |
+| `0x36` | input | not driven; sampled level unverified | no corresponding DM-32UV assignment | (measured from dump), (unverified) |
+| `0x38` | output | low | no corresponding DM-32UV assignment | (measured from dump) |
+| `0x39` | output | high | no corresponding DM-32UV assignment | (measured from dump) |
+| `0x3D` | output | high | no corresponding DM-32UV assignment | (measured from dump) |
+| `0x52` | output | low | no corresponding DM-32UV assignment | (measured from dump) |
+
+The DM-32UV document has none of these ten board-specific assignments; its common mux, pull, and initial DDR
+values otherwise match the values above (measured from dump).
+
 ## 5. Controls
 
 ### 5.1 Volume encoder
@@ -151,8 +202,11 @@ The volume knob is a quadrature encoder, not a potentiometer read by the ADC. A 
 Both are GPIO B interrupt inputs on vector 46 (measured from dump).
 
 The stock input path records transitions in the interrupt handler and consumes direction events in its foreground
-input task. It does not sample the knob at a fixed frequency. A 10-tick filter/countdown is present, but the dump
-does not establish that tick's wall-clock duration (measured from dump), (unverified).
+input task. It does not sample the knob at a fixed frequency. Two complementary quadrature transitions produce
+one direction event and one volume step, so the stock count is two transitions per detent (measured from dump).
+With A on `0x27` and B on `0x26`, B leading A is volume up and A leading B is volume down (measured from dump).
+Whether B-leading-A is physically clockwise on the fitted encoder is unverified. A 10-tick filter/countdown is
+present, but the dump does not establish that tick's wall-clock duration (measured from dump), (unverified).
 
 Normal speaker volume is an integer from 1 through 10. One accepted direction event changes it by one. The value
 wraps at both ends and the same integer is sent to the on-screen volume display. The dB gain represented by each
@@ -394,9 +448,26 @@ established by the dump (measured from dump).
 | DMR PCM | Shared SRAM and codec interrupt model are the same as the DM-32UV (measured from dump) |
 | Prompts | 59 RIFF/WAVE objects in data flash (measured from dump) |
 
-The detailed on-chip codec init register values are assumed to be the same as the
-[DM-32UV codec setup](hardware-dm32.md#91-internal-audio-codec-registers-byte-registers-at-0x160009c0--offset)
-(unverified).
+The stock volume ladder has seven distinct hardware settings. User levels 8–10 saturate at the level-7 hardware
+setting (measured from dump). For FM, the table byte becomes the low gain field in FD6818 register `0x48`; the
+fixed upper bits produce the words below (measured from dump). For DMR, the table byte is converted to the codec
+line-out byte written at codec offset `0x1F` (measured from dump).
+
+| User level | FM table byte | FD6818 register `0x48` word | DMR table byte | Codec line-out byte | Evidence |
+|---:|---:|---:|---:|---:|---|
+| 1 | `0x02` | `0xB282` | `0x14` | `0x8B` | (measured from dump) |
+| 2 | `0x04` | `0xB284` | `0x19` | `0x86` | (measured from dump) |
+| 3 | `0x06` | `0xB286` | `0x1E` | `0x81` | (measured from dump) |
+| 4 | `0x08` | `0xB288` | `0x28` | `0xB7` | (measured from dump) |
+| 5 | `0x0C` | `0xB28C` | `0x2A` | `0xB5` | (measured from dump) |
+| 6 | `0x0E` | `0xB28E` | `0x2C` | `0xB3` | (measured from dump) |
+| 7 | `0x0F` | `0xB28F` | `0x2E` | `0xB1` | (measured from dump) |
+| 8 | `0x0F` | `0xB28F` | `0x2E` | `0xB1` | (measured from dump) |
+| 9 | `0x0F` | `0xB28F` | `0x2E` | `0xB1` | (measured from dump) |
+| 10 | `0x0F` | `0xB28F` | `0x2E` | `0xB1` | (measured from dump) |
+
+None of user levels 1–10 switches off the audio amplifier. GPIO `0x35` is gated by audio-path state, not by a
+volume-level threshold (measured from dump). Electrical gain in dB remains unverified.
 
 ### 9.2 LEDs, backlights, vibration, and power
 
@@ -442,9 +513,37 @@ geometry are expected to follow the [DM-32UV data-flash interface](hardware-dm32
 | `0x6DC000–0x6E7FFF` | Sparse radio-owned sectors; schema unknown | (measured from dump) |
 | `0x6E8000–0xFFFFFF` | Erased in this owner's radio | (measured from dump) |
 
-The translation-layer organization is the same as the DM-32UV. Treat the calibration page as logical ID 2 and use
-the [shared calibration layout and formulas](hardware-dm32.md#11-factory-calibration) only after confirming it on a
-DM-36 (measured from dump), (unverified). Preserve all radio-owned pages and unknown regions.
+### 10.1 Factory calibration page
+
+Exactly one 4 KiB codeplug-pool page has logical block ID `2` in its last byte. It starts at data-flash offset
+`0x00078000` (measured from dump). Its header and three fragments reconstruct the same `0x175`-byte calibration
+image and field offsets specified by [DM-32UV section 11](hardware-dm32.md#11-factory-calibration) (measured from
+dump).
+
+| Table | Five decoded frequencies | Assessment | Evidence |
+|---|---|---|---|
+| UHF table 1 | 400.000, 417.500, 435.500, 452.500, 470.000 MHz | sane values inside the 400–480 MHz band | (measured from dump) |
+| UHF table 2 | 400.000, 417.500, 435.500, 452.500, 470.000 MHz | sane values inside the 400–480 MHz band | (measured from dump) |
+| VHF table 1 | 136.000, 145.500, 155.500, 164.500, 174.000 MHz | sane values spanning the 136–174 MHz band | (measured from dump) |
+| VHF table 2 | 136.000, 145.500, 155.500, 164.500, 174.000 MHz | sane values spanning the 136–174 MHz band | (measured from dump) |
+
+There is no second ID-2 page in the 200-page pool. The stock first-match scan therefore selects the sole page at
+`0x00078000`; there is no duplicate-page ordering ambiguity in this dump (measured from dump).
+
+### 10.2 Stock write areas and first-write rule
+
+The stock page manager can erase and rewrite physical pages anywhere in `0x001000–0x0C8FFF` while updating
+codeplug-backed settings, including the current channel and volume (measured from dump). A logical page must not be
+treated as fixed to the physical offset seen in one snapshot because the pool is wear-levelled (measured from
+dump).
+
+The dump contains sparse radio-owned data at `0x6DC000–0x6E7FFF`, but static analysis did not establish the complete
+normal-use allocator or prove whether those sectors are logs, recordings, or another journal (unverified). No
+normal-use erase/write path was proven for the currently erased ranges outside the page pool (unverified). In
+particular, `0x6E8000–0xFFFFFF` being erased in this radio is not evidence that stock firmware never allocates it
+(unverified). Consequently, this dump establishes no data-flash region safe for a first RadioFoundry write;
+persistent writes must remain disabled until write-command traces or a bounded allocator prove a non-overlapping
+range (unverified).
 
 ## 11. Programming and firmware update
 
@@ -472,6 +571,7 @@ software (reported).
 | Application blocks | 1 KiB payloads with block number and complement (measured from dump) |
 | Integrity | CRC-16/CCITT-XMODEM, polynomial `0x1021`, big-endian CRC bytes (measured from dump) |
 | Signature | No public-key or cryptographic-signature verification path was identified (measured from dump) |
+| Installed-image validation | None before the direct transfer to `0x0300C000` (measured from dump) |
 
 The stock updater must preserve `0x03000000–0x0300BFFF` and write the application at `APP_BASE`. The model identity
 differs from the DM-32UV, so a DM-32UV container must not be used (measured from dump).
@@ -485,10 +585,12 @@ that every correctly framed image is safe.
 1. Confirm UART3 PTA13/PTA14 board traces, voltage levels, 8N1 framing, and whether GPIO `0x30` is power, reset, or both.
 2. Capture the module's production GATT database, SPP exposure, MTU, write mode, pacing, bonding, security, version, and OTA behavior.
 3. Trace the module's `LINEOUT` and `AF_BIAS` pads and measure its microphone, speaker, and PTT audio behavior.
-4. Identify GPIO `0x19`, `0x1A`, `0x1D`, `0x25`, `0x29`, `0x36`, `0x38`, `0x39`, `0x3D`, and `0x52` electrically.
-5. Measure speaker gain in dB for volume levels 1–10 and establish the encoder filter tick duration.
+4. Identify GPIO `0x19`, `0x1A`, `0x1D`, `0x25`, `0x29`, `0x36`, `0x38`, `0x39`, `0x3D`, and `0x52` electrically,
+   and establish the sampled reset levels of the input pins.
+5. Measure speaker gain in dB for volume levels 1–10, confirm the encoder's physical clockwise direction, and
+   establish the encoder filter tick duration.
 6. Confirm battery ADC channel/scaling, DAC outputs, factory calibration compatibility, RF lock, PA/LNA switching, and safe power levels.
-7. Decode the unknown data-flash regions and establish a non-overlapping writable area before enabling persistent writes.
+7. Trace every normal-use data-flash erase/program target and establish a non-overlapping writable area before enabling persistent writes.
 8. Obtain a genuine DM-36 update file and verify its outer header, length, host-side identity checks, erase span, and recovery behavior.
 9. Separate codec reservations from the copied modem/voice images before offering a release layout.
 
