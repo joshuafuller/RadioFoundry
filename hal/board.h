@@ -34,7 +34,7 @@ typedef struct {
 } band_t;
 
 enum {
-	CAP_BT_DATA	= 1u << 9,
+	CAP_BT_DATA	= 1u << 10,
 	CAP_KEYPAD	= 1u << 0,
 	CAP_ENCODER	= 1u << 1,
 	CAP_GPS		= 1u << 2,
