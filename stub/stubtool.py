@@ -24,6 +24,7 @@ needs only Python 3 and pyserial.
 import argparse
 import base64
 import hashlib
+import json
 import os
 import re
 import sys
@@ -581,6 +582,21 @@ def jedec_size(id_):
     if 0x10 <= c <= 0x18:
         return 1 << c
     return 0x1000000 if 0x19 <= c <= 0x22 else None
+
+
+def chip_regs(radio):
+    """Read-only JEDEC commands for what a flash image leaves out, per SPI NOR chip (JESD216, the chips' datasheets):
+    status registers 1-3 (05/35/15: protection and lock bits), the unique ID (4B, 4 dummy bytes), the SFDP table (5A)
+    and security registers 0-3 (48, register n at n << 12, one dummy byte; 1 KB each covers every part's size, a chip
+    with smaller registers repeats or returns FF). A command a chip lacks reads FF; nothing here writes."""
+    out = {}
+    for mem in ("progmem", "q128"):
+        base, ser, cs, _, _ = MEM[mem]
+        q = lambda tx, n: radio.spi(base, bytes(tx), n, ser, cs).hex()
+        out[mem] = {"jedec": radio.jedec(mem).hex(), "status": [q([c], 1) for c in (0x05, 0x35, 0x15)],
+                    "unique_id": q([0x4B, 0, 0, 0, 0], 16), "sfdp": q([0x5A, 0, 0, 0, 0], 256),
+                    "secreg": [q([0x48, 0, n << 4, 0, 0], 1024) for n in range(4)]}
+    return out
 
 
 def image_board_check(image, board):
@@ -2200,6 +2216,8 @@ class FakeRadio:
                 self.images[mem] = bytes(img)
                 self.wel = False
                 self.writes.append((mem, tx[0], a))
+            elif tx[:1] in (b"\x35", b"\x15", b"\x4B", b"\x5A", b"\x48"):  # chip_regs' reads: a part without them
+                body = bytes((tx[0] + i) & 0xFF for i in range(rxn))
             elif tx[:1] == b"\x9F":
                 self.id_reads += 1
                 body = bytes([0xC8, 0x40, 0x14 if mem == "progmem" else self.data_code])[:rxn]
@@ -2332,6 +2350,11 @@ def self_test():
         check(r.skipped >= 24, "%s blank sectors skipped (%d)" % (mem, r.skipped))
         check(r.packed > 0, "%s sectors arrived LZ4-compressed (%d)" % (mem, r.packed))
     check(r.retried >= 6, "retries counted (%d)" % r.retried)
+    regs = chip_regs(r)
+    check(regs["q128"]["jedec"] == "c84018" and len(regs["progmem"]["secreg"]) == 4
+          and all(len(bytes.fromhex(s)) == 1024 for s in regs["q128"]["secreg"])
+          and regs["progmem"]["sfdp"].startswith("5a5b"), "chip registers read from both chips")
+    check(not radio.writes, "chip registers: nothing written")
     check(not radio.errors, "radio saw errors: %s" % radio.errors)
     check(radio.data_bytes < (len(prog) + len(data)) * 0.7, "blank sectors stay off the cable (%d bytes)" % radio.data_bytes)
 
@@ -3007,6 +3030,8 @@ def main(argv=None, raise_errors=False):
                     "first. Refused for a locked register. Needs --confirm-secreg")
     ap.add_argument("--confirm-secreg", action="store_true", help="confirm --write-secreg: it rewrites factory data")
     ap.add_argument("--probe", action="store_true", help="chip IDs, a first block of each flash and some registers")
+    ap.add_argument("--chip-regs", metavar="FILE", help="HR_C7000 radios: save what a flash backup leaves out, read only: "
+                    "each SPI NOR chip's status registers, unique ID, SFDP table and security registers, as JSON")
     ap.add_argument("--peek", metavar="ADDR:LEN", help="print LEN bytes of radio memory (hex dump)")
     ap.add_argument("--retries", type=int, default=6)
     ap.add_argument("--wait", type=int, default=120, help="seconds to wait for the radio to be switched on")
@@ -3082,7 +3107,7 @@ def main(argv=None, raise_errors=False):
                 ap.error("--nand needs --nand-range (the chip is 256 MB)")
             jobs.append((mem, f, rng))
     if not (jobs or a.probe or a.peek or a.verify_progmem or a.verify_q128 or a.verify_nand or a.led_test or a.led_seq or a.boot or a.write_test or a.write_app or a.write_q128
-            or a.secreg or a.write_secreg):
+            or a.secreg or a.write_secreg or a.chip_regs):
         ap.error("nothing to do: give --progmem, --q128, --verify-*, --probe, --peek or OUT")
     if (a.secreg or a.write_secreg) and a.board in C7_BOARDS:
         ap.error("--secreg and --write-secreg are for the STM32 radios; the HR_C7000 stub has no security register ops")
@@ -3213,6 +3238,10 @@ def main(argv=None, raise_errors=False):
                 print("%s: erased again, %s" % (MEM[mem][4], "blank" if after == b"\xff" * (hi - lo) else "NOT BLANK"))
                 if after != b"\xff" * (hi - lo):
                     raise DumpError("region not blank after the final erase")
+        if a.chip_regs:
+            with open(a.chip_regs, "w") as f:
+                json.dump(chip_regs(radio), f, indent=1)
+            print("chip registers of both flash chips saved to %s" % a.chip_regs)
         if a.probe:
             for mem in sorted(MEM):
                 print("%-8s JEDEC %s, first 16 bytes %s" % (mem, radio.jedec(mem).hex(), radio.read_flash(mem, 0, 16).hex()))
