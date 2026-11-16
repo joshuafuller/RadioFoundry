@@ -178,6 +178,8 @@ electrical sharing has not been measured on a DM-36 (unverified).
 
 ## 6. Bluetooth module
 
+The proposed host-stream transport is specified in [Bluetooth module host transport](bt-module-transport.md).
+
 The shielded module is marked `ET25SE` and contains a Jieli chip. FCC reports cover BLE and BR/EDR. Nearby pads are
 labeled `UART0_RXD`, `UART0_TXD`, `LINEOUT`, and `AF_BIAS` (photo), (reported).
 
