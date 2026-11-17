@@ -2966,7 +2966,22 @@ __attribute__((noinline)) void ui_draw_volume_bar(const ui_state_t *s, bool top)
 	gfx_hline(0, top ? y0 + bh - 1 : y0, w, ui_col.line);
 	gfx_text(f, 2, y, label, ui_col.fg);
 	gfx_text(f, w - 2 - gfx_text_width(f, num), y, num, ui_col.fg);
-	volume_segments(lw + 6, y + 1, w - lw - nw - 12, f->h - 2, s->volbar);
+	int sx = lw + 6, sw = w - lw - nw - 12, sh = f->h - 2;
+	if (s->volbar_pct < 0) {
+		volume_segments(sx, y + 1, sw, sh, s->volbar);
+		return;
+	}
+	// The knob's own position at full resolution: each segment fills by the pixel as the knob moves through its step,
+	// the number stays the step heard
+	int pitch = sw / RADIO_VOLUME_MAX, gap = pitch >= 6 ? 2 : 1, cw = pitch - gap;
+	sx += (sw - pitch * RADIO_VOLUME_MAX) / 2;
+	int fill = s->volbar_pct * RADIO_VOLUME_MAX * cw / 100;	// filled px across all segments' widths
+	for (int i = 0; i < RADIO_VOLUME_MAX; i++, fill -= cw) {
+		int px = fill < 0 ? 0 : fill > cw ? cw : fill;
+		gfx_rect(sx + i * pitch, y + 1, cw, sh, ui_col.line);
+		if (px > 0)
+			gfx_fill(sx + i * pitch, y + 1, px, sh, ui_col.fg);
+	}
 }
 #endif
 

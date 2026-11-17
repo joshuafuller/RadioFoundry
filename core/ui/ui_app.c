@@ -1864,6 +1864,7 @@ void ui_app_init(void)
 	view = &view_none;
 	memset(&ui_st, 0, sizeof ui_st);
 	ui_st.volbar = -1;
+	ui_st.volbar_pct = -1;
 #if CONFIG_VOLUME_BAR
 	knob_seen = -1;
 #endif
@@ -2354,6 +2355,7 @@ __attribute__((noinline)) static void knob_tick(const radio_view_t *v)
 	int8_t lvl = v->volume_src == RVOL_KNOB ? v->volume : -1;
 	if (lvl >= 0 && knob_seen >= 0 && lvl != knob_seen) {
 		ui_st.volbar = (int8_t)radio_volume_step_of((uint8_t)lvl);
+		ui_st.volbar_pct = lvl;
 		volbar_until = now + VOLUME_MS;
 		wake_req = true;
 		dirty = true;
