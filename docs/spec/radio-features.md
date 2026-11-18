@@ -57,8 +57,9 @@ Requests: `radio_req_scan(cmd)` with stop, zone, VFO, dual, cancel, nuisance or 
 tuned channel or frequency is the core view's as usual.
 
 - **Zone scan** visits the current zone's channels in order, from the one it started on, skipping empty positions and
-  channels marked "zone skip" in the codeplug. FM and DMR channels mix freely: each stop tunes the channel as a
-  channel change would.
+  channels marked "zone skip" in the codeplug. FM, DMR, P25 and NXDN channels mix freely: each stop tunes the
+  channel as a channel change would (P25, NXDN: the engine starts there). Left out: parked channels, P25 trunked
+  channels, and NXDN channels at a rate the board can't receive ([p25.md](p25.md) 7.1, [nxdn.md](nxdn.md) 6.4).
 - **VFO scan** steps the VFO frequency by its step from `lo` to `hi` and wraps. Without a range it sweeps the board
   band the VFO frequency is in. Both ends must be in one band, at least one step apart.
 - **Dual watch** alternates between two channels, skip flags ignored (2.1). `radio_req_scan_dual(pos)` (the debug
@@ -71,14 +72,29 @@ is "active" when FM squelch opens (with the RX tone if the channel needs one) or
 A carrier that isn't active yet earns a probe: 350 ms on FM channels that need a tone (CTCSS detection takes 100 to
 250 ms), 700 ms on DMR; other FM channels move on at once. On DMR a carrier is the noise reading at the squelch level
 or the signal strength at the DMR scale (level 1 above -112 dBm, 3 dB a level: -100 dBm at the default level; some
-receivers' noise reading doesn't follow a DMR signal, [gotchas](gotchas.md) 17.3). A carrier seen in the last 150 ms still counts (direct
+receivers' noise reading doesn't follow a DMR signal, [gotchas](gotchas.md) 17.3). Level 1 is also at least 6 dB above
+the floor: the lowest strength read past the settle on the last 8 stops (the first stop has none), since a strength
+reading that isn't calibrated can sit above the scale on an empty channel ([gotchas](gotchas.md) 17.4). A carrier seen in the last 150 ms still counts (direct
 mode is on air 30 ms in every 60, and the noise reading drops between bursts), and once the modem delivers bursts with
 the channel's color code since the stop's settle ("sync", from `dmr_call_last_activity`, a late entry still waiting for
 its LC included) the probe lasts up to 1.5 s: a call already in progress is taken from its embedded LC, which needs the
 next complete superframe at best and the one after it when the modem's sticky LC equals this call's (about 1.1 s from
 the retune). Each DMR stop on a new frequency restarts the modem's receiver, so it searches from the retune and not on the
 last transmitter's slot timing ([gotchas](gotchas.md) 17.2). A call known not to be for us (another talkgroup) ends
-the probe. Empty channels still move on after the dwell.
+the probe. P25 and NXDN stops read a carrier as DMR does, probe up to 700 ms for a call of the channel's NAC or RAN,
+up to 1.5 s while its squelch waits for a field (a late entry's talk group or group), hold on a call that plays and
+move on from one that doesn't ([p25.md](p25.md) 7.1). Digital monitor on when a zone or VFO scan starts (the hear-all latch, [dmr-voice.md](dmr-voice.md) 1) stays on
+at every stop (`hear_all_latch` in the view), so a call to any talkgroup is played and holds the scan; the channel the
+scan ends on, by STOP, CANCEL or PTT, keeps it latched. Toggling it during the scan turns it on or off for the rest of
+the scan. Dual watch doesn't carry it. Empty channels still move on after the dwell.
+
+**A mixed frequency.** A zone may hold an FM channel and digital channels (DMR, P25, NXDN) on one receive frequency.
+A digital signal can open the FM squelch, and a scan that held the FM stop would sit through the call there and never
+reach the channel that plays it. So before an FM stop holds, the scan checks the zone's digital channels on that
+frequency in zone order, each as a stop with its usual probe (`scan_mixed` in `radio_sm.c`). A call there holds it.
+A stop that heard its own mode (a call not for us included) ends the check, and the sweep goes on from where it was.
+When none heard its mode, the signal was FM: the scan goes back to the FM stop, which holds this time. Trunked
+channels are not stops (above), so they are never checked.
 The view counts the stops probed (`scan_probes`) and those with sync (`scan_synced`) for each scan. Active: the scan holds
 (`scan_phase=hold`), then follows `scan_resume`; after the signal ends it waits `scan_delay_ms` (`resume`) and picks
 up again if the signal comes back. MONITOR held pauses the scan (`paused`).
@@ -120,17 +136,26 @@ VFO during the watch copies into a VFO the other channel isn't on: the one last 
 | `radio_req_scan` stop, cancel or toggle (the debug link) | Ends it on the selected channel and counts it in the view's `dual_stops`: the UI takes it as the user's stop and doesn't start the watch again. The radio has stopped already, so the UI asks for nothing and takes on a watch started right after it at once |
 | `radio_req_dual` with the same pair and the other selected (the debug link's select) | The view's `dual_sel` changes; the UI follows a change it didn't ask for, so the next channel, zone or VFO request changes that channel |
 | A VFO request, a frequency or Copy to VFO with a channel selected | The selected channel goes into a VFO the other channel isn't on: the one last used, else the other one |
+| Typed frequency on a selected VFO pane | OK or # commits it to that pane, even while the receiver listens on the other pane. # opens the dual watch actions only when no frequency is being typed |
 | Power off | The saved position is the selected channel's, wherever the receiver is: the radio powers up there |
 
 `radio_get_dual()` returns the pair, the selected one and the one the receiver is on (the debug link's `dual.a dual.b
 dual.sel dual.at`, [debuglink.md 3.7](debuglink.md#37-get_view)); the view's `dual_busy` is `dual.busy`. `radio_get_vfo(index)` returns a VFO's settings while something else is tuned (a VFO pane). Built without `CONFIG_DUAL_WATCH`
 only the debug link's dual watch is left: two channels of the current zone, and PTT ends it as it ends any scan.
 
+A P25 or NXDN channel (a stored one, or the VFO in that mode) can be either side. The scan's rules apply to it (2): it
+is one only where the board receives that mode at the channel's rate, never as a trunked channel, and a look there
+starts its engine, probes a carrier for up to 700 ms and holds for a call that plays. The air interface runs one engine
+at a time, so with P25 on one side and NXDN on the other each hop stops one engine and starts the other. The UI
+refuses a trunked channel at once; a mode the board can't receive is refused by the radio core, and the watch doesn't
+start. The panes name the mode and show no tone or bandwidth for it, and don't show the caller of a P25 or NXDN call.
+
 ### 2.2 A second receiver
 
 A board with a second receiver sets `board.rx2` (`hal/hal_rx2.h`; the GD-88's second SoC, over the link in
 [rx2-link.md](rx2-link.md)). In dual watch the main receiver then stays on the selected channel and the second one gets
-the other. Nothing alternates, and the scan's hold and resume timing aren't used. The view's `rx2` is 1 while this is
+the other. Nothing alternates, and the scan's hold and resume timing aren't used. It takes FM and DMR only: when the
+channel not selected is P25 or NXDN, the main receiver alternates as in 2.1. The view's `rx2` is 1 while this is
 so (the debug link's `dual.both`).
 
 | Event | What happens |
@@ -151,7 +176,10 @@ second one has its channel: the dual watch screens then show a call on each pane
 
 `tx_check` refuses PTT, before keying: TX inhibit (`inhibit`), a critical battery (`battery`, 5.2), busy channel
 lockout (`busy`; carrier = squelch open or noise below the open threshold; wrong tone = that, while the channel's RX
-tone is not decoded). The deny beep sounds; the state is `tx_denied` until PTT is released.
+tone is not decoded). The deny beep sounds, except for `busy`; the state is `tx_denied` until PTT is released. A
+busy refusal is quiet so the call being received is heard in full: no deny beep (FM and DMR), and on FM a reception
+that was playing plays on while PTT is held (`deny_rx`), until the squelch would have closed. After the release it is
+an ordinary reception again, its RX tone still counted as heard.
 
 The test TX limit (`core/radio/tx_limit.h`, built with `CONFIG_DEBUGLINK`) is a limit a test harness sets over the
 debug link (RADIO op 35, [debuglink.md](debuglink.md) 3.8): block every transmission, or allow only a list of up to 10
@@ -176,6 +204,34 @@ keys up if needed and sends 1750 Hz until `false` or until `max_ms` has passed (
 the view. The debug link always gives a limit (at most `INPUT_INJECT_MAX_MS`), so a lost "off" unkeys as the "off"
 would; 0 means no limit but the TX time-out. A board without
 `tx_tone` gets neither.
+The debug link's `DL_OP_TONE_BURST` now gives the error beep when refused on a DMR channel, in hotspot mode or
+without `tx_tone`, instead of silently doing nothing.
+A debug-link burst requested during the roger beep tail after PTT release now re-keys, cancels the roger beep and
+owns the transmission until burst off, the host deadline or the TX time-out.
+
+The **Tone burst** side-key press function sends raw down/up requests (`radio_req_tone_burst_key`). The core starts
+1750 Hz on down and holds it for at least `RADIO_BURST_MIN_MS` (1000 ms). A tap releases at that minimum; a longer
+hold ends on up. The 10 ms radio tick ends a released timed burst. From receive it keys and unkeys through the usual
+TX checks (including TX inhibit and RX-only); DMR, hotspot and boards without `tx_tone` refuse with an error beep.
+During PTT it replaces the mic, then restores it while PTT keeps the transmitter keyed. Releasing PTT during the
+burst stops the tone and unkeys, without a roger beep. PTT pressed during a burst takes over the transmission.
+There is no duration setting or host deadline for the side key; the TX time-out still applies.
+The debug link's explicit on/off request keeps its `max_ms` limit. A new burst starts with only its own timing;
+an on/down request while a burst is already sounding does not restart it or change its deadline.
+A side-key up releases only its own burst or TX denial; down/up during a host burst leaves that burst running.
+Power-off cancels a held or timed burst and unkeys without a roger beep before shutdown waits.
+VOX cannot release during a burst; its full quiet tail starts after the burst ends.
+
+A channel can send the burst by itself (`channel_t.tone_burst`, the channel editor's **Tone burst** row; stored in SFR
+byte B bit 6, [open-firmware-cps.md](open-firmware-cps.md) 7.3.3). Each PTT key-up on it opens with one timed burst,
+as the side key pressed during PTT: 1750 Hz for `RADIO_BURST_MIN_MS`, then the mic. Only a PTT press that keys the
+transmitter starts one: not a press during a transmission, not VOX, the side key or the debug link. FM channels
+only, never the VFO, DMR or hotspot mode, and nothing on a board without `tx_tone`. A board whose `tx_tone` refuses
+the tone gives the error beep and the transmission goes on.
+
+Why 1 s: the [UK repeater access standard](https://www.ukrepeater.net/access.htm) accepts 1750 Hz +/- 25 Hz
+after 200-400 ms, and some decoders need 500 ms; a 1 s minimum exceeds both. Once open, a repeater stays open on
+carrier through its hang time, so one burst opens a contact.
 
 The board restores the microphone path on `tx_tone(0)` and on every return to receive. An AT1846S board makes the
 tone with the voice source select (tone 1, tone 2 or both) in place of the microphone. Verified on air on an HR_C6000 + AT1846S board (HIL 2026-10-10): the burst, the roger beep and APRS
@@ -229,8 +285,15 @@ rather than show "VOX on" for a VOX that never keys.
 
 ### 3.5 Squelch tail elimination
 
-Not done. Without a reverse burst or a tone-loss signal from the other station there is nothing to act on; closing
-early on CTCSS loss conflicts with the tone debounce (8 polls) that keeps fades from chopping audio. Left for later.
+No reverse burst or tone-loss signal from the other station is acted on yet; closing early on CTCSS loss conflicts
+with the tone debounce (8 polls) that keeps fades from chopping audio.
+
+The noise squelch shortens the tail itself. It closes after `RADIO_SQL_CLOSE_POLLS` (2) polls over the close line
+(open threshold + `RADIO_SQL_HYST_DB`), 50 ms, but after one poll when the noise is `RADIO_SQL_FAST_CLOSE_DB` (12 dB)
+or more over it: a carrier that goes takes the noise far over the line at once, while a fade crosses it by a little.
+Squelch level 0 (always open) and the APRS hold (`RADIO_SQL_CLOSE_POLLS_APRS`) keep their own timing. On one board
+(BK4819 receiver) the tail at the speaker went from 55 ms to 15-35 ms in three calls (measured,
+`test_fm_rx_speaker`); what is left is the poll and the chip's noise reading lag.
 
 ### 3.6 Mic gain
 
@@ -321,28 +384,46 @@ None of them needs a correction in the driver. The HIL test (`test_fm_tx_dtmf`) 
 | error | 400 Hz 150 ms | UI errors |
 | TX permit | 1600 Hz 50 ms twice | DMR: the channel is granted (unless the codeplug channel has "no beep", or `talk_permit` is off: Settings > Sound > Talk permit tone) |
 | TX permit, before keying | 1600 Hz 80 ms | The TX permit on boards with `CAP_BEEP_NOT_ON_AIR`, whose beeps can't sound while DMR transmits: once the call is admitted, the stack holds the key-up (`dmr_call_config_t.permit_hold_ms`, `permit_busy`) while the radio still receives and this tone plays. It keys once the tone and the driver's buffers have played out (`hal_audio_t.spk_pending`): at least 40 ms, at most 400 ms (`DMR_CALL_PERMIT_MAX_MS`). The same conditions as the TX permit |
-| TX deny | 300 Hz 400 ms | any TX refusal |
-| call end | 1200 Hz 50 ms, 900 Hz 70 ms | DMR: a played call ended (unless "no beep") |
-| TOT warning | 1000 Hz 100 ms twice | 3.2 |
-| battery low | 800 Hz, 600 Hz | entering low, then every 2 min |
-| battery critical | 600 Hz three times | entering critical, then every 30 s |
-| scan hold | 1400 Hz 40 ms | the scan stops on a signal, if `scan_beep` |
-| emergency | 1500 / 900 Hz warble, 6 x 160 ms | someone's emergency heard (alarm or emergency call), if the emergency setting's tone is on (`dmr-emergency.md`) |
+| TX deny | 300 Hz 400 ms | any TX refusal but a busy channel (3.1), unless Settings > Sound > TX denied tone is off (settings area key 0x0006) |
+| call end | 1200 Hz 50 ms, 900 Hz 70 ms | DMR: a played call ended (unless "no beep", or Settings > Sound > Call end tone is off: settings area key 0x0003) |
+| TOT warning | 1000 Hz 100 ms twice | 3.2, unless Settings > Sound > TOT warning tone is off (settings area key 0x0004) |
+| battery low | 800 Hz, 600 Hz | entering low, then every 2 min, unless Settings > Sound > Battery tone is off (settings area key 0x0005) |
+| battery critical | 600 Hz three times | entering critical, then every 30 s; the same setting as battery low |
+| scan hold | 1400 Hz 40 ms | the scan stops on a signal, if `scan_beep` (Settings > Sound > Scan stop tone, off by default) |
+| emergency | 1500 / 900 Hz warble, 6 x 160 ms | someone's emergency heard (alarm or emergency call), if the emergency setting's tone is on (Settings > Sound > Emergency tone, `dmr-emergency.md`) |
 | message | 1000, 1300, 1700 Hz rising, 60-90 ms each | a text message arrived: the UI asks for it (`radio_req_beep(BEEP_MESSAGE)`) when Settings > Sound > Message tone is on |
+| system back | 1000 Hz, 1400 Hz, 60 ms each | a trunked system found again from its fallback channel ([dmr-trunking.md](dmr-trunking.md) 12.5) |
+| sweep | 400 ms silence, then 150 Hz to 3.8 kHz over 4 s, phase continuous | the speaker test, from the debug link only (op 22, which can delay it); `test_speaker_sweep` measures the speaker's response and whether the audio path plays it whole |
+
+The four tones with a settings area key (`radio_tone_rows` in `core/radio/radio_keys.h`,
+[codeplug-settings.md](codeplug-settings.md) 3) are silenced in `beep()` by `radio_settings_t.tones_off`, saved with
+the radio core's settings (`sound_flags` bits 4..7). A key that is present holds over it: the radio core applies the keys at
+start, on a codeplug reload, when `codeplug_kv_serial()` moves on and on every settings change (codeplug-settings.md
+5.2). Every request for those beeps is
+silenced, the debug link's (`RREQ_BEEP`) too.
 
 Synthesis: a 64-entry sine table with linear interpolation, 2 ms fades (no clicks); level 100 is about half of full
 scale so a beep mixed over voice doesn't clip. Beeps follow the radio's volume up to `beep_level`. A radio with an analog
 knob (no `hal_radio_t.volume`) and one whose volume hook also scales the PCM path (`volume_pcm`: an HR_C6000
 board's RX gain, an HR_C7000 board's line out gain) play the beep at `beep_level`, and the volume acts on it in the
 speaker path. On a radio where the MCU sets the volume somewhere the PCM path doesn't pass, the core plays each beep at the
-volume percent last given to the board, capped at `beep_level` (`radio_beep_level`): volume 0 gives no beep. When the DMR voice stream runs, the beep is mixed into it (`ambeVoiceSetMixer`); otherwise the beep
-starts the board's PCM audio stream itself and stops it two silent blocks after the pattern. If that stream delivers no
+volume percent last given to the board, capped at `beep_level` (`radio_beep_level`): volume 0 gives no beep. When the DMR voice stream runs, the beep is mixed into it (`ambeVoiceSetMixer`). A DMR call
+leaves that stream running until the radio leaves DMR, so most beeps on a DMR channel are mixed. A mixed beep the
+amplifier isn't ready for (more than one lead-in block, below) gets the same lead-in as silence mixed in with the speaker
+routed; otherwise its tone starts in the first block. Without the voice stream the beep
+starts the board's PCM audio stream itself, routes the speaker for silent lead-in blocks before the tone (one 20 ms
+block, or `hal_audio_t.speaker_lead_ms` rounded up to blocks, at most 200 ms, for an amplifier that unmutes slowly), holds
+the route for four silent blocks after the pattern, and then stops the stream. A beep in that hold plays at once, with no
+lead-in. A board with `speaker_hang_s` (a mobile on a supply; 0 on battery radios) keeps its amplifier powered and
+silent (`speaker_warm`) from any key, PTT, reception or beep until that many seconds after the last one, so a key click
+or the DMR talk permit tone plays at once: while it is warm, beeps take the one-block lead-in. If that stream delivers no
 block for 200 ms (8 radio polls), its clock has stopped: the beep stops the stream, gives the speaker route back and
 drops the pattern, so a codec that goes quiet can't leave the analog receive audio muted. A start that fails (no codec
 clock) is stopped the same way, in case a block already ran. Counters in the view:
 `beep.played` (started), `beep.no_stream` (no audio stream could be started: on a board that can't stream PCM in FM
 mode this counts instead), `beep.blocks` (audio blocks with beep in them), `beep.stalls` (streams given up that way),
-`beep.busy`.
+`beep.busy`; in the `audio` section, `beep.shared` (patterns mixed into the voice stream), `beep.leads` (lead-in blocks
+played), `beep.warm` (1: the amplifier is held warm) and `beep.warms` (times it was powered up for that).
 
 To hear the beeps in context, `tools/beep_reel.py` makes a video of the UI simulator's screen in which every beep sounds
 in a scene that sounds it on a radio, captioned (`build/beep-reel/beep_reel.mp4`; needs ffmpeg built with libass). It
@@ -387,6 +468,7 @@ hook; `hal_power_t.volume()` says where the level comes from (`radio_volume_src_
 | `knob` | A hook and a knob the MCU reads | The knob's 0..100 % |
 | `soft` | A hook and no knob (`hal_power_t.volume()` = -1); `radio_volume_soft()`, reported to the UI as `UI_FEAT_VOLUME` | The stored step |
 | `override` | As `knob`, with the debug link's level in force | The step the debug link set, whatever the knob does |
+| `hold` | As `knob`, with the keys locked and Settings > Key lock > Knob when locked Off | The level in force when the hold began, whatever the knob does |
 
 | Item | Value |
 |---|---|
@@ -396,6 +478,8 @@ hook; `hal_power_t.volume()` says where the level comes from (`radio_volume_src_
 | To the board | `follow_volume` (radio poll) calls `hal_radio_t.volume(percent)` at start-up and after each change (the knob's changes of 2 % or more, and its ends); the same level twice calls nothing |
 | A change | `ui_svc_setting_set(UI_SET_VOLUME)` saves the step and posts `RREQ_VOLUME` (`radio_req_volume`), so it is in force at once. The request counts as neither user activity nor an interruption: a transmission or a roaming search goes on |
 | Override | `radio_req_volume_override(step)` (`RREQ_VOLUME_OVERRIDE`) holds a level over the knob until `-1`; RAM only, so a restart gives the knob back. Without a knob there is nothing to override, and the request changes nothing |
+| Hold | `radio_req_volume_hold(true)` (`RREQ_VOLUME_HOLD`, from the UI's key lock through `ui_svc_volume_hold`) keeps the level in force and ignores the knob; `false` follows the knob again, and its level goes out at once. RAM only; ignored without a knob or under an override |
+| Knob position | `radio_view_t.volume_knob`: the knob's 0..100 % with the same 2 % filter, in force or not (also while held), -1 without a knob the MCU reads. While held, a change shows the unlock hint, as a key does. `radio_volume_knob()` (`UI_FEAT_VOLUME_KNOB`) says whether the board has such a knob; Settings > Key lock > Knob when locked (`UI_SET_KNOB_WHEN_LOCKED`) is shown only then |
 | Beeps | Key and status tones keep their own level (Tone volume, 4) and are mixed at the board's speaker path as before |
 
 **Debug link.** RADIO op 30 (`debuglink.md` 3.8) sets a step 0..16, or `0xFF` for "back to the knob". On a `soft` radio
@@ -408,6 +492,18 @@ The volume screen (`SCR_VOLUME`) opens on `ACT_VOLUME`, a board key map entry (a
 toast). Up, Down and the encoder change the step by one and save it on each step; OK, Back or the same key close it,
 and so does 3 s without a key. The screen shows the step as a large number over a bar of 16 segments (7 px pitch at
 the smallest display, 5 px filled). On the radio without the feature the setting is left out of Settings.
+
+**The knob's bar** (#354). On a `knob` radio, when the level the radio core passed on changes (`radio_view_t.volume`,
+with `volume_src` `knob` before and after), the UI shows the same 16-segment bar, the label and the step over whatever
+screen is open, for 3 s after the last change (`VOLUME_MS`); no screen is pushed, so a call or a menu goes on. It
+takes a row no screen puts its content in: the hint row's place when the frame drew a hint row (`ui_hint_draws`),
+else the status strip's (Quick's tiles at 160x128, a list with the hint row off), so nothing is cut. The step is `radio_volume_step_of(percent)`: 0 only at 0 %, at least 1 above it, 100 % is 16. The
+first level after start-up and a change of source (the override set or given back) show nothing, and a bar that is
+showing goes when the override takes over; nor does a `soft`
+radio, whose volume screen does the job. The bar asks for the backlight (`ui_app_take_wake`): turning the knob is using
+the radio. No new view field: `follow_volume` already filters the knob (2 %, the ends). Tests: `uiFlowTest`
+(`volume_bar_checks`, every display class, a seeded property run), `radioCoreTest` (`test_volume_step_of`), gallery
+`volume_bar`, `volume_bar_call`.
 
 ## 5. Power
 
@@ -447,6 +543,11 @@ switch.
 `backlight_dim_s` without input, off after `backlight_off_s`, capped at 30 % while the battery is low or critical.
 The UI owns the backlight and calls it; the radio core doesn't drive the backlight itself.
 
+Either time 0 means never: `backlight_dim_s` 0 never dims, `backlight_off_s` 0 never turns the backlight off, so a
+dim time with off 0 dims and stays on. The UI's setting (`UI_SET_BACKLIGHT_S`, Settings > Display > Backlight
+Dim/Off) carries both in one value: a time T > 0 dims after T and goes off after 4T, 0 is always on, and -T dims after
+T and never goes off (the "T/dim" choices).
+
 Idle time restarts on input and while `radio_view_wakes(view)` holds: something the user would want to see.
 
 | State | Wakes | Why |
@@ -469,7 +570,8 @@ last transmission began, so an unattended one can be placed afterwards (debuglin
 On an idle FM channel after `rx_save_idle_s` without activity (keys, requests, receptions, PTT), the receiver sleeps
 200 / 400 / 800 ms and listens 100 ms (`rx_sleeping` in the view). Any signal in the listen window keeps it awake;
 anything else (a key, a request, MONITOR, scan, VOX, DMR channel, hotspot, a channel with the codeplug "no eco" flag,
-APRS receive listening on the APRS frequency, `aprs.md` 5.3) stops it. The board's `rx_sleep` hook turns the receiver off and back on. On air
+APRS receive listening on the APRS frequency, `aprs.md` 5.3) stops it. The board's `rx_sleep` hook turns the receiver off and back on. A board that sets `rx_sleep_dmr` also lets a
+trunked system's power save use it on a DMR channel (`dmr-trunking.md` 7.13). On air
 on an AT1846S board since 2026-10-10 (`test_battery_save*`: cycles when idle, MONITOR and a call wake it); the setting stays off by default.
 
 ### 5.5 Power switch
@@ -481,6 +583,10 @@ into the board's `switch_on()`: three readings in a row below 5.5 V, at least 10
 doesn't. The boards ignore it for the first 1.5 s after power-up while the readings settle. `core/app/app.c` polls
 `switch_on()` and powers off (settings saved, latch released). 5.5 V sits well under a flat 2S pack (critical
 6.0 V), so a weak battery never reads as the switch.
+
+Boards with a power key instead (mobiles) feed the key's level to `core/radio/power_key.c` from their `switch_on()`.
+The press that switched the radio on is usually still held at start-up, so the key counts only once it has been seen
+released; then 20 polls held in a row (2 s at the 100 ms poll) mean off. A shorter press doesn't count toward the next.
 
 ### 5.6 Time of day
 
@@ -496,11 +602,30 @@ records which, with its source (`backed`, `unbacked`, `none`, or `unknown`), and
 it. A clock driver arrives behind a hardware switch (`CONFIG_RTC`, `hardware` in `tests/hil/features.toml`). Until GPS,
 the network or the user sets it, the radio shows "no time", and records keep using uptime or mark the time unknown.
 
+### 5.7 LEDs
+
+The radio core drives the board's red and green LEDs (`board.power->led`); `view.leds` (debug link `leds`) is what it
+drives. Red: transmitting. Green: a reception that plays (FM squelch open, a DMR call played), but not a broadcast station. Two timed signals go
+over that (`radio_sm.c` `led_signals`, the times in `radio_sm.h`), for radios without a screen above all:
+
+| Signal | LEDs |
+| --- | --- |
+| Waking a repeater (DMR, PTT through a repeater that isn't up) | red once per wake-up burst sent, `RADIO_LED_WAKE_MS` (100 ms) each, dark while the radio listens for the answer. The call stack counts the bursts (`dmr_call_view_t.wake_sent`) |
+| A TX deny, every reason (`RS_TX_DENIED`), and a repeater that didn't wake after a short press was let go | red, green, red, green, red, green, `RADIO_LED_DENY_STEP_MS` (100 ms) each, once, with the deny tone (none for a busy channel, 3.1); then what the state shows. A transmission that starts during it ends it |
+| The PTT line stuck low, which only a power cycle releases ([gotchas.md](gotchas.md) 16.5) | red and green in turn, 125 ms each, until the power cycle |
+
+Once the repeater answers and the voice goes out, red is solid as for any transmission. The tick and the poll keep
+calling `outputs()` while a signal runs, so it keeps time when nothing else changes.
+
 ## 6. TX power, calibration, band limits
 
 Checked, unchanged: the board clamps the power level, uses the calibration table's drive value for the band and level,
 and refuses a TX frequency outside the board's bands (`tx_deny=band`). Without a calibration the board either drives
-a low fixed value or refuses to transmit; the board's hardware page says which.
+a low fixed value or refuses to transmit; the board's hardware page says which. While a hardware option is pending
+(`board_hwopt_pending`, `hal/hal_hwopt.h`: unset, or stored and waiting for a restart) the core refuses PTT itself with
+`tx_deny=hwopt` (the screen names the option), before the board is asked: a board may still key while a restart is
+due. When the board's `tx` refuses a frequency inside its bands, the reason is `tx_deny=hwopt` while an option is
+pending, else `tx_deny=refused` ("Radio refused to send"); never `band`.
 
 ### 6.1 Reference trim
 
@@ -536,6 +661,23 @@ keeps the trim it started with on receive. The RF chips' bus stays the radio tas
 The value is a correction to enter by hand: measure the carrier against a reference (a frequency counter, a service
 monitor, or a hotspot's MMDVMCal BER test) and enter the error with its sign reversed. A radio 2 kHz high at 448.7 MHz
 is 4.5 ppm high and takes -4.5 ppm. [feature-matrix.md](../feature-matrix.md) lists which radios have the hook.
+
+### 6.2 Receive past the band table (CONFIG_RX_EXT)
+
+A board may list receive-only ranges past its rated bands: the last `board_t.rx_ext_count` entries of `bands`, with
+`tx` false. They count only while `*board_t.rx_ext_on` is set.
+
+| Rule | Detail |
+|---|---|
+| Setting | Settings > Advanced > RX past bands, off by default. Stored in `settings_t.cp_flags`, cleared by a factory reset. Hidden on a board with no range. |
+| Table | Everything that reads the bands uses `board_band_count()`: the VFO's tuning and wrap, the keypad entry, VFO scan, the channel editor, `rigctld` and the debug link's `bands=`. |
+| Transmit | Never: `board_in_band(hz, true)` skips the entries, so PTT gives `TXDENY_BAND`. |
+| Modes | FM only, as in any receive-only band: the channel editor refuses DMR there. |
+| Turning it off | The radio core reloads. A VFO past the table returns to a band; a channel there stays stored and doesn't tune. |
+
+A board's ranges come from its receiver chip's documents. Nothing past the rated bands is
+measured: front-end filters may cut sensitivity well inside the chip's range, and spurs aren't specified.
+A radio's ranges are on its hardware page.
 
 ## 7. Verification status
 

@@ -27,9 +27,9 @@
 //   DIR/beeps/<name>.wav   each beep played on its own
 //
 // Exits with 1 if beep_names.h is missing a beep, a beep never stops or makes no sound, two beeps are less than 1 s
-// apart (key beeps in a run of presses may be closer), there are more than EVENTS_MAX beeps, a beep has no scene, or
-// a scene uses a beep that beep.h doesn't have. With --lenient, which is for building against another commit's
-// beep.h, the last two are only warnings.
+// apart (key beeps in a run of presses may be closer), there are more than EVENTS_MAX beeps, a beep has no scene (the
+// speaker test's sweep needs none), or a scene uses a beep that beep.h doesn't have. With --lenient, which is for
+// building against another commit's beep.h, the last two are only warnings.
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -80,7 +80,7 @@ typedef struct {
 //
 // Nothing ties these steps to the radio core. If you change when core/radio/radio_sm.c plays a beep, update the
 // matching step here. The calls are in dmr_follow() (TX_PERMIT, TX_PERMIT_SHORT, CALL_END), tx_timer() (TOT_WARN), deny() (TX_DENY),
-// battery_poll() (BATTERY_CRIT), scan_service() (SCAN_HOLD) and emergency_tick() (EMERGENCY).
+// battery_poll() (BATTERY_CRIT), scan_service() (SCAN_HOLD), emergency_tick() (EMERGENCY) and t3_tick() (SYSTEM_BACK).
 static const step_t steps[] = {
 	{ "Browse the menu", "ok down down back", NULL, true, false, 0 },
 	{ "Group call heard", "rx:9991234,91,g,Q1AAA_Joe", NULL, false, true, 700 },
@@ -104,6 +104,7 @@ static const step_t steps[] = {
 	{ NULL, "long:quick", NULL, false, false, 0 },
 	{ NULL, "ptt:500", NULL, false, false, 0 },
 	{ NULL, "long:quick", NULL, false, false, 0 },
+	{ "Back on the trunked system after its fallback channel", NULL, "SYSTEM_BACK", false, false, 0 },
 	{ "Emergency heard", "emergency:3105678", "EMERGENCY", false, false, 0 },
 	{ NULL, "back", NULL, false, false, 500 },
 };
@@ -149,8 +150,13 @@ static void pump_to(uint32_t ms)
 {
 	while (audio_ms < ms) {
 		uint32_t t = audio_ms - audio_t0;
-		if (t % POLL_MS == 0)
-			beep_service(false);
+		if (t % POLL_MS == 0) {
+#ifdef BEEP_SERVICE_NOW
+			beep_service(false, audio_ms);
+#else
+			beep_service(false);	// a base commit's beep.h from before the amplifier hang
+#endif
+		}
 		if (t % BLOCK_MS == 0) {
 			int16_t mic[AUDIO_BLOCK_SAMPLES] = { 0 }, spk[AUDIO_BLOCK_SAMPLES] = { 0 };
 			if (cb != NULL)
@@ -554,7 +560,8 @@ int main(int argc, char **argv)
 		}
 	}
 	for (int i = 0; i < BEEPS; i++)
-		if (!sounded[i])
+		// The speaker test's sweep: no radio user hears it. By name: a base commit's beep.h has no BEEP_SWEEP
+		if (!sounded[i] && strcmp(beeps[i].name, "SWEEP") != 0)
 			fail(false, "BEEP_%s has no scene (tests/host/beepReel.c)", beeps[i].name);
 
 	snprintf(path, sizeof path, "%s/reel.wav", out_dir);

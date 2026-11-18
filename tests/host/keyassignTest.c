@@ -6,6 +6,13 @@
 #include <string.h>
 #include "input/keyassign.h"
 #include "input/input_engine.h"
+#include "input/input_forward.h"
+
+static unsigned ptt_downs, ptt_ups, burst_downs, burst_ups;
+void radio_req_ptt(bool down) { if (down) ptt_downs++; else ptt_ups++; }
+void radio_req_monitor(bool down) { (void)down; }
+void radio_req_monitor_held_up(void) {}
+void radio_req_tone_burst_key(bool down) { if (down) burst_downs++; else burst_ups++; }
 
 static int failures;
 static int checks;
@@ -90,6 +97,8 @@ static void test_allowed(void)
 	uint16_t s[KEYASSIGN_SLOTS] = { 0 };
 	CHECK(keyassign_allowed(KEYFN_MONITOR, false) && !keyassign_allowed(KEYFN_MONITOR, true));
 	CHECK(!keyassign_allowed(KEYFN_EMERGENCY, false) && keyassign_allowed(KEYFN_EMERGENCY, true));
+	CHECK(KEYFN_TONE_BURST == 18);
+	CHECK(keyassign_allowed(KEYFN_TONE_BURST, false) && !keyassign_allowed(KEYFN_TONE_BURST, true));
 	CHECK(!keyassign_allowed(KEYFN_COUNT, false));
 	// Emergency on a press would go off by accident; monitor on a long press can't be held
 	keyassign_set(s, 0, false, KEYFN_EMERGENCY);
@@ -142,11 +151,12 @@ static void test_toggles(void)
 	static const struct { uint8_t fn; uint8_t value; uint8_t action; } t[] = {
 		{ KEYFN_KEY_LOCK, 11, ACT_LOCK }, { KEYFN_CALL_BACK, 12, ACT_CALL_BACK }, { KEYFN_HOME_ZONE, 13, ACT_HOME_ZONE },
 		{ KEYFN_COPY_VFO, 14, ACT_COPY_VFO }, { KEYFN_DUAL_WATCH, 15, ACT_DUAL_WATCH }, { KEYFN_AB, 16, ACT_AB },
+		{ KEYFN_VFO_TOGGLE, 17, ACT_VFO_TOGGLE }, { KEYFN_TALK_LABEL, 19, ACT_TALK_LABEL },
 	};
 	// Stored in the codeplug's slots: append only, so every value that shipped keeps its number
 	CHECK(KEYFN_DEFAULT == 0 && KEYFN_NONE == 1 && KEYFN_MONITOR == 2 && KEYFN_TALK_TARGET == 3 &&
 	      KEYFN_POWER == 4 && KEYFN_ZONE_UP == 5 && KEYFN_ZONE_DOWN == 6 && KEYFN_SCAN == 7 && KEYFN_EMERGENCY == 8);
-	CHECK(KEYFN_HEAR_ALL == 9 && KEYFN_MONITOR_LATCH == 10 && KEYFN_COUNT == 17);
+	CHECK(KEYFN_HEAR_ALL == 9 && KEYFN_MONITOR_LATCH == 10 && KEYFN_COUNT == 20);
 	for (unsigned i = 0; i < sizeof t / sizeof t[0]; i++) {
 		uint16_t s[KEYASSIGN_SLOTS] = { 0 };
 		CHECK(t[i].fn == t[i].value);
@@ -256,6 +266,51 @@ static void test_engine(void)
 	      evs[2].gesture == GESTURE_UP && evs[2].value == 1);
 }
 
+
+static void test_burst_edges(void)
+{
+	uint16_t s[KEYASSIGN_SLOTS] = { 0 };
+	input_engine_t e;
+	uint32_t now = 1000;
+	keyassign_set(s, 0, false, KEYFN_TONE_BURST);
+	keyassign_set(s, 0, true, KEYFN_POWER);
+	CHECK(keyassign_get(s, 0, false) == KEYFN_TONE_BURST);
+	keyassign_build(base, N, side, 3, s, map);
+	CHECK(map[1].raw_edges && map[1].short_action == ACT_TONE_BURST &&
+	      map[1].long_action == ACT_TONE_BURST && !map[1].repeat);
+	input_engine_init(&e, map, N, now);
+	input_engine_step(&e, 0, 0, now, emit, NULL);
+	for (unsigned ms = 100; ms <= 3000; ms += 2900) {
+		nev = 0;
+		hold(&e, &now, 1u << K_SK1, ms);
+		CHECK(nev == 2 && evs[0].action == ACT_TONE_BURST && evs[0].gesture == GESTURE_DOWN &&
+		      evs[1].action == ACT_TONE_BURST && evs[1].gesture == GESTURE_UP);
+	}
+}
+
+static void test_burst_lock(void)
+{
+	input_event_t down = { .action = ACT_TONE_BURST, .gesture = GESTURE_DOWN };
+	input_event_t up = { .action = ACT_TONE_BURST, .gesture = GESTURE_UP };
+	input_forward(&down, true);
+	CHECK(burst_downs == 0 && burst_ups == 0);
+	input_forward(&up, true);
+	CHECK(burst_downs == 0 && burst_ups == 1);
+	input_forward(&down, false);
+	CHECK(burst_downs == 1 && burst_ups == 1);
+	input_forward(&up, true);
+	CHECK(burst_downs == 1 && burst_ups == 2);
+
+	down.action = up.action = ACT_PTT;
+	input_forward(&down, true);
+	CHECK(ptt_downs == 0 && ptt_ups == 0);
+	input_forward(&up, true);
+	CHECK(ptt_downs == 0 && ptt_ups == 1);
+	input_forward(&down, false);
+	input_forward(&up, false);
+	CHECK(ptt_downs == 1 && ptt_ups == 2);
+}
+
 // A board key map entry whose short press is the VFO / channel toggle (ACT_VFO_TOGGLE) has Copy to VFO on its long
 // press (docs/ux/information-architecture.md 2). Read from the boards' sources: they don't build on the host
 static void test_board_defaults(void)
@@ -284,7 +339,64 @@ static void test_board_defaults(void)
 		}
 		fclose(f);
 	}
-	CHECK(toggles == 1);	// a VFO/MR key
+	CHECK(toggles >= 1);	// at least one board has the key, so the check reads something
+}
+
+// Home keys (board.home_keys: arrows printed P1 and P2): unset, the key map's own actions everywhere; set, the key
+// sends ACT_HOME_KEY_n, which is the function on Home and the arrow anywhere else. Monitor and Tone burst can't go
+// there (no raw edges), nor Emergency (no 1.5 s hold on a home key's long press)
+static void test_home_keys(void)
+{
+	enum { K_LEFT = 5, K_RIGHT = 6 };
+	static const keymap_entry_t hb[] = {
+		{ K_OK, ACT_SELECT, ACT_SELECT, false, false, 0 },
+		{ K_SK1, ACT_MONITOR, ACT_MONITOR, true, false, 0 },
+		{ K_LEFT, ACT_NAV_LEFT, ACT_USER_1, false, true, 0 },
+		{ K_RIGHT, ACT_NAV_RIGHT, ACT_USER_4, false, true, 0 },
+	};
+	enum { HN = sizeof(hb) / sizeof(hb[0]) };
+	static const uint8_t hside[] = { K_SK1 }, home[] = { K_LEFT, K_RIGHT };
+	keymap_entry_t hm[HN];
+	uint16_t s[KEYASSIGN_SLOTS] = { 0 };
+
+	keyassign_build(hb, HN, hside, 1, s, hm);
+	keyassign_build_home(hm, HN, home, 2, 1, s);
+	CHECK(memcmp(hm, hb, sizeof(hm)) == 0);
+	CHECK(keyassign_home_allowed(KEYFN_SCAN, false) && !keyassign_home_allowed(KEYFN_MONITOR, false));
+	CHECK(!keyassign_home_allowed(KEYFN_TONE_BURST, false) && !keyassign_home_allowed(KEYFN_EMERGENCY, true));
+
+	// P1 press: scan. P2 left alone
+	keyassign_set(s, 1, false, KEYFN_SCAN);
+	keyassign_build(hb, HN, hside, 1, s, hm);
+	keyassign_build_home(hm, HN, home, 2, 1, s);
+	CHECK(hm[2].short_action == ACT_HOME_KEY_1 && hm[2].long_action == ACT_HOME_KEY_1 && hm[2].repeat);
+	CHECK(hm[3].short_action == ACT_NAV_RIGHT && hm[3].long_action == ACT_USER_4);
+	CHECK(hm[1].short_action == ACT_MONITOR);	// the side key's role is its own
+#define HE(a, g, h) keyassign_home_event(a, g, h, hb, HN, home, 2, 1, s)
+	CHECK(HE(ACT_HOME_KEY_1, GESTURE_PRESS, true) == ACT_SCAN);
+	CHECK(HE(ACT_HOME_KEY_1, GESTURE_LONG, true) == ACT_USER_1);	// the long press is still the board's
+	CHECK(HE(ACT_HOME_KEY_1, GESTURE_REPEAT, true) == ACT_USER_1);
+	CHECK(HE(ACT_HOME_KEY_1, GESTURE_PRESS, false) == ACT_NAV_LEFT);	// a menu: the arrow
+	CHECK(HE(ACT_HOME_KEY_1, GESTURE_REPEAT, false) == ACT_USER_1);
+	CHECK(HE(ACT_SELECT, GESTURE_PRESS, true) == ACT_SELECT);	// any other action as it is
+
+	// P2 long press: power level, once per hold; Nothing on its press
+	keyassign_set(s, 2, true, KEYFN_POWER);
+	keyassign_set(s, 2, false, KEYFN_NONE);
+	keyassign_build_home(hm, HN, home, 2, 1, s);
+	CHECK(hm[3].short_action == ACT_HOME_KEY_2);
+	CHECK(HE(ACT_HOME_KEY_2, GESTURE_LONG, true) == ACT_POWER);
+	CHECK(HE(ACT_HOME_KEY_2, GESTURE_REPEAT, true) == ACT_NONE);
+	CHECK(HE(ACT_HOME_KEY_2, GESTURE_PRESS, true) == ACT_NONE);
+	CHECK(HE(ACT_HOME_KEY_2, GESTURE_PRESS, false) == ACT_NAV_RIGHT);
+
+	// Monitor in a home key's slot (a CPS wrote it) reads as Default there
+	keyassign_set(s, 1, false, KEYFN_MONITOR);
+	keyassign_set(s, 1, true, KEYFN_DEFAULT);
+	keyassign_build(hb, HN, hside, 1, s, hm);
+	keyassign_build_home(hm, HN, home, 2, 1, s);
+	CHECK(hm[2].short_action == ACT_NAV_LEFT && !hm[2].raw_edges);
+#undef HE
 }
 
 int main(void)
@@ -295,7 +407,10 @@ int main(void)
 	test_build();
 	test_toggles();
 	test_engine();
+	test_burst_edges();
+	test_burst_lock();
 	test_board_defaults();
+	test_home_keys();
 	printf("# keyassignTest: %d checks, %s\n", checks, failures ? "FAILED" : "PASSED");
 	return failures ? 1 : 0;
 }

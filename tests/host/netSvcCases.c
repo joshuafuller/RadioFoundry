@@ -8,8 +8,10 @@
 #include "net/net.h"
 #include "net/net_svc.h"
 #include "net/tcp.h"
+#include "dmr/ipGateway.h"
 #include "config.h"
 #include "radio/radio.h"
+#include "hostlink/hostlink_view.h"
 #include "ui/gfx.h"
 #include "debuglink/debuglink.h"
 #include "debuglink/dl_fmt.h"
@@ -166,6 +168,16 @@ void debuglink_view_section(uint8_t s, const radio_view_t *v, dl_text_t *t)
 	}
 }
 
+// The host link's USB personality (core/hostlink/hostlink.h), as /api/usb sees it
+static bool usb_net_mode = true;
+static int usb_serial_requests;
+bool hostlink_network_mode(void) { return usb_net_mode; }
+bool hostlink_request_usb_network(bool network)
+{
+	usb_serial_requests += network ? 0 : 1;
+	return true;
+}
+
 static int http_get_from(peer_t *p, uint32_t ip, uint16_t port, const char *req)
 {
 	if (!peer_connect(p, ip, port, NET_HTTP_PORT)) {
@@ -227,6 +239,8 @@ static void test_http(void)
 	CHECK(strstr((char *)a.rx, "application/json") && j[0] == '{');
 	CHECK(strstr(j, "\"rx_hz\":145500000") && strstr(j, "\"channel\":\"Ch \\\"1\\\"\"") && strstr(j, "\"rssi_dbm\":-97"));
 	CHECK(strstr(j, "\"power\":\"High\"") && strstr(j, "\"mode\":\"fm\"") && strstr(j, "\"radio\":\"fake\""));
+	// The services read the host link task's one view copy (hostlink_view.h), refreshed from the radio
+	CHECK(net_radio_view() == &hostlink_view && hostlink_view.ch.rx_hz == 145500000 && hostlink_view.rssi_dbm == -97);
 
 	// A view section as JSON: numbers stay numbers, the rest strings
 	CHECK(http_get(&a, 51003, "GET /api/view?section=core HTTP/1.0\r\n\r\n") > 0);
@@ -275,6 +289,38 @@ static void test_http(void)
 	CHECK(rows_ok);
 	fake_display.bpp = 16;
 	fake_display.width = 160;
+
+	// The USB personality back to serial: from the host only, in network mode only, and after the answer went out
+	static peer_t far;
+	CHECK(http_get_from(&far, 0xC0000201u, 51030, "GET /api/usb?mode=serial HTTP/1.0\r\n\r\n") > 0 && strstr((char *)far.rx, " 403 "));
+	CHECK(http_get(&a, 51031, "GET /api/usb HTTP/1.0\r\n\r\n") > 0 && strstr((char *)a.rx, " 400 "));
+	CHECK(http_get(&a, 51032, "GET /api/usb?mode=network HTTP/1.0\r\n\r\n") > 0 && strstr((char *)a.rx, " 400 "));
+	usb_net_mode = false;	// over PPP the port is the serial port already
+	CHECK(http_get(&a, 51033, "GET /api/usb?mode=serial HTTP/1.0\r\n\r\n") > 0 && strstr((char *)a.rx, " 400 "));
+	usb_net_mode = true;
+	CHECK(http_get(&a, 51034, "HEAD /api/usb?mode=serial HTTP/1.0\r\n\r\n") > 0 && strstr((char *)a.rx, " 200 "));
+	run_for(1000);
+	CHECK(usb_serial_requests == 0);
+	CHECK(http_get(&a, 51035, "GET /api/usb?mode=serial HTTP/1.0\r\n\r\n") > 0 && strstr((char *)a.rx, " 200 "));
+	CHECK(strstr((char *)a.rx, "Content-Type: text/html") && strstr(body_of(&a), "serial port") && a.fin);
+	CHECK(usb_serial_requests == 0);	// the reply and the close first
+	run_for(1000);
+	CHECK(usb_serial_requests == 1);
+	run_for(1000);
+	CHECK(usb_serial_requests == 1);
+	// ... and at the address every radio answers to (IPGW_ANY_RADIO_IP), for a page that knows no other: the replies
+	// come from that address (checked for every segment in the peer)
+	uint32_t own = net_test_radio_ip;
+	net_test_radio_ip = IPGW_ANY_RADIO_IP;
+	CHECK(http_get(&a, 51036, "GET /status HTTP/1.0\r\n\r\n") > 0 && strstr((char *)a.rx, " 200 ") && a.fin);
+	CHECK(http_get(&a, 51037, "GET /api/usb?mode=serial HTTP/1.0\r\n\r\n") > 0 && strstr((char *)a.rx, " 200 "));
+	CHECK(http_get(&a, 51038, "GET /nothing HTTP/1.0\r\n\r\n") > 0 && strstr((char *)a.rx, " 404 "));
+	static peer_t closed_port;
+	CHECK(!peer_connect(&closed_port, net_test_host_ip(), 51039, 9) && closed_port.reset);	// a RST from there too
+	net_test_radio_ip = own;
+	run_for(1000);
+	CHECK(usb_serial_requests == 2);
+	CHECK(http_get(&a, 51040, "GET /status HTTP/1.0\r\n\r\n") > 0 && strstr((char *)a.rx, " 200 "));
 
 	// Errors
 	CHECK(http_get(&a, 51008, "POST / HTTP/1.0\r\n\r\n") > 0 && strstr((char *)a.rx, " 405 "));
@@ -490,20 +536,25 @@ static void test_aprsis(void)
 	srv.rx[srv.rxn] = 0;
 	CHECK(strcmp((char *)srv.rx, "user Q0TEST-7 pass 9667 vers RadioFoundry unknown filter m/50\r\n") == 0);
 	CHECK(!net_tnc_taken());
+	// A poll whose time was read before the login went out (frames handled after it): not a timed-out login
+	aprsis_poll(now_ms - 1);
+	CHECK(!srv.reset);
 	static const char hello[] = "# aprsc 2.1.14\r\n# logresp Q0TEST-7 verified, server TIER2\r\n";
 	peer_send(&srv, hello, sizeof(hello) - 1);
 	CHECK(aprsis_online() && net_tnc_taken());
+	aprsis_poll(now_ms - 1);	// nor, after a line, a silent server
+	CHECK(!srv.reset && aprsis_online());
 
 	// The engine's lines for APRS-IS go to the server; other frames don't
 	peer_clear(&srv);
-	static const uint8_t g[] = { 0xC0, 0x06, 'G', 'Q', '0', 'T', 'E', 'S', 'T', '-', '7', '>', 'A', 'P', 'Z', 'R', 'D',
-				     'F', ',', 'T', 'C', 'P', 'I', 'P', '*', ':', '>', 'h', 'i', 0xC0 };
+	static const uint8_t g[] = { 0xC0, 0x06, 'G', 'Q', '0', 'T', 'E', 'S', 'T', '-', '7', '>', 'A', 'P', 'Z', 'T', 'S',
+				     'T', ',', 'T', 'C', 'P', 'I', 'P', '*', ':', '>', 'h', 'i', 0xC0 };
 	static const uint8_t data[] = { 0xC0, 0x00, 'x', 0xC0 };
 	ring_put(data, sizeof(data));
 	ring_put(g, sizeof(g));
 	pump();
 	srv.rx[srv.rxn] = 0;
-	CHECK(ring_n == 0 && strcmp((char *)srv.rx, "Q0TEST-7>APZRDF,TCPIP*:>hi\r\n") == 0);
+	CHECK(ring_n == 0 && strcmp((char *)srv.rx, "Q0TEST-7>APZTST,TCPIP*:>hi\r\n") == 0);
 
 	// The server's lines go to the engine (its iGate rules decide); comments don't
 	is_lines = 0;

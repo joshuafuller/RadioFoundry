@@ -262,8 +262,8 @@ static void test_short_lc(void)
 		CHECK(memcmp(back, rows, sizeof(back)) == 0);
 		(void)again;
 	}
-	// One flipped bit in a payload row: a column of the BPTC matrix holds bits of several CACH rows, so the Hamming
-	// rows correct it (when it lands in rows 1-3 of the encode matrix) or the column parity catches it
+	// One flipped bit in a payload row: a column of the BPTC matrix holds bits of several CACH rows. The Hamming rows
+	// correct it when it lands in rows 1-3 of the encode matrix; in row 4 (column parity) it breaks only that row
 	uint32_t rows[4], slc;
 
 	dmrShortLcEncode(dmrShortLcActivity(8, 9, 0x12, 0x34), rows);
@@ -275,13 +275,10 @@ static void test_short_lc(void)
 			hit[r] ^= 1u << i;
 			bool ok = dmrShortLcDecode(hit, &slc);
 
-			// transmit bit t = 17 r + 16 - i sits in encode row t % 4: rows 0-2 correct it, row 3 (parity) fails
-			int t = 17 * r + 16 - i;
-
-			CHECK(ok == ((t % 4) != 3));
-			if (ok) {
-				CHECK(slc == dmrShortLcActivity(8, 9, 0x12, 0x34));
-			}
+			// transmit bit t = 17 r + 16 - i sits in encode row t % 4: rows 0-2 correct it, row 3 (parity) is only
+			// its own error. Rejecting that one lost a quarter of the short LCs with a bit error on air
+			CHECK(ok);
+			CHECK(slc == dmrShortLcActivity(8, 9, 0x12, 0x34));
 		}
 	}
 }
@@ -557,8 +554,10 @@ static void test_epoch(void)
 	uint32_t n = 3001u;	// slots in about 90 s
 	uint64_t t = 5000000ull + ((uint64_t)n * 30003000ull) / 1000ull;
 	CHECK(slotEpochLabel(&e, (uint32_t)t, 1000, &res) == ((n & 1) ? 2 : 1) && res > -2 && res < 2);
+	CHECK(e.moved != 0 && e.last_slot == n);	// the anchor moved; the slot is still counted from the host's E
 	uint64_t t2 = 5000000ull + ((uint64_t)(n + 1) * 30003000ull) / 1000ull;
 	CHECK(slotEpochLabel(&e, (uint32_t)t2, 1000, &res) == ((n & 1) ? 1 : 2) && res > -2 && res < 2);
+	CHECK(e.last_slot == n + 1u);
 
 	// Tracking: a constant 4 ms chip delay is followed; never more than 5 ms in all
 	CHECK(slotEpochSet(&e, 0, 0, 0));
@@ -679,7 +678,7 @@ static int count_out(uint8_t cmd, int from)
 
 static uint8_t split_cmd(uint8_t sub, const uint8_t *data, uint8_t len)
 {
-	uint8_t p[40];
+	uint8_t p[48];
 
 	p[0] = sub;
 	if (len > 0) {
@@ -757,14 +756,14 @@ static void lc_frame(uint8_t dt, const uint8_t *lc, uint8_t *frame)
 {
 	uint8_t full[12];
 
-	dmr_lc_encode_full(lc, (dt == DT_VOICE_LC_HEADER) ? DMR_RS_MASK_VOICE_HEADER : DMR_RS_MASK_TERMINATOR, full);
+	dmr_lc_encode_full(lc, (dt == DMR_TYPE_VOICE_LC_HEADER) ? DMR_RS_MASK_VOICE_HEADER : DMR_RS_MASK_TERMINATOR, full);
 	data_frame(dt, full, 12, frame);
 }
 
 static const uint8_t LC1[9] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x09, 0x98, 0x7C, 0x11 };	// TG 9
 static const uint8_t LC2[9] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x5B, 0x98, 0x7C, 0x12 };	// TG 91
 
-// A voice frame as MMDVMHost builds it: AMBE, then the EMB and embedded LC fragment for B-E
+// A voice frame as a host builds it: AMBE, then the EMB and embedded LC fragment for B-E
 static void voice_frame(uint8_t index, uint8_t seed, const uint8_t *lc, uint8_t *frame)
 {
 	uint8_t frag[4][4];
@@ -823,7 +822,7 @@ static void test_normal(void)
 	// Simplex DMR_DATA1 still NAK 2, DMR_START / SHORTLC still silent, unknown commands still NAK 1
 	int from = out_count;
 	uint8_t f[33];
-	lc_frame(DT_VOICE_LC_HEADER, LC1, f);
+	lc_frame(DMR_TYPE_VOICE_LC_HEADER, LC1, f);
 	configure(true, 1);
 	set_freq(438000000, 438000000, 255);
 	net(MMDVM_DMR_DATA1, 0x41, f);
@@ -928,16 +927,16 @@ static void test_tx_half(void)
 	}
 	CHECK(dmrShortLcDecode(got, &slc) && slc == dmrShortLcActivity(8, 0, dmrShortLcHash(9), 0));
 
-	// Two network calls, one per slot, MMDVMHost style (headers, voice with control bytes, terminators)
+	// Two network calls, one per slot, standard host style (headers, voice with control bytes, terminators)
 	uint8_t f[33];
 	air0 = ssim.air_n;
-	lc_frame(DT_VOICE_LC_HEADER, LC1, f);
+	lc_frame(DMR_TYPE_VOICE_LC_HEADER, LC1, f);
 	net(MMDVM_DMR_DATA1, 0x41, f);
 	net(MMDVM_DMR_DATA1, 0x41, f);
-	lc_frame(DT_VOICE_LC_HEADER, LC2, f);
+	lc_frame(DMR_TYPE_VOICE_LC_HEADER, LC2, f);
 	net(MMDVM_DMR_DATA2, 0x41, f);
 	uint8_t idle[33];
-	data_frame(DT_IDLE, BS_IDLE_INFO, 12, idle);
+	data_frame(DMR_TYPE_IDLE, BS_IDLE_INFO, 12, idle);
 	net(MMDVM_DMR_DATA2, 0x49, idle);		// taken, dropped
 	for (int sf = 0; sf < 2; sf++) {
 		for (uint8_t i = 0; i < 6; i++) {
@@ -948,11 +947,11 @@ static void test_tx_half(void)
 			run_ms(60);
 		}
 	}
-	lc_frame(DT_TERMINATOR_WITH_LC, LC1, f);
+	lc_frame(DMR_TYPE_TERMINATOR_LC, LC1, f);
 	for (int i = 0; i < 3; i++) {
 		net(MMDVM_DMR_DATA1, 0x42, f);
 	}
-	lc_frame(DT_TERMINATOR_WITH_LC, LC2, f);
+	lc_frame(DMR_TYPE_TERMINATOR_LC, LC2, f);
 	net(MMDVM_DMR_DATA2, 0x42, f);
 	CHECK(nak_of(MMDVM_DMR_DATA1, from) < 0 && nak_of(MMDVM_DMR_DATA2, from) < 0);
 	run_ms(600);
@@ -1000,7 +999,7 @@ static void test_tx_half(void)
 	// Full: the 17th burst on a slot gets NAK 5 and the overflow flag once
 	from = out_count;
 	voice_frame(0, 0x55, LC1, f);
-	lc_frame(DT_VOICE_LC_HEADER, LC1, idle);
+	lc_frame(DMR_TYPE_VOICE_LC_HEADER, LC1, idle);
 	net(MMDVM_DMR_DATA1, 0x41, idle);
 	for (int i = 0; i < 16; i++) {
 		net(MMDVM_DMR_DATA1, (i % 6 == 0) ? 0x20 : (uint8_t)(i % 6), f);
@@ -1082,7 +1081,7 @@ static void test_tx_guard(void)
 	CHECK(split_cmd(SPLIT_SUB_STATUS, NULL, 0) == 0 && (split_reply(6)[6] & SPLIT_FLAG_COOLDOWN));
 	int from = out_count;
 	uint8_t f[33];
-	lc_frame(DT_VOICE_LC_HEADER, LC1, f);
+	lc_frame(DMR_TYPE_VOICE_LC_HEADER, LC1, f);
 	net(MMDVM_DMR_DATA2, 0x41, f);
 	CHECK(nak_of(MMDVM_DMR_DATA2, from) == MMDVM_NAK_WRONG_MODE);
 	host(MMDVM_GET_STATUS, NULL, 0);
@@ -1168,7 +1167,7 @@ static void test_rx_half(void)
 	CHECK(ssim.locked_ts == 0);
 	int from = out_count;
 	uint8_t f[33];
-	lc_frame(DT_VOICE_LC_HEADER, LC1, f);
+	lc_frame(DMR_TYPE_VOICE_LC_HEADER, LC1, f);
 	net(MMDVM_DMR_DATA1, 0x41, f);
 	CHECK(nak_of(MMDVM_DMR_DATA1, from) == MMDVM_NAK_WRONG_MODE);
 	host(MMDVM_DMR_START, (const uint8_t[]){ 1 }, 1);
@@ -1237,12 +1236,12 @@ static void test_rx_half(void)
 			if (o[2] != cmd) {
 				continue;
 			}
-			if (o[3] == (MMDVM_DMR_SYNC_DATA | DT_VOICE_LC_HEADER)) {
+			if (o[3] == (MMDVM_DMR_SYNC_DATA | DMR_TYPE_VOICE_LC_HEADER)) {
 				uint8_t info[12], lc[9];
 				dmrFecBptcDecode(o + 4, info);
 				CHECK(dmr_lc_decode_full(info, DMR_RS_MASK_VOICE_HEADER, lc) >= 0 && memcmp(lc, want_lc, 9) == 0);
 				hdr++;
-			} else if (o[3] == (MMDVM_DMR_SYNC_DATA | DT_TERMINATOR_WITH_LC)) {
+			} else if (o[3] == (MMDVM_DMR_SYNC_DATA | DMR_TYPE_TERMINATOR_LC)) {
 				terms++;
 			} else if ((o[3] & MMDVM_DMR_SYNC_DATA) == 0) {
 				uint8_t idx = (o[3] & MMDVM_DMR_SYNC_AUDIO) ? 0 : (o[3] & 0x0F);
@@ -1388,7 +1387,7 @@ static void test_align(void)
 	start_sched(0);
 	CHECK(split_cmd(SPLIT_SUB_INFO, NULL, 0) == 0);
 	const uint8_t *r = split_reply(SPLIT_SUB_INFO);
-	CHECK(rd16(r + 15) == (SPLIT_CAP_SCHED | SPLIT_CAP_ALIGN | SPLIT_CAP_SLEW | SPLIT_CAP_RX_META) && r[17] == 55 && r[18] == 32 && rd16(r + 19) == 4600);
+	CHECK(rd16(r + 15) == (SPLIT_CAP_SCHED | SPLIT_CAP_ALIGN | SPLIT_CAP_SLEW | SPLIT_CAP_RX_META | SPLIT_CAP_SCHED_CACH) && r[17] == 55 && r[18] == 32 && rd16(r + 19) == 4600);
 
 	// Not TX half / bad period / too short
 	CHECK(align_cmd(grid_t, 31000000u, GRID_C, NULL, NULL) == SPLIT_RESULT_INVALID);
@@ -1406,6 +1405,12 @@ static void test_align(void)
 	// GET_EPOCH numbers from the grid: its boundary lies on it, even counters are TS1
 	epoch(&c, &t, &ts);
 	CHECK((int32_t)(t - grid_t) == (int32_t)(c - GRID_C) * 30000 && ts == slot_of(c));
+	// The same grid again: the clock is on it, so it is numbered without a restart; the other slot's numbering is not
+	CHECK(align_cmd(grid_t, 0, GRID_C + 2u, &ph, &fl) == 0 && ph == 0 && fl == SPLIT_AL_ALIGNED && ssim.restarts == 1);
+	st = status();
+	CHECK(st[46] == (SPLIT_AL_ALIGNED | SPLIT_AL_BASE));
+	CHECK(align_cmd(grid_t, 0, GRID_C + 1u, &ph, &fl) == 0 && fl == SPLIT_AL_SNAP && ssim.restarts == 2);
+	run_ms(100);
 
 	// A chip that comes up 3 ms late: checked at the first boundaries, snapped again with the delay learned
 	start_sched(3000);
@@ -1423,13 +1428,46 @@ static void test_align(void)
 	run_ms(300);
 	hotspot_split_get_view(&v);
 	CHECK(ssim.restarts == 2 && v.snap_adj_us == 12000 && v.align_flags == (SPLIT_AL_ALIGNED | SPLIT_AL_BASE));
-	// A chip that never gets there: three more tries, then it stops: numbered from the grid, not aligned
-	start_sched(5000);
-	ssim.restart_flip = true;
+	// A chip whose first boundary comes 27 ms after the restart, numbered from the restart instant (the HR_C6000
+	// driver): the delay is learned as 27 ms, more than half a slot, so the restart falls a slot before the boundary it
+	// lands on and must name that earlier slot, at any grid offset
+	for (uint32_t off = 0; off < 30000u; off += 3000u) {
+		start_sched(27000);
+		ssim.restart_ts_at_write = true;
+		ssim.restarts = 0;
+		CHECK(align_cmd(grid_t + off, 0, GRID_C, &ph, &fl) == 0 && fl == SPLIT_AL_SNAP);
+		run_ms(400);
+		hotspot_split_get_view(&v);
+		CHECK(ssim.restarts <= 3 && v.phase_us == 0 && v.align_flags == (SPLIT_AL_ALIGNED | SPLIT_AL_BASE));
+		epoch(&c, &t, &ts);
+		CHECK(ts == slot_of(c));
+	}
+	ssim.restart_ts_at_write = false;
+	// A chip whose delay varies (5, 8, 7 ms): learned as 5 ms, then the mean, 6.5 ms; the third landing, 500 us off, is no
+	// snap tolerance hit but inside the aligned bound, and after SPLIT_SNAP_LOOSE tries that ends it
+	start_sched(0);
+	ssim.restart_seq[0] = 5000;
+	ssim.restart_seq[1] = 8000;
+	ssim.restart_seq[2] = 7000;
+	ssim.restart_seq[3] = 30000;	// never reached
+	ssim.restart_seq_n = 4;
+	ssim.restarts = 0;
 	CHECK(align_cmd(grid_t, 0, GRID_C, &ph, &fl) == 0);
 	run_ms(600);
 	hotspot_split_get_view(&v);
-	CHECK(ssim.restarts == 1 + SPLIT_SNAP_TRIES && v.align_flags == SPLIT_AL_BASE && v.phase_us == -10000);
+	CHECK(SPLIT_SNAP_LOOSE == 2 && ssim.restarts == 3 && v.phase_us == 500 &&
+	      v.align_flags == (SPLIT_AL_ALIGNED | SPLIT_AL_BASE));
+	ssim.restart_seq_n = 0;
+	// A chip that never gets there: SPLIT_SNAP_TRIES more tries, then it stops: numbered from the grid, not aligned
+	start_sched(5000);
+	ssim.restart_flip = true;
+	CHECK(align_cmd(grid_t, 0, GRID_C, &ph, &fl) == 0);
+	run_ms(150 * (1 + SPLIT_SNAP_TRIES));
+	hotspot_split_get_view(&v);
+	// (the flipping chip lands 10 ms early or late in turn, each beyond SPLIT_SNAP_RELEARN_US, so each is learned in
+	// full: the last restart's side follows the count)
+	CHECK(ssim.restarts == 1 + SPLIT_SNAP_TRIES && v.align_flags == SPLIT_AL_BASE &&
+	      v.phase_us == ((SPLIT_SNAP_TRIES & 1) ? -10000 : 10000));
 
 	// A retune restarts the slot clock: back onto the grid by itself
 	start_sched(0);
@@ -1472,7 +1510,7 @@ static void test_sched(void)
 	uint32_t c, t;
 
 	start_sched(0);
-	lc_frame(DT_VOICE_LC_HEADER, LC1, f);
+	lc_frame(DMR_TYPE_VOICE_LC_HEADER, LC1, f);
 	CHECK(sched_cmd(GRID_C + 20u, 1, 0x41, f) == 0xE0 + SPLIT_RESULT_STATE);	// no ALIGN yet
 	CHECK(align_cmd(grid_t, 0, GRID_C, &ph, &fl) == 0);
 	run_ms(100);
@@ -1491,11 +1529,11 @@ static void test_sched(void)
 		CHECK(sched_cmd(g + 2u + 2u * (uint32_t)i, 1, (i == 0) ? 0x20 : (uint8_t)i, vf) == SPLIT_SCHED_QUEUED);
 	}
 	uint8_t term[33];
-	lc_frame(DT_TERMINATOR_WITH_LC, LC1, term);
+	lc_frame(DMR_TYPE_TERMINATOR_LC, LC1, term);
 	CHECK(sched_cmd(g + 14u, 1, 0x42, term) == SPLIT_SCHED_QUEUED);
 	// Inbound slot 2 data in a TS2 slot, sent twice: the second replaces the first
 	uint8_t d[33], info[12] = { 0x01, 0x02, 0x03 };
-	data_frame(DT_CSBK, info, 12, d);
+	data_frame(DMR_TYPE_CSBK, info, 12, d);
 	CHECK(sched_cmd(g + 5u, 2, 0x43, d) == SPLIT_SCHED_QUEUED);
 	CHECK(sched_cmd(g + 5u, 2, 0x43, d) == SPLIT_SCHED_REPLACED);
 	CHECK(sched_cmd(c + 40u, slot_of(c + 40u), 0x43, d) == SPLIT_SCHED_EARLY);
@@ -1611,6 +1649,74 @@ static uint32_t until_slewed(uint32_t max_ms)
 		}
 	}
 	return 0;
+}
+
+// TX_SCHED with the slot's CACH (spec 3.9): sent as given, idle bursts included; TC must name the slot
+static uint8_t sched_cach_cmd(uint32_t counter, uint8_t slot, uint8_t control, const uint8_t *frame, uint32_t cach)
+{
+	uint8_t p[42];
+
+	for (int i = 0; i < 4; i++) {
+		p[i] = (uint8_t)(counter >> (8 * i));
+	}
+	p[4] = slot;
+	p[5] = control;
+	memcpy(p + 6, frame, 33);
+	p[39] = (uint8_t)(cach >> 16);
+	p[40] = (uint8_t)(cach >> 8);
+	p[41] = (uint8_t)cach;
+	uint8_t r = split_cmd(SPLIT_SUB_TX_SCHED, p, 42);
+
+	return (r != 0) ? (uint8_t)(0xE0 + r) : split_reply(SPLIT_SUB_TX_SCHED)[9];
+}
+
+static void test_sched_cach(void)
+{
+	hotspot_split_view_t v;
+	int32_t ph;
+	uint8_t fl, ts, d[33], idle[33], info[12] = { 0x3C };
+	uint32_t c, t;
+
+	start_sched(0);
+	CHECK(split_cmd(SPLIT_SUB_INFO, NULL, 0) == 0);
+	CHECK((rd16(split_reply(SPLIT_SUB_INFO) + 5 + 10) & SPLIT_CAP_SCHED_CACH) != 0);
+	CHECK(align_cmd(grid_t, 0, GRID_C, &ph, &fl) == 0);
+	run_ms(100);
+	epoch(&c, &t, &ts);
+	data_frame(DMR_TYPE_CSBK, info, 12, d);
+	data_frame(DMR_TYPE_IDLE, info, 0, idle);
+
+	uint32_t g = (c + 10u) & ~1u;
+	uint32_t c1 = dmrCachBuild(1, 0, DMR_LCSS_FIRST, 0x1A5A5u);	// before TS1: AT busy
+	uint32_t c2 = dmrCachBuild(0, 1, DMR_LCSS_LAST, 0x05A5Au);	// before TS2: AT idle
+	unsigned air0 = ssim.air_n;
+	CHECK(sched_cach_cmd(g, 1, 0x43, d, c1) == SPLIT_SCHED_QUEUED);
+	CHECK(sched_cach_cmd(g + 1u, 2, 0x49, idle, c2) == SPLIT_SCHED_QUEUED);	// an idle that carries a CACH
+	CHECK(sched_cach_cmd(g + 2u, 1, 0x43, d, c2) == 0xE0 + SPLIT_RESULT_INVALID);	// TC names TS2
+	CHECK(sched_cmd(g + 2u, 1, 0x43, d) == SPLIT_SCHED_QUEUED);			// no CACH: the half's own
+	run_ms(600);
+	hotspot_split_get_view(&v);
+	bool seen1 = false, seen2 = false, seen3 = false;
+	for (unsigned i = air0; i < ssim.air_n; i++) {
+		uint32_t n = ssim.air[i].counter + v.cbase;
+
+		if (n == g) {
+			seen1 = ssim.air[i].b.kind == DMR_BURST_CSBK && ssim.air[i].cach.bits == c1 && ssim.air[i].cach.at == 1 &&
+				ssim.air[i].cach.tc == 0 && ssim.air[i].cach.payload == 0x1A5A5u;
+		} else if (n == g + 1u) {
+			seen2 = ssim.air[i].b.kind == DMR_BURST_IDLE && ssim.air[i].cach.bits == c2;
+		} else if (n == g + 2u) {
+			seen3 = ssim.air[i].b.kind == DMR_BURST_CSBK && ssim.air[i].cach.bits != c1 && ssim.air[i].cach.tc == 0;
+		}
+	}
+	for (unsigned i = air0; i < ssim.air_n; i++) {
+		uint32_t n = ssim.air[i].counter + v.cbase;
+		if (n >= g && n <= g + 2u && !(seen1 && seen2 && seen3)) {
+			printf("  slot +%u kind %u bits %06x tc %u at %u pl %05x (c1 %06x c2 %06x)\n", n - g, ssim.air[i].b.kind, ssim.air[i].cach.bits, ssim.air[i].cach.tc, ssim.air[i].cach.at, ssim.air[i].cach.payload, c1, c2);
+		}
+	}
+	CHECK(seen1 && seen2 && seen3);
+	CHECK(ssim.late == 0);
 }
 
 static void test_slew(void)
@@ -1742,11 +1848,12 @@ static void test_rx_meta(void)
 	CHECK(n == 2 && data1 > ev[0] && data1 < ev[1] && (data2 < 0 || data2 > ev[1]));
 	const uint8_t *m = out[ev[0]].b + 5;
 	CHECK(rd32(m) == s1 && (int16_t)rd16(m + 4) == 3000 && m[6] == 1 && m[7] == DMR_BURST_VOICE_LC_HEADER && m[8] == 1);
-	CHECK(m[9] == (SPLIT_META_CRC_OK | SPLIT_META_IN_STEP | SPLIT_META_LC | SPLIT_META_EPOCH | SPLIT_META_TIMED));
-	CHECK((int16_t)rd16(m + 10) == -80 && rd16(m + 12) == 0);
+	CHECK(m[9] == (SPLIT_META_CRC_OK | SPLIT_META_IN_STEP | SPLIT_META_LC | SPLIT_META_EPOCH | SPLIT_META_TIMED |
+		       SPLIT_META_SLOT));
+	CHECK((int16_t)rd16(m + 10) == -80 && rd16(m + 12) == 0 && rd16(m + 14) == 20);	// 600 ms after E: slot 20
 	m = out[ev[1]].b + 5;
 	CHECK(rd32(m) == s2 && m[6] == 2 && m[7] == DMR_BURST_VOICE && (int16_t)rd16(m + 10) == -97 && rd16(m + 12) == 1);
-	CHECK(m[9] == (SPLIT_META_CRC_OK | SPLIT_META_EPOCH | SPLIT_META_TIMED));
+	CHECK(m[9] == (SPLIT_META_CRC_OK | SPLIT_META_EPOCH | SPLIT_META_TIMED | SPLIT_META_SLOT) && rd16(m + 14) == 21);
 	// A burst that goes up nowhere (a header with a bad CRC) still gets its event; without an epoch: label 0
 	CHECK(split_cmd(SPLIT_SUB_SET_ROLE, (const uint8_t[]){ 0 }, 1) == 0);
 	CHECK(split_cmd(SPLIT_SUB_SET_ROLE, (const uint8_t[]){ 2, 0, 0, 0, 0, 0, 0, SPLIT_OPT_RX_META }, 8) == 0);
@@ -1760,7 +1867,8 @@ static void test_rx_meta(void)
 			e = out[i].b;
 		}
 	}
-	CHECK(e != NULL && e[5 + 6] == 0 && e[5 + 9] == (SPLIT_META_IN_STEP | SPLIT_META_LC | SPLIT_META_TIMED));
+	CHECK(e != NULL && e[5 + 6] == 0 && e[5 + 9] == (SPLIT_META_IN_STEP | SPLIT_META_LC | SPLIT_META_TIMED) &&
+	      rd16(e + 5 + 14) == 0);
 	CHECK(count_out(MMDVM_DMR_DATA2, from) == 0);
 	hotspot_split_view_t v;
 	hotspot_split_get_view(&v);
@@ -1832,6 +1940,7 @@ int main(void)
 	test_tx_guard();
 	test_align();
 	test_sched();
+	test_sched_cach();
 	test_slew();
 	test_rx_half();
 	test_rx_meta();

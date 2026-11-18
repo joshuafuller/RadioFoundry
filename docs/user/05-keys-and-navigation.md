@@ -48,7 +48,7 @@ The side keys (**Monitor**, **Talk target** and **Power level** on most radios) 
 
 Each key press gives a short key beep unless **Settings > Sound > Key tones** is off.
 
-While the keys are locked (hold **\***), **PTT** still works. When **Settings > Privacy > PTT when locked** is off,
+While the keys are locked (hold **\***), **PTT** still works. When **Settings > Key lock > PTT when locked** is off,
 **PTT** gives an error beep and "PTT is off while locked: hold * to unlock".
 
 ## Moving around
@@ -108,7 +108,9 @@ Settings also answer to other names. For example, "promiscuous" finds Digital mo
 Changes you make while operating (power, squelch, tone, timeslot, color code, mode, talk target) are temporary. They
 last until you change the channel or press **Back** on Home. Home marks the changed fields. To keep a change in the
 channel, hold **OK** on Home or in quick settings. The radio shows "Saved to channel".
-In the VFO, changes are kept automatically, so a hold says "VFO settings save automatically". If another
+In the VFO, changes are kept automatically, so a hold says "VFO settings save automatically". Squelch is one
+setting for the whole radio, so squelch set in the VFO becomes the default squelch on every channel too (the same as
+holding **OK** to save it on a channel). If another
 write is in progress, it says "Save busy: try again"; wait a moment and hold **OK** again.
 
 **Back** on Home clears one thing per press, in this order:
@@ -123,10 +125,12 @@ write is in progress, it says "Save busy: try again"; wait a moment and hold **O
 ## Key lock
 
 On Home, hold **\*** to lock the keys. The screen shows "Keys locked: hold * to unlock" and an "L" in the status line.
-While locked, **PTT** and **Monitor** still work. Any other key shows the unlock hint. Hold **\*** again to unlock.
+While locked, **PTT** and **Monitor** still work. Any other key, and the channel knob, shows the unlock hint. Hold
+**\*** again to unlock. The volume knob still works, unless **Settings > Key lock > Knob when locked** is Off.
 In menus holding **\*** doesn't lock, so a slow press can't lock the keys in the middle of a task.
 
-**Settings > Privacy > Auto lock** locks the keys by itself after a time without a key press.
+**Settings > Key lock > Auto lock** locks the keys by itself after a time without a key press. A radio with only
+side keys (no keypad, no Back key) never locks by itself: nothing could unlock it.
 
 <img src="../ux/screens/160x120i5/home_locked.png" width="200" alt="Home with the keys locked">
 

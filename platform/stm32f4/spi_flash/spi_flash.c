@@ -61,7 +61,9 @@ static bool init(void)
 	give();
 	ready = ok;
 	stm32_spi_flash.size = ok ? nor.size : 0;
-	stm32_spi_flash.map = ok && nor.size >= cfg->map_min_size ? cfg->map : NULL;
+	// The map the chip holds (the board's, else its small one), none when it holds neither; a chip that didn't answer
+	// keeps the board's with size 0, as on HR_C7000 (the debug link tells "didn't start" from "too small" by it)
+	stm32_spi_flash.map = !ok ? cfg->map : hal_flash_map_for(cfg->map, cfg->small_map, nor.size, SPI_NOR_SECTOR_SIZE);
 	return ok;
 }
 

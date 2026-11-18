@@ -18,7 +18,7 @@ Each fact is in one file. A value another file already holds is derived from it,
 |---|---|
 | `boards/<id>/board.toml` | Identity, status, build option text, CI extras, flashing family, bootloader and stub data, codec route, the site's data |
 | `platform/<p>/platform.toml` | ISA, CPU, toolchain, platform stubs, flash base, sector geometries, codec symbols |
-| `boards/<id>/board.mk` | `PLATFORM`, `APP_BASE` (the image address), `HSE_VALUE` (the crystal, for the STM32F4 stub), `BOOT_*`, `BOARD_DIRS`, `BUILD_OPTIONS` and each option's `<NAME>_VALUES`, read with `make print-vars` so the board's and the platform's `config.mk` and their conditionals count. `LDSCRIPT` defaults to `memory.ld` |
+| `boards/<id>/board.mk` | `PLATFORM`, `APP_BASE` (the image address), `HSE_VALUE` (the crystal, for the STM32F4 stub), `BOOT_*`, `BOARD_DIRS`, `BUILD_OPTIONS` and each option's `<NAME>_VALUES`, read with `make print-vars` so the board's and the platform's `config.mk` and their conditionals count. `LDSCRIPT` defaults to `memory.ld`. `BOARD_HWOPTS := y` on a board with hardware options (`board_t.hwopts`, `hal/hal_hwopt.h`: the others build none of that code) is for the build alone: the registry doesn't read it |
 | `boards/<id>/memory.ld` | The application region (`MEMORY FLASH`, from `__app_start`) and the codec symbols (`__codec_*`). Every `*.ld` in the board directory is read for the codec symbols |
 | `boards/<id>/*.c` | The `board_t` `.name` values: the names the debug link reports |
 | `boards/<id>/pins.h` | The pins the stub uses: the power latch and key (HR_C7000), the SPI flash's `PIN_FLASH_SCK`, `_MISO`, `_MOSI`, `_CS` and the `idle_cs` pins (STM32F4), each as `GPIOx, GPIO_PIN_n` on STM32F4 |
@@ -33,6 +33,7 @@ Derived values:
 | Erasable sectors | The platform geometry from the application base up |
 | Stub NAND flag | `drivers/flash/spi_nand` in `BOARD_DIRS` |
 | Stub power pins | `PIN_POWER_LATCH` and `PIN_POWER_KEY` in `pins.h`, when `hold_power` is set |
+| Stub LED pins (HR_C7000) | `PIN_LED_RED` and `PIN_LED_GREEN` in `pins.h`, else none |
 | Stub board record (STM32F4) | `spi` and `idle_cs`, the `PIN_FLASH_*` pins, the bus's alternate function from the platform's `board_stub.spi_af`, `HSE_VALUE` and `APP_BASE` |
 | Debug link names | The `board_t` names, each build option value's `board_name`, `debuglink_aliases`, the id |
 | Codec windows of a linker slot | The `__codec_slot` symbols |
@@ -52,6 +53,7 @@ neighbor on the same platform.
 | `maker`, `model` | string | The two parts of the name |
 | `also` | list of strings | The same radio sold under other names |
 | `kind` | `handheld` or `mobile` | |
+| `aprs_tocall` | one character, `1`-`9` or `A`-`Z` | The sixth character of the radio's APRS tocall `APRDF?` ([aprs.md](../spec/aprs.md) 4.2). Unique; `0` is the host tests'. Never change or reuse one: it is meant to name the radio's model in the device identifier list |
 | `part_of` | string, optional | Another board this one is a build of |
 | `debuglink_aliases` | list, optional | Names older firmware reported on the debug link |
 | `looks` | list of tables, optional | Other bodies the board ships in that look too different to share its picture: `{ id, name, also }`. Each is its own radio card on the site, drawn in `site/static/img/radios/src/<id>-<look id>.svg` (the site build refuses a missing drawing), and links to the board's page. `name` and every entry of `also` (the radios in that body) must be in the board's `also`; the board's own card lists the rest |
@@ -155,15 +157,53 @@ added only once it was read on a radio in its bootloader. The flashers then acce
 refuse a layout that shows only the bootloader's sectors (from 0x08000000, at most 48 KB): that is the radio's own
 firmware switched on normally, which has the bootloader's IDs and strings but whose erase can reach the bootloader.
 
+#### Original firmware version
+
+`[flash.original_version]` (optional): a hardware option (`board_t.hwopts`, [debuglink.md](../spec/debuglink.md#325-hwopt))
+that RadioFoundry can't detect but that the version of the radio's original firmware settles, such as a board revision
+when the manufacturer ships one firmware line per revision. The installers read that version before they ask for the
+bootloader, and store the choice over the debug link once RadioFoundry runs (rfoundry's `origversion.py`, the web
+flasher's `origversion.js`; [web-flasher.md](web-flasher.md#the-original-firmware-version)).
+
+| Key | Meaning |
+|---|---|
+| `read` | How the version is read. `dfu-info`: the original firmware, running normally, is a DFU device with the bootloader's USB IDs (`[flash.dfu]` required); block 0 command `A2 02`, then UPLOAD, answers the version (first byte 0x56; the bootloader answers 0x54). The request sequence is in the radio's hardware page |
+| `interface` | The DFU interface string the original firmware shows while it runs (spaces not counted). The installers send the read only to a device showing it, and refuse to write to one |
+| `hwopt` | The option's name, as `hal_hwopt_t` names it |
+| `major` | The choice for each major version: `{ "06" = "<choice>", ... }`, two digits each, every choice one of the option's labels |
+
+`tools/boards.py check` refuses a choice or option name that doesn't appear in the board's sources. A version whose
+major isn't listed settles nothing: the radio then uses its own fallback.
+
+#### Backup before the install
+
+`[flash.original_backup]` (optional, with `[flash.original_version]`): what the web flasher backs up through the
+original firmware's or the bootloader's DFU device before an install (`origbackup.js`,
+[web-flasher.md](web-flasher.md#backup-before-the-install)). The commands are in the radio's hardware page.
+
+| Key | Meaning |
+|---|---|
+| `info` | The info block codes (`A2 ss`), two hex digits each, in the order read |
+| `mirror` | The most to ask for in the one snapshot of the internal flash from the start of flash, before program mode (at most 0xFFFF) |
+| `spi` | The SPI bytes the original firmware reads in program mode (at most `backup.spi_size`) |
+| `quick` | The SPI bytes of the quick read (the codeplug areas) |
+| `loader_interface` | The bootloader's DFU interface string (spaces not counted), which tells it from the original firmware |
+| `loader_spi` | The SPI bytes the bootloader reads |
+
 `[flash.stub]` (a board on a platform with `board_stub`): `id` (the board id the stub echoes, unique per stub; 0xFE is reserved for the stub tools' test profiles) and
 `tested` (flashed through the stub on a radio), then the keys the platform's `board_stub` names:
 
 | Platform stub | Required | Optional |
 |---|---|---|
-| `stubtool` (HR_C7000) | `hold_power` (the stub drives the power latch), `progmem` (program flash size) | `stock_console` (the stock firmware answers a console the web flasher reads), `read_rate` |
+| `stubtool` (HR_C7000) | `hold_power` (the stub drives the power latch), `progmem` (program flash size), `calibration` | `stock_console` (the original firmware answers a console the web flasher reads), `read_rate`, `write_test` (the data flash offset of the 16 KB `--write-test` erases and programs; the check refuses one that overlaps the flash map, a protected region or the chip's end, or a NAND. Without it the tool writes no data flash), `rom_entry` (the boot ROM starts the application itself: the flag sector at program flash 0 names this entry) |
 | `f4stub` (STM32F4) | `spi = { bus, mode, hz }` (the SPI flash's bus 1-3, SPI mode 0-3, fastest clock) | `idle_cs` (up to two `pins.h` names of other chip selects on that bus, held high) |
 
 A key of another platform's stub fails the check.
+
+The HR_C7000 stub's LED pins come from `pins.h`, not `[flash.stub]`. The stub drives its LED pins from its first
+instruction, so the tools write the board's pins into the stub image's parameter block before they send it, and send
+them again in CONFIG. The stub's built-in pins (PTB1 red, PTB0 green) can be other signals on another board. A board
+without `PIN_LED_RED` or `PIN_LED_GREEN` gets 255 (no LED) for it.
 
 #### Protected regions
 
@@ -260,7 +300,7 @@ How the site draws the radio: `shape`, `body` and `accent` colors, `lens` size.
 | `build` | The script that installs or builds it |
 | `version` | The release CI and releases build with |
 | `sha256` | Optional: the SHA-256 of the archive the script downloads |
-| `image` | Optional: the container image that holds the toolchain (`RFOUNDRY_CSKY_IMAGE` overrides it) |
+| `image` | Optional: the container image that holds the toolchain. C-SKY builds run in it (`RFOUNDRY_CSKY_IMAGE` overrides it); `tools/install-arm-toolchain.sh` copies the Arm toolchain out of it |
 
 The toolchain scripts read these values with `tools/platform_toolchain.sh`, which needs no Python. `check` fails when
 a script, Dockerfile or workflow under `tools/` or `.github/` sets `<ID>_GCC_VERSION` or `<ID>_GCC_SHA256` (for

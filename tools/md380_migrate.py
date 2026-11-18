@@ -23,8 +23,8 @@ that layer with cps_client.py. The codeplug steps are shared with the other radi
 docs/user/18-moving-from-stock-md380.md the user guide.
 
 Needs Python 3.8+, dmrconf (qdmr 0.12 or newer) on PATH, pyusb with libusb (flashing) and pyserial (talking to the
-radio once it runs RadioFoundry). The flash and debug link helpers (stm32_dfu.py, rfoundry_debug.py, rfoundry's stockfw.py) are
-loaded from this script's directory or the repository layout, as are codeplug_port.py and cps_client.py.
+radio once it runs RadioFoundry). The flash and debug link helpers (stm32_dfu.py, rfoundry_debug.py), codeplug_port.py and
+cps_client.py are loaded from this script's directory, and the rfoundry package from rfoundry/ beside it, as in a kit.
 """
 import argparse
 import csv
@@ -56,6 +56,19 @@ RDT_SIZE = RDT_HEADER + CODEPLUG_SIZE + RDT_TRAILER
 
 STOCK_DRIVER = "md390"        # dmrconf --radio for the stock codeplug (MD-380, MD-390, RT3)
 RFOUNDRY_DRIVER = "openuv380"      # dmrconf --radio for RadioFoundry (open-firmware-cps.md 4: radio type 7, OpenUV380 family)
+
+# The DMR ID database on a data flash under 16 MB, where RadioFoundry's flash image ends at 0x100000 (image 0xE0000;
+# hardware-md380.md 12.2): area 1 at image 0x50000 holds 256 KB less the 12-byte header, area 2 runs from image
+# 0xD8000 to the image end (open-firmware-cps.md 7.5). openuv380 records are 27 bytes (32-character text)
+IDDB_RECORD = 27
+IDDB_SMALL_IMAGE_END = 0x100000 - 0x20000
+
+
+def iddb_capacity(flash_bytes):
+    """How many database records RadioFoundry reads on a data flash of this size; None when qdmr's own limit applies"""
+    if not flash_bytes or flash_bytes >= 0x1000000:
+        return None
+    return (0x40000 - 12) // IDDB_RECORD + max(0, IDDB_SMALL_IMAGE_END - 0xD8000) // IDDB_RECORD
 
 # What RadioFoundry's codeplug layout holds, and the qdmr YAML helpers: shared (codeplug_port.py)
 RFOUNDRY_LIMITS = cp.RFOUNDRY_LIMITS
@@ -238,7 +251,9 @@ def stm32_dfu():
 
 
 def stockfw():
-    return load_module("stockfw", ["stockfw.py", os.path.join("rfoundry", "rfoundry", "stockfw.py")])
+    sys.path.insert(0, os.path.join(HERE, "rfoundry"))
+    from rfoundry import stockfw as sfw  # a module of the package, as in stm32_dfu.py: it imports codecmap relatively
+    return sfw
 
 
 def rfoundry_debug_path():
@@ -258,12 +273,13 @@ class Session:
     def __init__(self, args):
         self.dry = args.dry_run
         self.yes = args.yes
-        self.port = getattr(args, "port", None)
+        self.port = full_port(getattr(args, "port", None))
         self.dmrconf = getattr(args, "dmrconf", None) or shutil.which("dmrconf") or "dmrconf"
         self.workdir = None
         self.cache = {}
         self.log = None
         self.state = {}
+        self.platform = sys.platform
 
     def open_workdir(self, path=None, create=True):
         if path is None:
@@ -353,10 +369,44 @@ class Session:
             raise MigrateError("%s failed (exit status %d)" % (os.path.basename(cmd[0]), p.returncode))
         return p.returncode, out
 
-    def dmr(self, *args, radio, check=True, capture=False):
+    def dmr_device(self, serial):
+        """The --device for dmrconf, or None to leave it to dmrconf. A radio running RadioFoundry is a serial port
+        (serial=True) and macOS lists each port twice (cu.X and tty.X), which stops dmrconf's own auto-detect with 'more
+        than one matching USB devices': there the port is found by USB ID, as rfoundry_debug does. A stock radio is not
+        a serial port (libusb), and step 4 (cps_client) finds its port itself, so neither is affected."""
+        if self.port:
+            return dmrconf_device(self.port, self.platform)
+        if not serial or self.platform != "darwin":
+            return None
+        if "dmrconf_device" not in self.cache:
+            try:
+                dev = dmrconf_device(self.pick_port(), self.platform)
+            except MigrateError as e:       # none found, or several: never pick one of two radios
+                if not self.dry:
+                    raise
+                self.say("   [dry run] no radio port: %s" % e)
+                dev = None
+            self.cache["dmrconf_device"] = dev
+            if dev:
+                self.say("   dmrconf device: " + dev)
+        return self.cache["dmrconf_device"]
+
+    def pick_port(self):
+        """The radio's serial port by USB ID 1FC9:0094 ($RFOUNDRY_PORT first, as for rfoundry_debug); MigrateError when
+        there is none or more than one"""
+        dbg = load_module("rfoundry_debug", ["rfoundry_debug.py"])
+        if dbg.list_ports is None:
+            raise MigrateError("pyserial is missing: pip install pyserial")
+        try:
+            return dbg.pick_port()
+        except dbg.DebugLinkError as e:
+            raise MigrateError(str(e))
+
+    def dmr(self, *args, radio, check=True, capture=False, serial=False):
         cmd = [self.dmrconf]
-        if self.port and radio:
-            cmd += ["--device", self.port]
+        dev = self.dmr_device(serial) if radio else None
+        if dev:
+            cmd += ["--device", dev]
         return self.run(cmd + list(args), radio, check, capture)
 
     def rfoundry_debug(self, *args, check=True, capture=True):
@@ -364,6 +414,22 @@ class Session:
         if self.port:
             cmd += ["--port", self.port]
         return self.run(cmd + list(args), True, check, capture)
+
+
+def full_port(port, exists=os.path.exists):
+    """macOS shows a serial port as cu.NAME (and tty.NAME) in /dev; --port may name it without the directory. pyserial
+    needs the path."""
+    if port and re.match(r"(cu|tty)\.", port) and exists("/dev/" + port):
+        return "/dev/" + port
+    return port
+
+
+def dmrconf_device(port, platform=None):
+    """The form dmrconf's --device takes. On macOS that is the short name cu.NAME (the full path is not known to
+    work), elsewhere the port as given."""
+    if (platform or sys.platform) == "darwin" and port.startswith("/dev/"):
+        return port[len("/dev/"):]
+    return port
 
 
 def need_file(sess, path, what):
@@ -540,6 +606,7 @@ def prepare_stream(sess, args):
                 raise MigrateError("the updater file doesn't decrypt to an MD-380 application with this key")
             sess.say("   checked with the key: a valid vector table")
         sess.cache["stream"] = stream
+        sess.cache["stock_image"] = True    # TYT's firmware, not ours: what the flash says it wrote
         return stream
     dfu = stm32_dfu()
     if not info:
@@ -614,8 +681,40 @@ def wait_dfu(sess, dfu, timeout):
     raise MigrateError("the bootloader did not appear within %d s (USB 0483:DF11)" % timeout)
 
 
+EXIT_WATCH_S = 6    # after the bootloader's exit request: long enough for the radio to leave USB and come back
+
+
+def flash_result(stock, loader_back):
+    """What to say after the write and the exit request. stock: a TYT updater file was written, not RadioFoundry.
+    loader_back: a device 0483:DF11 is on USB when the watch ends. RadioFoundry never uses that ID, so there it is the
+    bootloader; the stock firmware in programming mode uses it too (docs/spec/md380-migration.md 3), so there only the
+    screen tells."""
+    what = "the stock firmware" if stock else "RadioFoundry"
+    off_on = "switch the radio off and on (take the battery off and refit it if the switch does nothing)"
+    if not loader_back:
+        return ["written; the radio restarts into %s" % what]
+    if stock:
+        return ["written: %s. A device 0483:DF11 is on USB, which is the bootloader or the stock firmware." % what,
+                "If the screen is dark and the LED blinks, the radio is still in the bootloader: " + off_on + "."]
+    return ["written: %s, but the radio is still in the bootloader (USB 0483:DF11, screen dark, LED blinking):" % what,
+            off_on + "."]
+
+
+def loader_back_after_exit(dfu, usb, watch_s=EXIT_WATCH_S, step_s=0.5):
+    """True when 0483:DF11 is on USB at the end of the watch (it never left, or it came back)"""
+    present = True
+    end = time.monotonic() + watch_s
+    while time.monotonic() < end:
+        time.sleep(step_s)
+        try:
+            present = bool(dfu.find_devices(usb))
+        except Exception:
+            present = False     # the bus is re-enumerating: not there right now
+    return present
+
+
 def step_flash(sess, args):
-    sess.step("2. Flash RadioFoundry")
+    sess.step("2. Flash the firmware")
     stream = prepare_stream(sess, args)
     dfu = stm32_dfu()
     shown = stream if stream is not None else bytes(sess.cache.get("plain_len", 0))
@@ -654,7 +753,8 @@ def step_flash(sess, args):
     except Exception as e:
         raise MigrateError("flashing failed: %s. The bootloader is never erased: enter it again and rerun "
                            "'flash'. Your codeplug backup is in %s" % (e, sess.workdir))
-    sess.say("   written; the radio restarts into RadioFoundry")
+    for line in flash_result(bool(sess.cache.get("stock_image")), loader_back_after_exit(dfu, usb)):
+        sess.say("   " + line)
     sess.save_state(flashed=sha256(stream))
     return True
 
@@ -676,6 +776,8 @@ def wait_rfoundry(sess, timeout):
             return
         if "pyserial" in (p.stdout or ""):
             raise MigrateError("pyserial is missing: pip install pyserial")
+        if "several radios found" in (p.stdout or ""):
+            raise MigrateError(p.stdout.strip())
         time.sleep(2)
     raise MigrateError("the radio did not answer on its USB serial port within %d s. Switch it off and on; if the "
                        "screen stays dark, flash again (the bootloader is never erased)" % timeout)
@@ -694,8 +796,8 @@ def step_prepare_rfoundry(sess, args):
     region = re.search(r"region\s+(\w+)", out or "")
     region = region.group(1) if region else ("foreign" if sess.dry else "?")
     if region == "none":
-        raise MigrateError("RadioFoundry found no usable SPI flash: this radio has the small (1 MB) flash part, or the flash "
-                           "was not detected. RadioFoundry runs on this radio but keeps nothing (no codeplug, no settings), "
+        raise MigrateError("RadioFoundry found no usable SPI flash: this radio has a flash part smaller than 1 MB, or the "
+                           "flash was not detected. RadioFoundry runs on this radio but keeps nothing (no codeplug, no settings), "
                            "so there is nothing to restore. Your backup is in %s" % sess.workdir)
     if region == "foreign":
         sess.say("   The flash area RadioFoundry keeps its settings in still holds the stock firmware's data. RadioFoundry doesn't")
@@ -758,11 +860,24 @@ def step_iddb(sess, args):
         sess.say("   from your users file (%s records)" % sess.state.get("users_count", "?"))
     else:
         sess.say("   dmrconf downloads the public DMR user database (internet needed)")
-    if args.db_limit:
-        cmd += ["--limit", str(args.db_limit)]
-    sess.say("   a large database takes several minutes over USB; don't unplug the radio")
     wait_rfoundry(sess, args.wait)
-    sess.dmr(*cmd, radio=True)
+    limit = args.db_limit
+    if not sess.dry:
+        # a smaller data flash ends the database early: writes past its end are refused and the write would stop there
+        c = open_cps(sess)
+        try:
+            flash_id = c.info()["flash_id"]
+        finally:
+            c.close()
+        code = flash_id & 0xFF
+        cap = iddb_capacity(2 ** code if 0x10 <= code <= 0x1C else None)
+        if cap and (not limit or limit > cap):
+            sess.say("   this radio's data flash holds %d records: the database is cut to the %d nearest your ID" % (cap, cap))
+            limit = cap
+    if limit:
+        cmd += ["--limit", str(limit)]
+    sess.say("   a large database takes several minutes over USB; don't unplug the radio")
+    sess.dmr(*cmd, radio=True, serial=True)
     sess.say("   done: names show on the receive screen for IDs that are not contacts")
     return True
 
@@ -808,10 +923,7 @@ def cmd_package(sess, args):
              os.path.join(HERE, "rfoundry_debug.py"): "rfoundry_debug.py",
              os.path.join(HERE, "codeplug_port.py"): "codeplug_port.py",
              os.path.join(HERE, "cps_client.py"): "cps_client.py"}
-    sfw = next((p for p in (os.path.join(HERE, "stockfw.py"), os.path.join(HERE, "rfoundry", "rfoundry", "stockfw.py"))
-                if os.path.isfile(p)), None)
-    if sfw:
-        files[sfw] = "stockfw.py"
+    files.update(cp.kit_package_files())
     for img in args.image:
         files[os.path.abspath(img)] = os.path.basename(img)
     for extra in args.include or []:
@@ -826,6 +938,7 @@ def cmd_package(sess, args):
         return True
     os.makedirs(out, exist_ok=True)
     for src, dst in files.items():
+        os.makedirs(os.path.dirname(os.path.join(out, dst)), exist_ok=True)
         shutil.copyfile(src, os.path.join(out, dst))
     keyarg = ' --stock "MD-380-D2.32(AD).bin"'
     if any(os.path.basename(x).endswith(".key") for x in args.include or []):
@@ -945,6 +1058,93 @@ zones:
         check(False, "a file not at 0x0800C000 is refused")
     except MigrateError:
         pass
+
+    # dmrconf's --device: the short name on macOS (/dev/cu.X or cu.X given), the port as given elsewhere
+    check(dmrconf_device("/dev/cu.usbmodem1", "darwin") == "cu.usbmodem1", "macOS: /dev/cu.X becomes cu.X")
+    check(dmrconf_device("cu.usbmodem1", "darwin") == "cu.usbmodem1", "macOS: cu.X stays")
+    check(dmrconf_device("/dev/ttyACM0", "linux") == "/dev/ttyACM0", "Linux: the path stays")
+    check(full_port("cu.usbmodem1", lambda p: p == "/dev/cu.usbmodem1") == "/dev/cu.usbmodem1", "cu.X gets /dev/")
+    check(full_port("cu.nothere", lambda p: False) == "cu.nothere", "a name that is no device stays")
+    check(full_port("/dev/ttyACM0") == "/dev/ttyACM0" and full_port(None) is None, "full paths and None stay")
+
+    def session(port, platform, dry=False):
+        sess = Session(argparse.Namespace(dry_run=dry, yes=True, port=port, dmrconf="dmrconf"))
+        sess.platform, sess.say = platform, lambda msg="": None
+        return sess
+
+    def device(port, ports, platform, dry=False, serial=True):
+        """dmr_device with the USB search faked: `ports` is what pick_port finds; (device, error text)"""
+        sess = session(port, platform, dry)
+
+        def pick_port():
+            if len(ports) != 1:
+                raise MigrateError("no radio found" if not ports else "several radios found %s" % ports)
+            return ports[0]
+        sess.pick_port = pick_port
+        try:
+            return sess.dmr_device(serial), None
+        except MigrateError as e:
+            return None, str(e)
+    mac = "/dev/cu.usbmodem0000000100001"
+    check(device(None, [mac], "darwin") == ("cu.usbmodem0000000100001", None), "auto-detect on macOS: the one radio, short name")
+    check(device(None, [mac], "linux") == (None, None), "Linux: left to dmrconf")
+    check(device("/dev/ttyACM0", [mac], "linux") == ("/dev/ttyACM0", None), "Linux: --port as given")
+    check(device("/dev/cu.x", [mac], "darwin") == ("cu.x", None), "--port /dev/cu.x wins and is shortened")
+    check(device("cu.x", [], "darwin") == ("cu.x", None), "--port cu.x wins")
+    check(device(None, [mac], "darwin", serial=False) == (None, None), "a stock radio: no auto-detect")
+    check("several" in (device(None, [mac, mac + "2"], "darwin")[1] or ""), "two radios: stop, not pick one")
+    check("no radio" in (device(None, [], "darwin")[1] or ""), "no radio: stop")
+    check(device(None, [], "darwin", dry=True) == (None, None), "a dry run without a radio goes on")
+
+    # the real pick_port, with rfoundry_debug faked: its errors become MigrateError, a missing pyserial is named
+    class DebugLinkError(Exception):
+        pass
+
+    def fake_debug(list_ports, ports):
+        def pick_port():
+            if len(ports) != 1:
+                raise DebugLinkError("several radios found %s: give --port" % ports)
+            return ports[0]
+        return type("M", (), {"list_ports": list_ports, "pick_port": staticmethod(pick_port), "DebugLinkError": DebugLinkError})
+
+    real = globals()["load_module"]
+    try:
+        for dbg, want in ((fake_debug(None, [mac]), "pyserial is missing"), (fake_debug(True, [mac, mac + "2"]), "several radios"),
+                          (fake_debug(True, [mac]), None)):
+            globals()["load_module"] = lambda name, cands, dbg=dbg: dbg
+            try:
+                got = session(None, "darwin").pick_port()
+                check(want is None and got == mac, "pick_port finds the one radio")
+            except MigrateError as e:
+                check(want is not None and want in str(e), "pick_port: %s (got %r)" % (want, str(e)))
+    finally:
+        globals()["load_module"] = real
+
+    # After the flash: what was written, and a radio left in the bootloader is told how to leave it
+    check(flash_result(False, False) == ["written; the radio restarts into RadioFoundry"], "flash result: RadioFoundry")
+    check(flash_result(True, False) == ["written; the radio restarts into the stock firmware"], "flash result: stock")
+    for stock in (False, True):
+        text = " ".join(flash_result(stock, True))
+        check("bootloader" in text and "off and on" in text and "restarts into" not in text,
+              "flash result: loader still there (stock %s)" % stock)
+    check("RadioFoundry" not in " ".join(flash_result(True, True)), "flash result: a stock image is not called ours")
+
+    class FakeDfu:
+        def __init__(self, seen):
+            self.seen = list(seen)
+
+        def find_devices(self, usb):
+            return [1] if self.seen.pop(0) else []
+    check(loader_back_after_exit(FakeDfu([False] * 50), None, watch_s=0.03, step_s=0.01) is False, "exit watch: gone")
+    check(loader_back_after_exit(FakeDfu([True] * 50), None, watch_s=0.03, step_s=0.01) is True, "exit watch: still there")
+
+    check(iddb_capacity(1 << 20) == 9708 + 1213, "1 MB data flash: both database areas, up to 0x100000")
+    check(iddb_capacity(1 << 24) is None and iddb_capacity(None) is None, "16 MB or unknown: no cap")
+
+    # What --stock and the flash load, here and from a kit. None of it needs the stock file
+    check(stockfw().codecmap.load_maps(), "stockfw loads, with the codec maps")
+    err = cp.kit_error(__file__, b"\x01" * 64, "import md380_migrate as m\nm.stockfw()\nm.stm32_dfu()\nimport cps_client")
+    check(not err, "a kit runs on its own: %s" % err)
 
     print("self-test %s (%d failure%s)" % ("PASSED" if not fails else "FAILED", len(fails),
                                           "" if len(fails) == 1 else "s"))

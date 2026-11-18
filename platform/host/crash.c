@@ -166,6 +166,8 @@ static const char *reason_of(const crash_record_t *r)
 		return "assert";
 	case CRASH_KIND_HANG:
 		return "watchdog";
+	case CRASH_KIND_STALL:
+		return "stall";
 	default:
 		return "restart";
 	}
@@ -181,13 +183,13 @@ void hal_crash_restart(void)
 
 // The hang check (core/app/watchdog.c) and the virtual hardware watchdog (vwatchdog.c) call it from the tick: the
 // task the tick interrupted is the running one, and crash_commit names it
-void hal_crash_hang(uint32_t ms)
+void hal_crash_hang(uint8_t kind, uint32_t ms)
 {
 	static crash_record_t r;
 	board_rf_safe();
 	memset(&r, 0, sizeof r);
 	r.arch = VHOST_CRASH_ARCH;
-	r.kind = CRASH_KIND_HANG;
+	r.kind = kind;
 	r.cause = ms;
 	crash_commit(&r);
 }

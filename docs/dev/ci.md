@@ -141,7 +141,8 @@ before and after, side by side. It's advisory: no required check waits on it.
    composite to the `ui-previews` branch (made on first use, one `pr-N/` folder per pull request holding its newest commit) and
    linked with `blob/...?raw=true` URLs, which render for signed-in viewers of a private repository (`gh --attach` needs a
    user session, not the job's token). The branch never grows: every run rebuilds it as one parentless commit and force-pushes it (it holds only
-   pictures that can be regenerated), keeping the open pull requests, the newest 5 closed without a merge and the newest
+   pictures that can be regenerated), leased on the commit it fetched: a run that loses the race to another pull request's
+   fetches again and rebuilds. It keeps the open pull requests, the newest 5 closed without a merge and the newest
    20 merged, among those that have pictures; older folders are dropped, and GitHub collects their objects. A pull
    request's folder holds only its newest commit: the pictures of its earlier commits are removed. It then edits the
    pull request's comment in place, so it stays where it was near the top of the conversation; only if the edit fails
@@ -274,7 +275,7 @@ workflow types a version. Platforms that share a toolchain id must pin the same 
 
 | Toolchain | Set-up |
 |---|---|
-| `arm` | `tools/install-arm-toolchain.sh` downloads the pinned, checksummed release into `~/opt`, every time (no cache); a runner that has it already skips the download |
+| `arm` | `tools/install-arm-toolchain.sh` copies the pinned toolchain into `~/opt` out of `[toolchain] image` (public on ghcr.io, pinned by digest, made by `tools/docker/toolchains/build-arm-ci.sh`), or downloads Arm's checksummed release when that fails; every time (no cache). A runner that has it already skips both. The build runs on the runner |
 | `csky` | csky-elf GCC on `PATH` when the runner has it; otherwise the csky-elf image (`[toolchain] image`, public on ghcr.io, or `RFOUNDRY_CSKY_IMAGE`): logged in to only when a workflow passes a registry (`RFOUNDRY_CSKY_REGISTRY`, for a private copy), pulled, then the job runs its build through `tools/docker/csky-toolchain/run.sh` (the action's `run` output) |
 
 No workflow builds csky-elf GCC from source. The image is built by `tools/docker/csky-toolchain/build.sh`

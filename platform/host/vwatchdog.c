@@ -72,7 +72,7 @@ void vwatchdog_tick(void)
 	if (gap < (uint64_t)WATCHDOG_TIMEOUT_MS * 1000u)
 		return;
 #if CONFIG_CRASH_LOG
-	hal_crash_hang((uint32_t)(gap / 1000u));	// the record, then the run ends with reason "watchdog"
+	hal_crash_hang(CRASH_KIND_HANG, (uint32_t)(gap / 1000u));
 #else
 	vhost_finish("watchdog", WATCHDOG_EXIT);
 #endif

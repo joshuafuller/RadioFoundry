@@ -69,7 +69,12 @@ static void do_restart(void)
 
 static void do_hang(void)
 {
-	hal_crash_hang(1234);
+	hal_crash_hang(CRASH_KIND_HANG, 1234);
+}
+
+static void do_stall(void)
+{
+	hal_crash_hang(CRASH_KIND_STALL, 5678);
 }
 
 static void kind_ends(uint8_t kind, const char *reason)
@@ -138,6 +143,9 @@ int main(void)
 	CHECK(end_reason != NULL && strcmp(end_reason, "watchdog") == 0);
 	CHECK(hal_crash_store()->kind == CRASH_KIND_HANG && hal_crash_store()->cause == 1234);
 	CHECK(hal_crash_store()->arch == hal_crash_arch());
+	CHECK(ends(do_stall));
+	CHECK(end_reason != NULL && strcmp(end_reason, "stall") == 0);
+	CHECK(hal_crash_store()->kind == CRASH_KIND_STALL && hal_crash_store()->cause == 5678);
 
 	if (failures == 0)
 		printf("# vcrashTest: PASSED\n");

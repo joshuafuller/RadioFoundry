@@ -36,12 +36,14 @@ needed bypass) before staying on HSI. LSE: a 32.768 kHz crystal is assumed (unve
 | Sectors | Addresses | Use |
 |---|---|---|
 | 0-2 (3 x 16 KB) | 0x08000000-0x0800BFFF | TYT bootloader, never written (unverified) |
-| 3-7 | 0x0800C000-0x0807FFFF | RadioFoundry application, 464 KB in one piece (`boards/md380/memory.ld`) |
-| 8-11 | see [codec-md380.md](codec-md380.md) | The codec as the merge places it. From D002.032: the table windows at their original addresses (sectors 8, 10, 11), the code moved to 0x080E0000 (sector 11). From D35.14 / S35.14: the main table window at its original address (from sector 9 into sector 10), the code right after it, the small ones in sector 11. Then the descriptor at 0x080FFF80 |
+| 3-10 | 0x0800C000-0x080DFFFF | RadioFoundry application, 848 KB in one piece (`boards/md380/memory.ld`) |
+| 11 | 0x080E0000-0x080FFFFF | The codec as the merge places it: every window moved into this sector, the code first, then the tables ([codec-md380.md](codec-md380.md)). Then the descriptor at 0x080FFF80 |
 
 The application starts at 0x0800C000 with its vector table there (VECT_TAB_OFFSET 0xC000) (unverified).
 
-`boards/md380/memory.ld` asserts that the image ends before 0x08080000. The default UHF image takes 320,236 bytes with link time
+`boards/md380/memory.ld` asserts that the image ends before 0x080E0000. Earlier releases gave the application sectors
+3-7 and kept the codec tables at their original addresses in sectors 8-11; the flashing tools move such a radio's codec
+on the first install ([codec-placement.md](codec-placement.md), "Moving to a new layout"). Image sizes with link time
 optimization, on by default here: [feature-matrix.md](../feature-matrix.md#dm-1701-and-md-380). The manufacturer's firmware keeps
 the codec code at 0x08050C44 (sectors 6 and 7), so the merge moves it.
 
@@ -104,7 +106,7 @@ schematic "is known to be not correct" in places. Where the notes are unclear th
 | PC3 | ADC1 IN13: 2T/5T (FM discriminator audio) | (unverified); unused |
 | PC4 | RF_APC_SW, PA power loop on | (unverified) |
 | PC5 | 5TC, transmitter supply | (unverified) |
-| PC6 | LAMP, LCD backlight (TIM8 CH1 PWM, AF3) | (unverified); PWM is our choice |
+| PC6 | LAMP, LCD backlight (TIM8 CH1 PWM, AF3) | (unverified); PWM is our choice: 40 kHz, far above the FM transmit audio band (#330) |
 | PC7 | CTC/DCS_OUT, sub-audio tone output (PWM) | (unverified); TIM3 CH2 (AF2) with `CONFIG_SUBTONE` (section 6.4), otherwise released (open drain, high): it tunes the reference (5.2) |
 | PC8 | BEEP (TIM8 CH3) | (unverified); unused |
 | PC9 | 5RC, receiver supply | (unverified) |
@@ -358,9 +360,26 @@ frames checked at any bit offset); with it, the read at the tick after the call'
 The slot engine does this for chips with `rx_voice_read` (`hrc_chip_t`): a header, late entry or information report
 starts the decoder (0x22 = 0x27, bits 2-0 keeping the 0x11 block's 0x07), the voice port is read at every tick, the
 first read whose frames check (two of three C0 words with at most one error) locks the slot, and that slot's reads
-go to the stack as bursts A to F. A read that hasn't changed, or has no frame that checks, is a lost burst; six in a
-row end the reception (0x22 = 0x17). The chip's voice class reports are ignored, and its 25 ms report delay doesn't
-count as out of step.
+go to the stack as bursts A to F. A read that hasn't changed since the last tick, or has no frame that checks, is a
+lost burst; six in a row end the reception (0x22 = 0x17). The port is read at every tick, the other slot's too: a
+silent talker's bursts are the same bytes every time, so only a port that stopped moving is a lost burst. A read
+compared with this slot's last burst lost every burst of a silent call after the first ([gotchas 1.11](gotchas.md)).
+That the port moves at the other slot's tick on a direct channel with nothing on that slot comes from the on-air
+table above; if it doesn't, the same bytes stay lost bursts. The diagnostics line `tr c b same bad` counts receptions,
+bursts and lost reads by cause. The chip's voice class reports are ignored, and its 25 ms report delay doesn't count
+as out of step.
+
+So on this chip an empty `drx` trace shows only that no read was taken. It doesn't show that the chip went quiet.
+
+A reception lost mid-call costs more than its gap (`drx` and log times of a bench run, two gaps alike;
+[gotchas 1.12](gotchas.md)):
+
+| Step | Time after the last burst | What happens |
+|---|---|---|
+| Six lost reads | 360 ms | DecodeStop. Nothing is read until the next chip interrupt |
+| 13 ticks without a burst | 420 ms | `rs l`: the receiver restarts, which drops the chip's sync |
+| Hunting for sync | about 660 ms | The timeslot interrupts stop for about 240 ms, so the tick count falls behind the air |
+| Late entry report | about 1 s | The chip has assembled the LC. The first read after it is burst F (the trace's slot counts fit that, and the bursts are numbered from A, so they stay one off until the call ends) |
 
 A burst is in the port one tick after its slot's report, so the read at a tick holds the burst of the slot that
 started two ticks before. The engine takes this as fixed: the read is named, and given its slot counter, from the
@@ -377,7 +396,7 @@ search for the call's phase is limited:
 | The call's own bursts skipped while its slot is unknown | Counted, so the index stays A-F. After a quiet-period restart that costs the first bursts of a call (two in the host test, about 150 ms until the TC locks) |
 
 All of these are host-tested (`hrc5000Test` `test_two_slots`: a call on each slot, a restart mid-call, a TC wrong
-from the start, both slots heard with `rx_lock_slot` 0). On air (2026-11-04, the SDR bench sending repeater bursts
+from the start, both slots heard with `rx_lock_slot` 0). On air (the SDR bench sending repeater bursts
 with the CACH on both slots): the reads alternate as above (phase 0 TS1's frames, phase 1 TS2's), and the wanted call
 plays with the other slot already talking (77 of 78 bursts; 0 before the fix).
 
@@ -386,7 +405,7 @@ call's LC was in page 2 at the wanted call's F: the core took it for a new call,
 the other call's source shown (23 of 78 bursts when the wanted call started first). The engine keeps each slot's
 call LC and holds back an embedded LC that is the other slot's call's (the rules are in modem-hrc6000.md 5.2).
 Host-tested (`test_two_slots`, the `LC`, `alias` and `mixed LC` cases: page 2 gets a call's LC or alias block the
-tick after its F). On air (2026-11-04, the SDR bench, a call on each slot, 78 bursts sent to the wanted slot, two
+tick after its F). On air (the SDR bench, a call on each slot, 78 bursts sent to the wanted slot, two
 runs each):
 
 | Case | Before | After |
@@ -403,6 +422,25 @@ On air with this (2026-10-18): calls are taken with the caller and talk group, a
 2 bit errors in all. The decoded audio is speech (peak 3521 of 32767) and streams to the chip (`aud blk` climbing),
 but the speaker plays only a faint buzz (4.8). Leads, not checked: 0x0E (HPoutEn, bit 7; RadioFoundry writes 0x44, which
 leaves it off), 0x37 (DAC gain), the I2S data line directions and sample rate (unknown 17).
+
+### 4.9.1 Receiving between our bursts
+
+Through a repeater, a voice over hears the repeater's outbound between its own bursts (the modem's
+`tx_listen_split`, [dmr-modem.md 2.8](dmr-modem.md)). One synthesizer serves receive and transmit, so the board
+retunes per burst (`radio_md380.c`):
+
+| When | What |
+|---|---|
+| After each burst (the engine's `rf(false)`, PA off) | The synthesizer to the receive LO, the HR_C5000's receiver input on (4:0x26), the receive tune DAC, the receive path on. No lock wait |
+| RF_TX_INTER, 2.5 ms early | 4:0x12 bits 5-0 = 25 (100 us steps) while the transmission listens, restored at its end (only when it was read: a slot where it can't be read or set isn't listened to). Receiver input off, the synthesizer to the transmit VCO, lock detect waited for (at most 2 ms), then the PA at the slot as without the lead |
+
+The chip receives the other slot as it does when idle, and its bursts go to the stack as heard while sending. On the
+SDR bench, 45 key-ups of 45 got through a repeater whose hang ended around the key-up, against 13 of 15 without it.
+
+The HR_C5000's receive tap is one area, page 2 from 0x30, rewritten per burst received: no CACH, and a voice-layout
+burst's 48-bit sync / EMB / RC field at 0x30-0x35, then the voice bits. A BS's dedicated RC burst lands there too,
+though it has no sync and the chip reports nothing for it: that is how the engine hears a reverse channel cease while
+sending ([dmr-modem.md](dmr-modem.md), reverse channel).
 
 ### 4.10 Codec and audio routing
 
@@ -448,6 +486,38 @@ On an MD-380 (UHF, D002.032 codec) against an AT-D878UV on a 70 cm test frequenc
 move: received speech plays clear from the speaker and transmit is clear (one 10 s call: 498 frames, 10 bit errors, 3
 concealed, 0 lost). Why both bits are needed together isn't in the manual (unverified). Not yet checked with it: the buzz after
 a call or after our own transmit, the key beep in DMR and FM, and FM receive.
+
+### 4.11 Air interface (`CONFIG_P25`, `CONFIG_NXDN`)
+
+`board.air` is the shared HR_C5000/HR_C6000 provider (`stm32_hrc_air`, `drivers/modem/hrc_common/hrc6000_air.c`): the
+chip's physical layer mode, with this chip's differences from its chip description
+([modem-hrc6000.md](modem-hrc6000.md) 10.7). The HR_C5000 manual documents the mode (0x10 LayerMode bits 4-3 = 00,
+0x82 bit 0, 36 bytes of physical layer data in page 2). Every fit carries `AIR_FIT_UNTESTED` (`air_verified` is not
+set). `CONFIG_P25`, `CONFIG_P25_TRUNK` and `CONFIG_NXDN` are off on this radio (`BOARD_NOT_WRITTEN`) until receive
+works: a mode that transmits but can't receive isn't offered. A build with them on gets the same from the fit: the
+chip description sets `air_tx_only`, so P25 and NXDN report transmit only. P25 needs receive, so the build's features
+leave it out and its channels aren't taken; NXDN stays for transmit, and scan skips its channels. Build with them on (`CONFIG_P25=y CONFIG_NXDN=y`) to work
+on it.
+
+| Profile | Receive | Transmit |
+|---|---|---|
+| P25 phase 1 (C4FM), trunking | no: the chip gives no physical layer record (below) | TX RAM (10.3): keys on the radio |
+| NXDN | no | TX RAM (10.3): keys on the radio |
+
+- **Receive.** In an open session, 4:0x10 reads 0x02 and 0x82 stays 0: no record interrupt, `airp.records=0` in the
+  debug link's `air` view. No setting of 0x40, 0x41 or 0x81 tried by CHIP_REG started it (modem-hrc6000.md 10.7).
+- **No soft-modem receive.** NXDN's short sync needs the soft modem on a flat discriminator copy. No FM receive RAM is
+  documented on the HR_C5000, so there is no copy to read from the chip (modem-hrc6000.md 10.6). The discriminator
+  audio on PC3 (ADC1 IN13, section 2.3) is not used: the same line on a sister design is voice band with
+  the sub-audio removed, and a 4-level mode needs the band down to 1/100 of the symbol rate. No `board.baseband`.
+- **Keying.** The session's board mode is DMR, so the PA goes up through the DMR RF switch (`md380_rf_dmr_switch`).
+  The key-up points (TIM7) stop at full power while a continuous transmission runs
+  (`stm32_hrc_dmr_tx_continuous`), and the PA drops only at the switch back to receive, not at the 30 ms burst hold.
+- **Deviation.** The provider scales the channel's 0x45 / 0x46 pair from the 1944 Hz calibration; the pair drives
+  MOD1 (VCO) and MOD2 (TCXO through U603), the same two-point path as DMR.
+- **After close** the slot engine writes the channel's 0x10 again (0x6B, or 0x4F on a repeater channel).
+- **CHIP_REG** (`board.chip_reg`, [debuglink.md](debuglink.md) 3.24): chip 1 is the HR_C5000, pages 1 and 4, for register experiments
+  like the ones above.
 
 ## 5. RF
 
@@ -570,6 +640,10 @@ Measured on RadioFoundry (UHF, 446.000 MHz, raw ADC, a second radio nearby; 2026
 | no signal | 690-760 | 1340-1620 |
 | FM carrier, shown as -71 dBm | 2720-2732 | 39-81 |
 
+On a UHF MD-380 on 2026-11-14 (440-468 MHz, no signal) RSSI read 1736 (shown as -92 dBm), with BUSY at 1478; a DMR
+signal read -71 dBm. The no-signal level isn't stable from one session to the next, so nothing should take this
+reading as an absolute level: the DMR scan counts it from the floor it measures ([gotchas](gotchas.md) 17.4).
+
 BUSY falls with a signal (larger = more noise). With the USB programming cable in the accessory jack the receiver
 doesn't detect a signal at all (RSSI stays near the no-signal level): read these values with the cable out (a log
 line read back afterwards), or by ear.
@@ -578,11 +652,84 @@ Roaming reads this RSSI (the IF chain's level on an ADC) as the site signal ([dm
 
 ### 5.6 PA and power control
 
-DAC1 is the APC reference, scaled from the calibration's power rows (11.2). Two levels, 1 W and 5 W. TX is refused
+DAC1 is the APC reference, scaled from the calibration's power rows (11.2), 1 W and 5 W. TX is refused
 without an accepted calibration table (no safe uncalibrated drive is known).
 
-DMR: the PA follows the bursts. The RF TX interrupt keys it (APC_EN); a TIM7 one-shot drops it 30 ms later
- 3.4, and the slot engine's PA-off at the next timeslot interrupt stays as the fallback.
+Five power levels. The values are drafts, to be set with a wattmeter
+([power-calibration.md](../testing/power-calibration.md)); the debug link's `radio tx-drive` keys any drive.
+
+| Level | Name | Drive |
+|---|---|---|
+| 0 | 100 mW | 56.5 % of the 1 W row |
+| 1 | 500 mW | 80.7 % of the 1 W row |
+| 2 | 1 W | the 1 W row |
+| 3 | 2.5 W | 45 % of the way from the 1 W row to the 5 W row (not measured) |
+| 4 | 5 W | the 5 W row |
+
+Levels 0 and 1 come from a drive sweep on the SDR bench (UHF radio, 432 MHz, DMR bursts, relative to the 1 W row's
+drive 1115; the 5 W row is 2119):
+
+| Drive | 300 | 400 | 500 | 600 | 700 | 800 | 950 |
+|---|---|---|---|---|---|---|---|
+| dB | -42.8 | -32.2 | -18.7 | -12.4 | -8.2 | -4.8 | -2.1 |
+
+DMR: the PA follows the bursts, keyed by the key-up rule ([pa-keyup.md](pa-keyup.md)) with constants measured by
+`tools/bench/pa_cal.py` on a UHF radio up to its 2.5 W level and judged by the ramp's shape
+(`tools/bench/pa_shape.py`): dead zone 56.3 % of the anchor, knee 91 µs, slope 1003 µs, window 1650 µs, settle
+506 µs, no approach (`ease_pm` 0). Only the lowest level gets a boost. Over the air on the SDR bench every level
+reaches -3 dB 0.19-0.34 ms before the first symbol and is within 0.4 dB of its power over the first 10 symbols
+(mean), nothing over the floor in the slot before. Overshoot: 0.7-1.1 dB, and 1.7-1.8 dB at drive 972, which that
+drive gives written alone too (the power loop's). The lowest level leaves the floor about 1 ms ahead and stays near
+-28 dB for about 0.1 ms before it rises (the PA just over its turn-on edge, at any boost tried).
+
+Across the 70 cm band, the same radio on its antenna, all five levels: the -3 dB point before the first symbol, the
+overshoot, and the first symbol against the settled level.
+
+| Level | 432 MHz | 445 MHz | 449.9 MHz |
+|---|---|---|---|
+| 100 mW | 0.54 ms, 4.7 dB, +1.9 dB | 0.48 ms, 4.3 dB, +2.3 dB | 0.40 ms, 3.6 dB, +2.3 dB |
+| 500 mW | 0.43 ms, 1.2 dB, +0.4 dB | 0.37 ms, 0.9 dB, +0.5 dB | 0.29 ms, 0.8 dB, +0.5 dB |
+| 1 W | 0.35 ms, 1.0 dB, +0.5 dB | 0.31 ms, 1.1 dB, +0.7 dB | 0.26 ms, 1.1 dB, +0.9 dB |
+| 2.5 W | 0.39 ms, 0.5 dB, +0.2 dB | 0.36 ms, 0.8 dB, +0.4 dB | 0.33 ms, 1.4 dB, +0.7 dB |
+| 5 W | 0.43 ms, 0.4 dB, 0.0 dB | 0.40 ms, 0.6 dB, +0.2 dB | 0.38 ms, 1.2 dB, +0.3 dB |
+
+The 100 mW level's boost overshoots at these frequencies: the boost drive by itself settles 4.3 dB over the level
+(445 MHz), and the 506 µs settle time is too short to fall back from it. The first symbol is about 2 dB high and the
+first 5 symbols are within 0.3 dB (mean). A settle time of 1100 µs takes the overshoot away there (0.2-1.1 dB, first
+symbol -0.5 dB), but with the 1 W row at 972 the level then sags after the boost: 3.4 dB under its power at the first
+symbol with 900 µs, 5 dB under and up to 0.12 ms late with 1100 µs. So the constants stay: this level is early and
+over, never late. Its drive by itself is too slow: at 445 MHz it reaches -3 dB as the first symbol starts.
+
+Key-down at 445 MHz, every level: -3 dB 0.39-0.47 ms after the last symbol's end and 30 dB down by 0.46-0.57 ms,
+nothing over the floor in the slot between two bursts. The power of the levels over 1 W is not measured.
+
+The lowest level's drive is 56.5 % of the 1 W row's, 0 to 3 counts over the dead zone's edge depending on the row
+(2 on the radio measured, its 1 W row 972). At 0 it takes the edge's boost ([pa-keyup.md](pa-keyup.md) 2), within a
+count of the others'.
+
+The VHF image doesn't use these constants: its PA is not measured, and constants that key the UHF PA just in time
+could key a slower one late. It keys every level at its own drive at the key timer's first step, 30 µs after the RF
+TX interrupt (`PA_KEYUP_FIXED`), as the radio keyed before the rule.
+
+The window used to be 1530 µs: the second level's lead was then just past it, so it was boosted and ran 3.6-4.7 dB
+past its power, though written alone at the window's start its own drive is up 0.18 ms before the first symbol,
+0.7 dB over. An approach drive (`ease_pm` 304) capped that boost but kept the levels from 1 W up at the approach
+drive from 2.2 ms ahead: a step 6-9 dB down through the guard, on the air 1.1-1.2 ms before the first symbol. An
+earlier fixed boost for every level overshot the low levels by 7 dB and more. Keyed at the RF TX interrupt, the PA
+was up 1.1-1.6 ms before the first symbol (the interrupt taken as 2.53 ms before the first symbol), and the PA goes
+on with the first drive. On the SDR bench (UHF radio, 432 MHz), every level at its own drive from 1 ms after the
+interrupt, before the rule:
+
+| Level | -3 dB point before the first symbol | First symbol against the settled level | Overshoot |
+|---|---|---|---|
+| 100 mW | 0.13 ms | -0.2 dB | 0.6 dB |
+| 500 mW | 0.47 ms | +0.4 dB | 1.3 dB |
+| 1 W | 0.59 ms | 0.0 dB | 0.5 dB |
+
+The lowest level sets the point: a higher drive comes up sooner. The levels above 1 W are not measured.
+
+A TIM7 timer runs the points from the RF TX interrupt and drops the PA 30 ms after it
+([gotchas.md](gotchas.md) 3.4), and the slot engine's PA-off at the next timeslot interrupt stays as the fallback.
 
 The radio has one synthesizer, so it can't receive while it is set up to transmit. The switch to TX (receiver off,
 the HR_C5000's transmit set, the TX VCO locked, TX_5V up) happens before the first burst, never at it: done in the RF TX
@@ -593,8 +740,11 @@ interrupt, the first burst went out unlocked and a one-burst wake-up never reach
 | Own timing (simplex, the repeater wake-up) | at the modem's `tx_begin`, or at radio `tx()` if that comes later |
 | Aligned to a repeater's slots | at the engine's `tx_slot_found`, two ticks before the first burst. Until then the receiver stays on: the engine needs the downlink's TC to find the slot (4, the CACH TC row) |
 
-On a split channel the synthesizer returns to RX at the engine's TX done, so the radio hears the repeater's answer to
-its wake-up; simplex stays on TX until `tx_off()`.
+The synthesizer returns to RX at the engine's TX done, on every channel. On a split channel the radio then hears the
+repeater's answer to its wake-up. On simplex the receive LO is 49.95 MHz from the carrier, and a confirmed data
+response comes in the next frame, 30 ms after our last burst. Left on TX until `tx_off()` (the radio task), the radio
+missed nearly every such response (a receive CRC error instead), and the TX VCO kept leaking the carrier about 34 dB
+below the burst while TX_5V discharged (about 20 ms). `rx()` then keeps the synthesizer where TX done put it.
 
 ### 5.7 The 5C rail (SAVE)
 
@@ -858,17 +1008,22 @@ clamped to the first and last point outside them. Power and tuning bytes go to t
 ### 12.1 Device and bus
 
 Winbond W25Q128FV, 16 MB, on SPI1 (PB3-PB5, AF5) with chip select PD7, mode 0, 4.5 MHz (unverified). Some
-early VHF radios have a 1 MB part (unverified). `flash_md380.c` accepts any W25Q (JEDEC type 0x40) and probes the
+early VHF radios have a 1 MB part, a W25Q80 (JEDEC EF 40 14). `flash_md380.c` accepts any W25Q (JEDEC type 0x40) and probes the
 size.
 
 ### 12.2 Map
 
 On a 16 MB part RadioFoundry uses the DM-1701's map (settings 0x011000, journal 0x019000, open-firmware codeplug 0x000000 and
 0x020000-0xE00000, native area 0xE00000, TFTP staging 0xF00000), so the open-firmware CPS works the same. The TYT codeplug at 0 is overwritten
-by the first open-firmware write: read it out with the manufacturer's CPS first if it matters ([md380-migration.md](md380-migration.md) does that, converts it with qdmr and writes it back). There is no calibration window in the
-main array (11.1). On a smaller part the core gets no areas: settings live in RAM and nothing is written. The CPS still
-reads the chip (area 1, up to its end) and the radio info gives its size, so a backup saves all of it; the Codeplug
-Editor and the flasher's channel step say that the radio stores no codeplug.
+by the first open-firmware write, and writing the TYT codeplug again (stock firmware, its CPS) replaces the open-firmware
+radio ID, zones and first channels while the rest stays, a mixed codeplug ([codeplug-port.md](codeplug-port.md) 5.2;
+measured in a backup, 2026-10-21). `board.toml` `[stock_codeplug]` gives the TYT codeplug's span, 0x2000-0x3FFFF, decoded
+with qdmr's md380 driver. Read it out with the manufacturer's CPS first if it matters ([md380-migration.md](md380-migration.md) does that, converts it with qdmr and writes it back). There is no calibration window in the
+main array (11.1). A 1 MB part gets the same map up to its end (`map_1mb`): settings 0x011000, journal 0x019000,
+open-firmware codeplug 0x000000 and 0x020000-0x0FFFFF (flash image 0-0xDFFFF: the codeplug, and the DMR ID database
+as far as it fits), no native area and no TFTP staging. A part smaller than 1 MB gets no areas: settings live in RAM and
+nothing is written. The CPS still reads the chip (area 1, up to its end) and the radio info gives its size, so a backup
+saves all of it.
 
 ---
 
@@ -884,9 +1039,13 @@ The same board ships with and without the module, and PD8 (the module's power sw
 second flash chip select on others 13.7. So nothing drives PD8 until the module has been heard:
 `gps_md380.c` enables USART3 RX on PD9 at start-up and listens for 5 s. One checksum-valid sentence (any talker, up to
 82 characters plus CR LF; `drivers/gps/nmea_line`) makes the module present: PD8 is then held at the level it already
-had, and every sentence goes to the APRS position source (`aprs_nmea`, CONFIG_APRS). Nothing heard: the UART is
-switched off and `board.gps_present()` stays false, so `board_has_gps()` hides the GPS features. UART errors are
+had, and every sentence goes to the position service (`position_nmea`, CONFIG_GPS). Nothing heard: the UART is
+switched off and `board_t.gps` reports no module, so `board_has_gps()` hides the GPS features. UART errors are
 counted and cleared in the interrupt, so one framing error never stops reception ( 13.7).
+
+Once heard, the module follows Settings > Location > GPS (`board_t.gps` = `stm32_gps`): off stops USART3
+and drives PD8 to the other level from the one it was found at, on drives it back and restarts USART3 at the same
+rate. PD8 switching the module off is assumed from its role (untested on a G model).
 
 ---
 
@@ -922,7 +1081,7 @@ Entered by holding PTT and the upper side key while switching on (unverified). U
 non-standard commands; the same erase-by-sector and block-write protocol as the DM-1701's loader (unverified). Flash a RadioFoundry
 image with `tools/stm32_dfu.py --model md380 --key KEY rfoundry_md380.bin`. The image is plain, starts at 0x0800C000, and the
 tool encrypts it for the loader. rfoundry knows the board (`boards/md380/board.toml`: release `stable`, an update writes
-sectors 3-7 and keeps the codec).
+sectors 3-10 and keeps the codec).
 
 Switched on normally, the original firmware is also a DFU device with the same IDs. The flashers tell it from the
 bootloader by alt 0's layout and refuse it ([hardware-dm1701.md](hardware-dm1701.md) 15.1). The MD-380's bootloader,
@@ -952,9 +1111,10 @@ and S35.14 (MD-390) files work too: they carry the MD-UV380 family's codec, plac
 10 (untested on the radio). Entry points,
 calling convention, state sizes, the placement and the extraction recipe are in [codec-md380.md](codec-md380.md).
 `stockfw.PROFILES` has the profiles, the codec maps (`rfoundry/codec_maps/md380/`, one per build) the rewrites,
-`boards/md380/memory.ld` keeps the application out of sectors 8-11, `vocoder_md380.c` checks and hosts the codec, and
+`boards/md380/memory.ld` keeps the application out of sector 11, `vocoder_md380.c` checks and hosts the codec, and
 `make BOARD=md380` merges it when the firmware file is in `codecs/`. The debug link reports the codec as
-`md380-d2032-s11`; a build from before the move reports `md380-d2032`. Without the codec merged the radio is FM only.
+`md380-d2032-s11v2`; a release with the codec in sectors 8-11 reports `md380-d2032-s11`, and a build from before
+the first move `md380-d2032`. Without the codec merged the radio is FM only.
 
 ---
 
@@ -977,7 +1137,7 @@ The open-firmware CPS shim reports radio type 7 and serves the MCU ROM from 0x08
 | Retevis RT3 | a rebadged MD-380 |
 | MD-380G / MD-390G / RT3 GPS | GPS module on USART3, power on PD8 (section 13) |
 | UHF / VHF | separate boards: different RF parts and VCOs, one RadioFoundry image each |
-| 1 MB flash | some early VHF radios; RadioFoundry stores nothing on them |
+| 1 MB flash | some early VHF radios; RadioFoundry stores settings and the codeplug in the first megabyte (12.2) |
 
 (unverified) for all rows.
 
@@ -1011,6 +1171,7 @@ Each with how to settle it; the stage numbers are [md380-bringup.md](../testing/
 | 20 | GPS UART pin, baud rate, power pin polarity | Stage 9: on a G model "gps yes" with counts rising; on a non-G model "gps no" and no flash errors |
 | 21 | Codec windows in D002.032 | Located and verified on a host (14.4); stage 7 checks voice on the radio |
 | 22 | Whether the bootloader key can be derived from a firmware file | Done (14.2): derived from D2.32 and checked by its hash |
+| 23 | The HR_C5000's physical layer mode (soft records, correlator pattern address, second TX RAM half) | The checks in 4.11 |
 
 ## 18. Datasheets
 
@@ -1021,8 +1182,11 @@ configuration registers, audio routing), and [gotchas.md](gotchas.md) 2.6, 3.3, 
 ## 19. Sizes
 
 Flash: the table in [feature-matrix.md](../feature-matrix.md#dm-1701-and-md-380) and the per-feature figures in
-[feature-matrix.md](../feature-matrix.md). Measured 2026-10-19 with LTO: default UHF image 320,236 B of 475,136 B
-(464 KB), 107,120 B of 131,068 B SRAM, 59,640 B of 64 KB CCM; maximal 327,064 B flash.
+[feature-matrix.md](../feature-matrix.md). With LTO: default UHF image 472,036 B of 868,352 B (848 KB), maximal 500,956 B.
+
+`CONFIG_NET_WEBCTL` follows `CONFIG_NET_HTTP_GZIP` on this radio (`boards/md380/config.mk`): web control's files,
+stored uncompressed, need more flash than the default image leaves free. With gzip off the radio serves the plain
+status page.
 
 
 ## 20. Facts moved from the shared specs
@@ -1041,6 +1205,6 @@ Flash: the table in [feature-matrix.md](../feature-matrix.md#dm-1701-and-md-380)
   tone path yet, so AFSK TX is not written (`boards/md380/config.mk`). Without a calibration the board refuses to
   transmit.
 - Release: `[status] release = "stable"`, both band images (`rfoundry-md380-<version>.bin` UHF, `rfoundry-md380-vhf-<version>.bin`).
-  Application sectors 3-7 (464 KB), codec sectors 8-11 (D002.032: 8, 10, 11; 35.14: 9-11), so an update keeps the
-  codec. Profile `md380-d2032-s11` (a build from before the move reports `md380-d2032`). `tools/md380_migrate.py` flashes it and keeps
+  Application sectors 3-10 (848 KB), codec sector 11, so an update keeps the codec. Profile `md380-d2032-s11v2`
+  (`md380-d2032-s11` from releases with the codec in sectors 8-11, `md380-d2032` from a build before the first move). `tools/md380_migrate.py` flashes it and keeps
   the codeplug.

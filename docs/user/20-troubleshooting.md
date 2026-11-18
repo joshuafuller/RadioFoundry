@@ -17,6 +17,7 @@ The web installer's "Select the Symptom" step covers most of these on screen. Th
 | The screen stays dark after flashing | The radio is still in its bootloader. Turn it off and on again without holding any key |
 | A white, backlit screen and a solid red LED at every power-on, and the radio never starts | The radio is stuck in its factory update mode because the application is missing or incomplete. Nothing else is damaged. Install again with the web installer ([Radio reference](23-radios.md), your radio's "Installing" section says whether this applies) |
 | "Preparing the radio failed", or the radio does not respond on its programming cable | Push the cable plug fully in and try again, or try a cable with an FTDI, CP210x or PL2303 chip. Slow cable mode is always on now: there is no separate button. If it still fails, select **Use Factory Update Mode**: hold the radio's update mode keys while you turn it on ([Radio reference](23-radios.md), your radio's "Installing" section). It needs the stock firmware file or a program memory backup for the codec ([Installing](02-installing.md#if-something-goes-wrong)) |
+| The web installer reports "Cable Problem Detected" | The programming cable itself is at fault, not the radio: it sends data nobody asked for, it dropped off the computer's USB, its adapter stopped responding, or the radio receives nothing through it. Unplug it from the computer, wait a few seconds, plug it straight into the computer (no hub), push the plug fully into the radio and select **Try Again**. If it returns, replace the cable with a better one, preferably one with an FTDI chip ([Installing](02-installing.md#if-something-goes-wrong)) |
 | Flashing stopped half way | Put the radio in its bootloader and run the same command again. rfoundry never erases the bootloader |
 
 ## Command line installs (advanced)
@@ -42,7 +43,7 @@ also from the installer's [manual install kit](02-installing.md#install-from-the
 | "Channel busy" | Someone is talking on the timeslot. Wait for the call to end |
 | "No repeater answered" | The repeater didn't respond. Check the frequency, the color code, the timeslot and your distance to the repeater |
 | No audio on FM | The squelch is closed or the channel needs a tone. Hold **Monitor** to open the squelch. Check the tone with **\***, **3** |
-| A key does nothing and the screen says "Keys locked" | Hold **\*** to unlock. Check **Settings > Privacy > Auto lock** |
+| A key does nothing and the screen says "Keys locked" | Hold **\*** to unlock. Check **Settings > Key lock > Auto lock** |
 | "Not used here" | That key has no function on this screen |
 | "...: not in this build" | The feature is switched off in this build, or isn't built yet |
 | The radio is stuck on the hotspot screen | A host has the serial port open. Press **OK**, or stop the host program. Turn **Settings > Connections > Hotspot allowed** off to prevent it |

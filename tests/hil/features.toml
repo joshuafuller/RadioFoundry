@@ -11,6 +11,8 @@
 #
 # [feature.<id>]    the id: stable, snake case, what the tests' feature markers name
 #   switch          the CONFIG_ switch without the prefix; left out for a feature without one
+#   requires        for a feature without a switch that is part of another's (DMR data within DMR): that switch. Where a
+#                   board leaves it out (n/a, not written, off), the feature follows it instead of being required
 #   hardware        what the switch needs that some radios physically lack. tools/boards.py check fails on a board
 #                   that neither builds the switch by default nor lists it with the reason in BOARD_UNSUPPORTED or
 #                   BOARD_NOT_WRITTEN (or, while the fact isn't known, in board.toml [hardware] unconfirmed): never
@@ -42,6 +44,10 @@ spec = "docs/spec/radio-features.md"
 switch = "FM_TX_TONES"
 spec = "docs/spec/radio-features.md"
 
+[feature.tone_burst_key]
+spec = "docs/spec/radio-features.md"
+source = ["core/input", "core/ui/ui_menus.c", "core/ui/ui_svc_storage.c", "core/radio", "core/debuglink"]
+
 [feature.dtmf]
 switch = "DTMF"
 spec = "docs/spec/radio-features.md"
@@ -63,6 +69,29 @@ spec = "docs/spec/airband-and-broadcast.md"
 switch = "BCAST_FM"
 hardware = "a broadcast FM receiver"
 spec = "docs/spec/airband-and-broadcast.md"
+
+[feature.rx_ext]
+switch = "RX_EXT"
+hardware = "a receiver chip whose documents give a range past the rated bands"
+spec = "docs/spec/radio-features.md"
+
+# P25 brings the air interface, the full-rate voice decoder and the MBE core (derived switches AIR, IMBE, MBE)
+[feature.p25]
+switch = "P25"
+spec = "docs/spec/p25.md"
+source = ["core/p25", "core/radio/radio_p25.c", "core/radio/radio_p25.h", "core/air", "core/fec", "core/mbe",
+          "hal/hal_air.h", "hal/hal_baseband.h"]
+
+[feature.p25_trunk]
+switch = "P25_TRUNK"
+spec = "docs/spec/p25-trunking.md"
+source = ["core/p25/p25_follow.c", "core/p25/p25_tsbk.c", "core/radio/radio_p25.c"]
+
+[feature.nxdn]
+switch = "NXDN"
+spec = "docs/spec/nxdn.md"
+source = ["core/nxdn", "core/air", "core/fec", "core/radio/radio_nxdn.c", "core/radio/radio_nxdn.h",
+          "core/radio/radio_air.h", "core/debuglink/debuglink_view_nxdn.c"]
 
 [feature.dmr_voice]
 switch = "DMR"
@@ -88,6 +117,30 @@ spec = "docs/spec/dmr-emergency.md"
 [feature.dmr_roaming]
 switch = "DMR_ROAMING"
 spec = "docs/spec/dmr-roaming.md"
+
+[feature.dmr_trunk]
+switch = "DMR_TRUNK"
+spec = "docs/spec/dmr-trunking.md"
+source = ["core/dmr/trunk", "core/radio/radio_trunk.c", "core/radio/radio_trunk.h", "core/debuglink/debuglink_t3.c"]
+
+[feature.dmr_trunk_tx]
+switch = "DMR_TRUNK_TX"
+spec = "docs/spec/dmr-trunking.md"
+source = ["core/dmr/trunk", "core/radio/radio_trunk.c", "core/radio/radio_trunk.h", "core/debuglink/debuglink_t3.c"]
+
+[feature.dmr_trunk_supl]
+switch = "DMR_TRUNK_SUPL"
+spec = "docs/spec/dmr-trunking.md"
+source = ["core/dmr/trunk", "core/radio/radio_trunk.c", "core/radio/radio_trunk.h", "core/debuglink/debuglink_t3.c"]
+
+[feature.dmr_trunk_gw]
+switch = "DMR_TRUNK_GW"
+spec = "docs/spec/dmr-trunking.md"
+source = ["core/dmr/trunk", "core/radio/radio_trunk.c", "core/radio/radio_trunk.h", "core/debuglink/debuglink_t3.c"]
+
+[feature.voice_capture]
+switch = "VOICE_CAPTURE"
+spec = "docs/spec/debuglink.md"
 
 [feature.dmr_signaling]
 switch = "DMR_SIGNALING"
@@ -121,6 +174,13 @@ spec = "docs/spec/ui.md"
 switch = "CONTACT_EDIT"
 spec = "docs/spec/ui.md"
 
+[feature.volume_bar]
+switch = "VOLUME_BAR"
+spec = "docs/spec/radio-features.md"
+
+[feature.volume_lock]
+spec = "docs/spec/radio-features.md"
+
 [feature.key_assign]
 switch = "KEY_ASSIGN"
 spec = "docs/spec/ui.md"
@@ -145,12 +205,18 @@ spec = "docs/spec/radio-features.md"
 [feature.gps]
 switch = "GPS"
 hardware = "a GPS receiver"
-spec = "docs/spec/aprs.md"
-source = ["drivers/gps", "platform/stm32f4/gps_uart", "platform/hrc7000/gps_hrc.c"]
+spec = "docs/spec/position.md"
+source = ["hal/hal_gps.h", "drivers/gps", "platform/stm32f4/gps_uart", "platform/hrc7000/gps_hrc.c"]
+
+# The position service: built for GPS, APRS, DMR_LRRP or DMR_GPS, so it has no switch of its own
+[feature.position]
+spec = "docs/spec/position.md"
+source = ["core/position", "core/debuglink/debuglink_position.c", "core/ui/ui_position.c"]
 
 # ── DMR data ──
 
 [feature.dmr_data_rx]
+requires = "DMR"
 spec = "docs/spec/dmr-data.md"
 source = ["core/dmr/dmrData.c", "core/dmr/dmrDataService.c", "core/dmr/dmr_data_api.h"]
 
@@ -175,7 +241,6 @@ switch = "DMR_UDP_COMPRESS"
 spec = "docs/spec/dmr-data.md"
 
 [feature.dmr_confirmed]
-switch = "DMR_CONFIRMED"
 spec = "docs/spec/dmr-data.md"
 
 [feature.sfr]
@@ -195,6 +260,14 @@ spec = "docs/spec/sfr.md"
 switch = "APRS"
 spec = "docs/spec/aprs.md"
 
+[feature.aprs_afsk]
+switch = "APRS_AFSK"
+spec = "docs/spec/aprs.md"
+
+[feature.aprs_dmr]
+switch = "APRS_DMR"
+spec = "docs/spec/aprs.md"
+
 [feature.aprs_rx]
 switch = "APRS_RX"
 hardware = "FM receive audio sampled by the processor (the AFSK input path)"
@@ -207,8 +280,8 @@ spec = "docs/spec/aprs.md"
 [feature.gps_sky]
 switch = "GPS_SKY"
 hardware = "a GPS receiver"
-spec = "docs/spec/aprs.md"
-source = ["core/aprs/nmea_sky.c", "core/ui/ui_gps.c"]
+spec = "docs/spec/position.md"
+source = ["core/position/nmea_sky.c", "core/ui/ui_gps.c"]
 
 # ── Host link and USB ──
 
@@ -235,11 +308,6 @@ source = [
     "drivers/modem",
     "hal/hal_dmr_modem.h",
     "tools/split_duplex_host.py",
-]
-planned_tests = [
-    "tests/hil/test_split_duplex.py::test_split_tx_half_continuous",
-    "tests/hil/test_split_duplex.py::test_split_standard_host",
-    "tests/hil/test_split_duplex.py::test_split_state_cleanup",
 ]
 
 [feature.debuglink]
@@ -288,11 +356,16 @@ spec = "docs/spec/crash-log.md"
 switch = "USB_NETWORK"
 spec = "docs/spec/usb-network.md"
 
+[feature.usb_serial_request]
+switch = "USB_SERIAL_REQUEST"
+spec = "docs/spec/usb-network.md"
+
 [feature.dmr_ip_gateway]
 switch = "DMR_IP_GATEWAY"
 spec = "docs/spec/dmr-data.md"
 
 [feature.dmr_tx_spacing]
+requires = "DMR"
 spec = "docs/spec/dmr-data.md"
 source = ["core/dmr/dmrAirQueue.c", "core/dmr/dmrDataService.c"]
 
@@ -350,6 +423,7 @@ switch = "TFTP_IDDB"
 spec = "docs/spec/tftp.md"
 
 [feature.dmr_iddb]
+requires = "DMR"
 # The DMR ID database a CPS writes (format N): the names the radio shows for IDs that aren't contacts
 spec = "docs/spec/open-firmware-cps.md"
 source = ["core/codeplug/dmr_iddb.c", "core/codeplug/dmr_iddb.h", "core/debuglink/debuglink_iddb.c"]
@@ -372,6 +446,11 @@ spec = "docs/spec/ppp.md"
 spec = "docs/spec/ui.md"
 source = ["core/ui", "core/input"]
 
+# Locking the keys by hand (long QUICK, a side key set to key lock) and by auto lock, and PTT while locked
+[feature.key_lock]
+spec = "docs/spec/ui.md"
+source = ["core/ui/ui_app.c"]
+
 [feature.channel_knob]
 spec = "docs/spec/ui.md"
 source = ["drivers/input/quadrature"]
@@ -383,6 +462,10 @@ spec = "docs/spec/ui.md"
 [feature.diag]
 switch = "DIAG"
 spec = "docs/spec/ui.md"
+
+[feature.backlight_test]
+switch = "BACKLIGHT_TEST"
+spec = "docs/testing/backlight-curve.md"
 
 [feature.ui_color]
 switch = "UI_COLOR"
@@ -409,12 +492,28 @@ spec = "docs/spec/ui.md"
 switch = "LANG_IT"
 spec = "docs/spec/ui.md"
 
+[feature.lang_fr]
+switch = "LANG_FR"
+spec = "docs/spec/ui.md"
+
+[feature.lang_zh]
+switch = "LANG_ZH"
+spec = "docs/spec/ui.md"
+
 [feature.lang_default_es]
 switch = "LANG_DEFAULT_ES"
 spec = "docs/spec/ui.md"
 
 [feature.lang_default_it]
 switch = "LANG_DEFAULT_IT"
+spec = "docs/spec/ui.md"
+
+[feature.lang_default_fr]
+switch = "LANG_DEFAULT_FR"
+spec = "docs/spec/ui.md"
+
+[feature.lang_default_zh]
+switch = "LANG_DEFAULT_ZH"
 spec = "docs/spec/ui.md"
 
 # ── Radio core, storage and codec ──
@@ -441,6 +540,11 @@ spec = "docs/spec/codec-placement.md"
 source = ["tools/rfoundry/rfoundry"]
 
 # ── Bench ──
+
+[feature.air_raw]
+switch = "AIR_RAW"
+spec = "docs/spec/debuglink.md"
+source = ["core/debuglink/debuglink_air.c", "core/debuglink/debuglink_air.h"]
 
 [feature.audio_probe]
 switch = "AUDIO_PROBE"

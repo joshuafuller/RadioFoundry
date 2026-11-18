@@ -4,6 +4,7 @@
 #ifndef HAL_FLASH_H
 #define HAL_FLASH_H
 
+#include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -33,6 +34,44 @@ typedef struct {
 	uint32_t staging_addr;
 	uint32_t staging_size;
 } hal_flash_map_t;
+
+// The end of the highest area of a map whose flash erases in units of erase_size (an area of size 0 is none): a chip
+// smaller than this can't hold the map, and a driver then offers none (an address past the chip fails, it never
+// wraps to a lower one)
+static inline uint32_t hal_flash_map_end(const hal_flash_map_t *m, uint32_t erase_size)
+{
+	if (m == NULL) {
+		return 0;
+	}
+	const uint32_t ends[] = {
+		m->settings_size != 0u ? m->settings_addr + m->settings_size : 0u,
+		m->journal_addr + 2u * erase_size,
+		m->openfw_eeprom + 0x10000u,
+		m->openfw_end,
+		m->calibration_size != 0u ? m->calibration_addr + m->calibration_size : 0u,
+		m->native_size != 0u ? m->native_addr + m->native_size : 0u,
+		m->staging_size != 0u ? m->staging_addr + m->staging_size : 0u,
+	};
+	uint32_t end = 0;
+	for (unsigned i = 0; i < sizeof(ends) / sizeof(ends[0]); i++) {
+		end = ends[i] > end ? ends[i] : end;
+	}
+	return end;
+}
+
+// The map a chip of size bytes gets: the board's map when the chip holds it, else its map for a smaller part when that
+// fits, else none (nothing is stored). Either may be NULL
+static inline const hal_flash_map_t *hal_flash_map_for(const hal_flash_map_t *map, const hal_flash_map_t *small,
+						       uint32_t size, uint32_t erase_size)
+{
+	if (map != NULL && hal_flash_map_end(map, erase_size) <= size) {
+		return map;
+	}
+	if (small != NULL && hal_flash_map_end(small, erase_size) <= size) {
+		return small;
+	}
+	return NULL;
+}
 
 typedef struct {
 	bool (*init)(void);

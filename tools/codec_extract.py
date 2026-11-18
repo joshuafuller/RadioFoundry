@@ -33,16 +33,18 @@ import stm32_dfu  # noqa: E402  (key table and key file check, hardware-dm1701.m
 # The container, decryption, profiles and merge live in the rfoundry package (one implementation for both tools)
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "rfoundry"))
 from rfoundry.stockfw import (APP_BASE, CODEC_SIG, DESC_ADDR, FLASH_BASE, FLASH_END, HEADER_LEN,  # noqa: E402,F401
-                              KEY_LEN, MAGIC, PROFILES, SYN_BL, SYN_SELF_REF, StockError as ExtractError,
+                              KEY_LEN, MAGIC, PROFILES, SYN_BL, SYN_SELF_REF, SYN_TABLE_REF, StockError as ExtractError,
                               app_file_offset, build_synthetic_stock, decrypt, derive_key, descriptor, extract,
                               find_profile, from_flash, is_container, layout, layout_name, merge, no_codec,
-                              parse_container, profile_for_board, sha256, windows)
+                              parse_container, profile_for_board, profile_key, sha256, windows)
 from rfoundry.codecmap import bl_target  # noqa: E402
 from rfoundry import boards  # noqa: E402  (the board registry: the boards this tool serves)
 import zlib  # noqa: E402
 
 DM1701_V0206 = "0314efd4c62625661a2d693261ae682dff8a1b075a30620f3dbda4be065de32d"
 MD380_D2032 = "e1a1a11a84d9afd2d2ceed61be8395e32a8034785abd0be0236478f7d8609f43"
+# The MD-9600's own placement of its files (stockfw.profile_key); they are DM-1701 codec sources too
+MD9600_FILES = [k for k, p in PROFILES.items() if p["board"] == "md9600"]
 MDUV380_V1926 = "75e4d470b451cb5d191a647c0836c71801433b826cc4a7fe2c48d750036bd98e"
 RT3S_V21960 = "447ed4e09482c45661cd6e4c83d1e9f777463993ab7dd48b0e0597bb14f519ee"
 DM1701_V0201 = "cd9ff4bdb7ba1c464299f3e366bfe72f2e948f3505a8fe54ac19047bff4d6713"
@@ -53,6 +55,8 @@ examples:
   %(prog)s --stock "DM-1701(CSV)-V02.06.bin"                       (the key is derived from the stock file)
   %(prog)s --stock "DM-1701(CSV)-V02.06.bin" --key ~/keys/dm1701.key
   %(prog)s --stock "MD-380-D2.32(AD).bin"                          (MD-380: image build/md380/rfoundry_md380.bin)
+  %(prog)s --stock "MD9600-CSV-V06.09.bin" --board md9600          (MD-9600: image build/md9600/rfoundry_md9600.bin; without
+                                                                    --board an MD-9600 file is a DM-1701 codec source)
   %(prog)s --stock flash.bin --board mduv380                       (a stub read of a radio on its stock firmware)
   %(prog)s --stock stock.bin --key dm1701.key --image build/dm1701/rfoundry_dm1701.bin -o build/dm1701/rfoundry_dm1701_codec.bin
   %(prog)s --self-test
@@ -158,44 +162,55 @@ def self_test():
     expect_error(lambda: merge(big + b"\0" * 0x119F4, p, wins), "an application reaching the tables refused")
     expect_error(lambda: parse_container(b"x" * 300), "non-container refused")
 
-    # MD-380 D002.032: single-segment container, code window in sectors 6 and 7, four small extra table windows; the
-    # merge moves the code to the start of sector 11
+    # MD-380 D002.032: single-segment container, code window in sectors 6 and 7, the main table window in sector 8,
+    # four small ones in sectors 10 and 11; the merge moves every window as one block into sector 11 (code, main
+    # tables, small ones, each at its stock address modulo 16) with every address between them rewritten
+    import rfoundry.stockfw as sf
     mstock, mprofiles, mcode, mtables = build_synthetic_stock(key, rng, MD380_D2032)
     mreal = PROFILES[MD380_D2032]
     check(parse_container(mstock) == [(0x0800C000, 0xF2C00)], "MD-380 single-segment container parsed")
     check(app_file_offset(mreal["segments"], 0x08050C44) == 0x44D44, "MD-380 code window file offset 0x44D44 (spec)")
     check(app_file_offset(mreal["segments"], 0x0808FC64) == 0x83D64, "MD-380 table window file offset 0x83D64 (spec)")
     mp, mwins = extract(mstock, key, mprofiles)
-    MCODE = 0x080E0000
-    check([a for a, _ in mwins] == [MCODE, 0x0808FC64, 0x080D0FC8, 0x080F9698, 0x080F9E74, 0x080FD490, DESC_ADDR],
-          "MD-380: the code moved to sector 11, the five table windows at their stock addresses, the descriptor")
+    MCODE, MTAB = 0x080E0004, 0x080F0894
+    check([a for a, _ in mwins] == [MCODE, MTAB, 0x080FB898, 0x080FB8C8, 0x080FB8E4, 0x080FB900, DESC_ADDR],
+          "MD-380: every window moved into sector 11 in order, then the descriptor")
     mc = mwins[0][1]
     check(mc[SYN_SELF_REF:SYN_SELF_REF + 4] == struct.pack("<I", MCODE + 0x201) and
-          mc[:SYN_SELF_REF] + mc[SYN_SELF_REF + 4:] == mcode[:SYN_SELF_REF] + mcode[SYN_SELF_REF + 4:],
-          "MD-380: the code's self reference rewritten, nothing else")
-    check(bl_target(mwins[1][1], SYN_BL, 0x0808FC64 + SYN_BL) == MCODE + 0x200,
-          "MD-380: the island's call follows the code")
-    check(all(sha256(d) == w[2] for (_, d), w in zip(mwins[2:6], mprofiles[sha256(mstock)]["extra"])),
-          "MD-380: the small windows unchanged")
+          mc[SYN_TABLE_REF:SYN_TABLE_REF + 4] == struct.pack("<I", MTAB + 0x20) and
+          mc[SYN_TABLE_REF + 16:SYN_TABLE_REF + 20] == struct.pack("<I", 0x080FB898 + 4),
+          "MD-380: the code's references to itself, the tables and a small window rewritten")
+    check(bl_target(mwins[1][1], SYN_BL, MTAB + SYN_BL) == MCODE + 0x200, "MD-380: the island's call follows the code")
     md = mwins[6][1]
     check(struct.unpack_from("<7I", md, 0) == (0x43534544, 1, 0x2032, MCODE, len(mcode), zlib.crc32(mc), 5),
           "MD-380 descriptor header, code window and five table windows")
-    check(struct.unpack_from("<3I", md, 28) == (0x0808FC64, len(mtables), zlib.crc32(mwins[1][1])),
+    check(struct.unpack_from("<3I", md, 28) == (MTAB, len(mtables), zlib.crc32(mwins[1][1])),
           "MD-380 descriptor main table window")
-    check(struct.unpack_from("<3I", md, 40) == (0x080D0FC8, 0x24, zlib.crc32(mwins[2][1])),
+    check(struct.unpack_from("<3I", md, 40) == (0x080FB898, 0x24, zlib.crc32(mwins[2][1])),
           "MD-380 descriptor first small window")
-    mimage = struct.pack("<II", 0x2001FFFC, 0x0800C1C1) + bytes(rng.randrange(256) for _ in range(0x74000 - 8))
+    mimage = struct.pack("<II", 0x2001FFFC, 0x0800C1C1) + bytes(rng.randrange(256) for _ in range(0xD4000 - 8))
     mmerged = merge(mimage, mp, mwins)
     check(len(mmerged) == FLASH_END - APP_BASE, "MD-380 merged image ends with the descriptor at the end of flash")
-    check(mmerged[:len(mimage)] == mimage, "MD-380: an application filling sectors 3-7 unchanged")
+    check(mmerged[:len(mimage)] == mimage, "MD-380: an application filling sectors 3-10 unchanged")
     check(all(mmerged[a - APP_BASE:a - APP_BASE + len(d)] == d for a, d in mwins), "MD-380 windows in place")
-    check(mmerged[len(mimage):0x0808FC64 - APP_BASE] == b"\xFF" * (0x0808FC64 - APP_BASE - len(mimage)),
-          "MD-380: 0xFF up to the tables")
     check(not stm32_dfu.check_image(mmerged, "md380"), "stm32_dfu accepts the MD-380 merged image without warnings")
-    expect_error(lambda: merge(mimage + b"\0" * (0x0808FC64 - 0x08080000 + 1), mp, mwins),
-                 "MD-380: application reaching the tables refused")
+    expect_error(lambda: merge(mimage + b"\0" * 0x4005, mp, mwins), "MD-380: application reaching the codec refused")
     expect_error(lambda: extract(mstock, bad_key, mprofiles), "MD-380 wrong key refused")
     check(find_profile(mstock, mprofiles)["board"] == "md380", "MD-380 profile found by SHA-256")
+    # the same codec where releases before put it (the former layout: code in sector 11, the tables in sectors 8, 10
+    # and 11 at their stock addresses), as read back from a radio: moved to the current layout, byte for byte
+    former = sf.forms(mp)[1]
+    oflash = bytearray(b"\xFF" * (FLASH_END - FLASH_BASE))
+    old = dict(mp, placement=former["placement"], placed=former["placed"])
+    del old["former"]
+    _, owins_ = extract(mstock, key, {sha256(mstock): old})
+    for a, d in owins_:
+        oflash[a - FLASH_BASE:a - FLASH_BASE + len(d)] = d
+    check(owins_[0][0] == 0x080E0000 and owins_[1][0] == 0x0808FC64, "MD-380 former layout: tables in sector 8")
+    check(from_flash(bytes(oflash), profiles=mprofiles) == (mp, mwins),
+          "MD-380: a codec in the former layout read back and moved to the current one")
+    oflash[0x0808FC64 - FLASH_BASE + 0x30] ^= 1
+    check(from_flash(bytes(oflash), profiles=mprofiles) is None, "MD-380: a damaged former-layout table gives nothing")
 
     # MD-UV380 V19.26 CSV: two-segment container, the DM-1701's placement at its own addresses; and the same codec from
     # a read of the internal flash of a radio on its stock firmware (the application plain at 0x0800C000)
@@ -239,6 +254,29 @@ def self_test():
     nmerged = merge(struct.pack("<II", 0x2001FFFC, 0x0800C1C1) + bytes(0x080C0000 - APP_BASE - 8), np_, nwins)
     check(not stm32_dfu.check_image(nmerged, "dm1701"), "stm32_dfu accepts the DM-1701 V02.06 noCSV merged image")
 
+    # Every MD-9600 original firmware file: a two-segment container, the code in sectors 7 and 8 moved to the start of
+    # sector 11, the table window moved as one block to the start of sector 10 (its stock address modulo 16)
+    for sha in MD9600_FILES:
+        tab_at, tag = PROFILES[sha]["placement"]["tables"], PROFILES[sha]["placement"]["tag"]
+        gstock, gprofiles, gcode, gtables = build_synthetic_stock(key, rng, sha)
+        greal = PROFILES[sha]
+        check(find_profile(gstock, gprofiles, "md9600")["board"] == "md9600", "MD-9600 %05X profile found for the board" % tag)
+        check(parse_container(gstock) == greal["segments"], "MD-9600 %05X container parsed" % tag)
+        gp, gwins = extract(gstock, key, gprofiles)
+        check([a for a, _ in gwins] == [0x080E0000, tab_at, DESC_ADDR] and 0x080C0000 <= tab_at < 0x080C0010,
+              "MD-9600 %05X: the code in sector 11, the tables in sector 10, the descriptor" % tag)
+        check(gwins[0][1] != gcode and len(gwins[0][1]) == len(gcode), "MD-9600 %05X: the code moved" % tag)
+        gd = gwins[2][1]
+        check(struct.unpack_from("<7I", gd, 0) == (0x43534544, 1, tag, 0x080E0000, len(gcode), zlib.crc32(gwins[0][1]), 1),
+              "MD-9600 %05X descriptor header and code window" % tag)
+        gimage = struct.pack("<II", 0x2001FFFC, 0x0800C1C1) + bytes(rng.randrange(256) for _ in range(0xB4000 - 8))
+        gmerged = merge(gimage, gp, gwins)
+        check(len(gmerged) == FLASH_END - APP_BASE, "MD-9600 %05X merged image ends with the descriptor" % tag)
+        check(not stm32_dfu.check_image(gmerged, "md9600"), "stm32_dfu accepts the MD-9600 %05X merged image" % tag)
+        expect_error(lambda: merge(gimage + b"\0" * (tab_at - 0x080C0000 + 1), gp, gwins),
+                     "MD-9600 %05X: application reaching the tables refused" % tag)
+        expect_error(lambda: extract(gstock, bad_key, gprofiles), "MD-9600 %05X wrong key refused" % tag)
+
     # main() end to end on the synthetic file
     import contextlib
     import io
@@ -254,9 +292,9 @@ def self_test():
             argv = ["codec_extract.py", "--stock", sp, "--image", ip, "--output", op, "--key", "unused"] + list(extra)
             err = io.StringIO()
             with mock.patch.object(sys, "argv", argv), mock.patch.object(sys.modules[__name__], "find_profile",
-                                                                          lambda s: p), \
+                                                                          lambda s, **kw: p), \
                     mock.patch.object(stm32_dfu, "load_key", lambda path, board: key), \
-                    mock.patch.object(sys.modules[__name__], "extract", lambda s, k: (p, wins)), \
+                    mock.patch.object(sys.modules[__name__], "extract", lambda s, k, **kw: (p, wins)), \
                     mock.patch.object(sys.modules[__name__], "check_output_path", lambda path: None), \
                     contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(err):
                 return main(), err.getvalue()
@@ -282,8 +320,8 @@ def test_desc(path, board="dm1701", profile=None):
     """Write the codec sectors as the merge leaves them for a synthetic codec of the board's first stock file (or of
     the stock file whose SHA-256 profile is: an MD-9600 file, whose tables the merge moves), for
     tests/host/codecDescTest.c (the firmware's descriptor checks and this writer must agree): from the end of the
-    board's application region (the DM-1701's sectors 10 and 11, 0x080C0000..0x08100000; the MD-380's sectors 8-11,
-    0x08080000..0x08100000) to the end of flash"""
+    board's application region (the DM-1701's and the MD-9600's sectors 10 and 11, 0x080C0000..0x08100000; the
+    MD-380's sector 11, 0x080E0000..0x08100000) to the end of flash"""
     import random
     rng = random.Random(1701)
     key = bytes(rng.randrange(256) for _ in range(KEY_LEN))
@@ -332,7 +370,7 @@ def main():
         if not is_container(stock) and readout is None:
             raise ExtractError("%s is neither a supported stock file nor a flash readout (from 0x%08X) holding a "
                                "supported codec" % (args.stock, FLASH_BASE))
-        prof = readout[0] if readout else find_profile(stock)
+        prof = readout[0] if readout else find_profile(stock, board=args.board)
         board = prof["board"]
         if args.board and args.board != board:
             raise ExtractError("%s is a %s stock file, not a %s one" % (args.stock, board, args.board))
@@ -344,7 +382,7 @@ def main():
         with open(os.path.expanduser(image_path), "rb") as f:
             image = f.read()
         check_output_path(out)
-        prof, wins = readout or extract(stock, key)
+        prof, wins = readout or extract(stock, key, board=args.board)
         merged = merge(image, prof, wins)
         for w in stm32_dfu.check_image(merged, board):
             print("warning: %s" % w)

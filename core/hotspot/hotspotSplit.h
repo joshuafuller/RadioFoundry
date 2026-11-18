@@ -55,6 +55,7 @@
 #define SPLIT_CAP_RX_META	0x0008u
 #define SPLIT_CAP_TRIM		0x0010u
 #define SPLIT_CAP_PPS		0x0020u
+#define SPLIT_CAP_SCHED_CACH	0x0040u	// TX_SCHED may carry the slot's CACH (spec 3.9)
 
 // SET_ROLE byte 6
 #define SPLIT_STREAM_BUFFER	0
@@ -72,6 +73,7 @@
 #define SPLIT_META_BS_SYNC	0x10
 #define SPLIT_META_EPOCH	0x20	// labeled from a valid epoch
 #define SPLIT_META_TIMED	0x40	// t_us is the burst's slot start (the slot clock ran)
+#define SPLIT_META_SLOT		0x80	// bytes 14-15 hold the burst's slot number from the epoch
 
 // ALIGN reply / STATUS 46 flags (spec 3.8)
 #define SPLIT_AL_ALIGNED	0x01
@@ -83,7 +85,11 @@
 
 #define SPLIT_ALIGNED_US	1000	// |phase| under this: aligned
 #define SPLIT_SNAP_TOL_US	200	// a snap that lands further off than this is done again (the delay learned)
-#define SPLIT_SNAP_TRIES	3	// restarts after the first while the clock is still off the grid
+#define SPLIT_SNAP_TRIES	12	// restarts after the first while the clock is still off the grid (a chip whose restart
+				// delay varies by ms needs several: modem-hrc6000.md 9.1)
+#define SPLIT_SNAP_LOOSE	2	// ... after this many, a landing inside SPLIT_ALIGNED_US is taken
+#define SPLIT_SNAP_MEAN		8	// the restart delay is the mean of up to this many restarts' delays,
+#define SPLIT_SNAP_RELEARN_US	4000	// ... started again from a landing further off than this
 
 // ALIGN's slewing (spec 3.8): bytes 12-13 the most per slot, byte 14 the mode
 #define SPLIT_SLEW_MAX_US	20	// the default and the most per slot, on average

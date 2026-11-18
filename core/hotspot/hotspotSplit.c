@@ -34,6 +34,9 @@ typedef struct {
 	dmr_tx_burst_t b;
 	uint8_t lc[LC_LEN];
 	bool lc_valid;
+	bool burst;			// b goes out (else an idle burst that only carries cach)
+	bool cach_valid;		// the host's CACH for the slot, sent as given
+	uint32_t cach;			// ... first bit on air in bit 23
 } sched_t;
 
 static struct {
@@ -78,6 +81,7 @@ static struct {
 	uint8_t snap_tries;
 	uint32_t snap_c;		// the driver counter when it restarted
 	int32_t snap_adj;		// the chip's restart delay, learned (µs)
+	uint8_t snap_seen;		// ... the restarts it is the mean of (up to SPLIT_SNAP_MEAN)
 	sched_t sched[SPLIT_SCHED_N];
 	bool commit_valid;
 	uint32_t commit_next;		// the driver counter of the next slot to hand over
@@ -193,6 +197,9 @@ static uint16_t caps(void)
 		c |= SPLIT_CAP_ALIGN;
 		if (m->bs_queue_at != NULL) {
 			c |= SPLIT_CAP_SCHED;	// slots are numbered only after an ALIGN
+			if (m->bs_cach == DMR_BS_CACH_OURS) {
+				c |= SPLIT_CAP_SCHED_CACH;	// the chip sends the CACH bits it is given
+			}
 		}
 		if ((m->bs_slew != NULL) && (m->bs_slew_step_us > 0)) {
 			c |= SPLIT_CAP_SLEW;
@@ -290,8 +297,19 @@ static bool snap_start(void)
 	int64_t d = (int64_t)(int32_t)(now + 5000u + (uint32_t)((sp.snap_adj > 0) ? sp.snap_adj : 0) - sp.al_t) * 1000;
 	int64_t k = (d >= 0) ? (d + sp.al_period - 1) / sp.al_period : -((-d) / sp.al_period);
 	uint32_t target = sp.al_t + (uint32_t)(int32_t)((k * (int64_t)sp.al_period) / 1000);
+	uint32_t req = target - (uint32_t)sp.snap_adj;
+	// The driver restarts at the first of req + n x 30 ms at least 2 ms ahead, and names the slot at that instant
+	// (hal_dmr_modem.h): name the grid slot nearest it, not the one aimed at. The delay learned can pass half a slot,
+	// and the restart then falls a slot before the boundary it lands on
+	int32_t r = (int32_t)(req - now) % (int32_t)SLOT_US;
+	uint32_t at = now + (uint32_t)((r < 0) ? r + (int32_t)SLOT_US : r);
+	uint32_t g;
 
-	if (!m->bs_restart(target - (uint32_t)sp.snap_adj, ts_of_counter(sp.al_c + (uint32_t)k))) {
+	if ((int32_t)(at - now) < 2000) {
+		at += SLOT_US;
+	}
+	(void)grid_phase(sp.al_t, sp.al_c, sp.al_period, at, &g);
+	if (!m->bs_restart(req, ts_of_counter(g))) {
 		return false;
 	}
 	sp.snapping = true;
@@ -315,10 +333,25 @@ static void snap_check(void)
 	int32_t ph = phase_now(&ok, &g, &c);
 
 	sp.snapping = false;
-	if (((abs32(ph) >= SPLIT_SNAP_TOL_US) || !ok) && !sp.keyed) {
+	// The chip's restart delay (taken as under half a slot): the mean of the last restarts' delays, so a delay that
+	// varies by ms from restart to restart (modem-hrc6000.md 9.1) is averaged, not chased; capped, so a drift is
+	// followed. A landing further off starts the mean again from it (a role's first restart came up 20 ms sooner)
+	if ((abs32(ph) > SPLIT_SNAP_RELEARN_US) || (sp.snap_seen == 0)) {
+		sp.snap_seen = 1;
+		sp.snap_adj += ph;
+	} else {
+		if (sp.snap_seen < SPLIT_SNAP_MEAN) {
+			sp.snap_seen++;
+		}
+		sp.snap_adj += ph / (int32_t)sp.snap_seen;
+	}
+	// A chip whose restart delay varies by ms rarely lands within the tolerance, and a later try can land further off:
+	// after SPLIT_SNAP_LOOSE tries, any landing inside the aligned bound ends it
+	int32_t tol = (sp.snap_tries >= SPLIT_SNAP_LOOSE) ? SPLIT_ALIGNED_US : SPLIT_SNAP_TOL_US;
+
+	if (((abs32(ph) >= tol) || !ok) && !sp.keyed) {
 		if (sp.snap_tries < SPLIT_SNAP_TRIES) {
 			sp.snap_tries++;
-			sp.snap_adj += ph;	// the chip's restart delay (taken as under half a slot)
 			if (snap_start()) {
 				return;
 			}
@@ -550,14 +583,31 @@ static void sched_commit(uint32_t now_ms)
 			break;		// the driver is behind: the next poll
 		}
 		sched_t *e = sched_find(x + sp.cbase);
+		bool own_cach = true;
+		uint32_t host_cach = 0;
 
 		if (e != NULL) {
-			bsOutboundPush(&sp.out, xts, &e->b, e->lc_valid ? e->lc : NULL, now_ms);
+			if (e->burst) {
+				bsOutboundPush(&sp.out, xts, &e->b, e->lc_valid ? e->lc : NULL, now_ms);
+			}
+			if (e->cach_valid) {
+				own_cach = false;
+				host_cach = e->cach;
+			}
 			e->used = false;
 			sp.sch_sent++;
 			sp.sched_last_ms = now_ms;
 		}
 		bsOutboundNext(&sp.out, xts, now_ms, &b, &cach, &lc);
+		if (!own_cach) {
+			// The host's CACH in place of ours (AT, TC, LCSS and the payload as it computed them); the fields
+			// follow it for whoever reads them
+			uint8_t tact;
+
+			cach.bits = host_cach;
+			dmrCachDeinterleave(host_cach, &tact, &cach.payload);
+			(void)dmrCachTactDecode(tact, &cach.at, &cach.tc, &cach.lcss);
+		}
 		if (!m->bs_queue_at(x, xts, &b, &cach, lc)) {
 			break;
 		}
@@ -724,18 +774,18 @@ static uint8_t net_burst(int8_t ts, uint8_t control, const uint8_t *frame, dmr_t
 	if (c & MMDVM_DMR_SYNC_DATA) {
 		uint8_t dt = c & 0x0F;
 
-		if (dt == DT_IDLE) {
+		if (dt == DMR_TYPE_IDLE) {
 			return NET_SKIP;	// the outbound makes its own idle bursts
 		}
-		if ((dt == DT_TERMINATOR_WITH_LC) && sp.net_term[k]) {
+		if ((dt == DMR_TYPE_TERMINATOR_LC) && sp.net_term[k]) {
 			return NET_SKIP;	// the second and third terminators
 		}
 		b.kind = dt;
 		b.host_crc = true;		// the host's CRC goes out as sent (CRC_MCU_Control)
-		if ((dt == DT_VOICE_LC_HEADER) || (dt == DT_TERMINATOR_WITH_LC) || (dt == DT_VOICE_PI_HEADER)) {
+		if ((dt == DMR_TYPE_VOICE_LC_HEADER) || (dt == DMR_TYPE_TERMINATOR_LC) || (dt == DMR_TYPE_PI_HEADER)) {
 			dmrFecBptcDecode(frame, b.payload);
 			b.len = 12;
-			if (dt == DT_VOICE_LC_HEADER) {
+			if (dt == DMR_TYPE_VOICE_LC_HEADER) {
 				dmr_emb_rx_reset(&sp.emb_rx[k]);
 				sp.emb_valid[k] = false;
 			}
@@ -938,9 +988,13 @@ static void rx_meta(const dmr_burst_t *b, bool timed, uint32_t t_slot, int8_t la
 	f |= (b->sync == DMR_SYNC_BS) ? SPLIT_META_BS_SYNC : 0u;
 	f |= (label != 0) ? SPLIT_META_EPOCH : 0u;
 	f |= timed ? SPLIT_META_TIMED : 0u;
+	f |= (label != 0) ? SPLIT_META_SLOT : 0u;
 	d[9] = f;
 	put16(d + 10, (uint16_t)b->rssi_dbm);
 	put16(d + 12, sp.meta_seq);
+	if (label != 0) {
+		put16(d + 14, (uint16_t)sp.ep.last_slot);	// the slot slotEpochLabel just placed it in
+	}
 	sp.meta_seq++;
 	mmdvm_send(MMDVM_RFOUNDRY_SPLIT, p, sizeof(p));
 }
@@ -1031,7 +1085,7 @@ static void rx_burst(const dmr_burst_t *b, uint32_t arg, uint32_t now_ms)
 		rx_lost(k);
 	}
 	if (actions & HOTSPOT_UP_HEADER) {
-		hotspot_up_lc(up_cmd(k, false), DT_VOICE_LC_HEADER, lc,
+		hotspot_up_lc(up_cmd(k, false), DMR_TYPE_VOICE_LC_HEADER, lc,
 			      (b->kind == DMR_BURST_VOICE_LC_HEADER) ? b->rssi_dbm : 0);
 		dmr_emb_lc_encode(lc, r->sf_frag);
 	}
@@ -1044,7 +1098,7 @@ static void rx_burst(const dmr_burst_t *b, uint32_t arg, uint32_t now_ms)
 		rx_voice(k, u.ambe, u.seq, b->rssi_dbm, true);
 	}
 	if (actions & HOTSPOT_UP_TERMINATOR) {
-		hotspot_up_lc(up_cmd(k, false), DT_TERMINATOR_WITH_LC, lc, b->rssi_dbm);
+		hotspot_up_lc(up_cmd(k, false), DMR_TYPE_TERMINATOR_LC, lc, b->rssi_dbm);
 		r->alias_pending = false;
 	}
 }
@@ -1312,7 +1366,14 @@ static uint8_t align(const uint8_t *p, uint8_t len, uint8_t *data, uint8_t *res)
 		sp.al_set = true;
 		sp.snap_tries = 0;
 		sp.snap_failed = false;
-		if (snap_start()) {
+		if (parity_ok && (abs32(ph) < SPLIT_SNAP_TOL_US)) {
+			// Already on the grid: numbered, not restarted. A restart costs slots, and on a chip whose restart
+			// delay varies it can land further off than the clock already is
+			sp.cbase = g - c;
+			sp.al_base = true;
+			sp.snapping = false;
+			f |= SPLIT_AL_ALIGNED;
+		} else if (snap_start()) {
 			f |= SPLIT_AL_SNAP;
 		}
 	}
@@ -1327,9 +1388,30 @@ static uint8_t tx_sched(const uint8_t *p, uint8_t len, uint8_t *data, uint8_t *r
 	uint32_t c, t;
 	int8_t ts;
 
-	if ((len != 6 + MMDVM_DMR_FRAME_LEN) || (p[4] != (uint8_t)ts_of_counter(le32(p)))) {
+	bool has_cach = len == 6 + MMDVM_DMR_FRAME_LEN + 3;
+	uint32_t host_cach = 0;
+
+	if (((len != 6 + MMDVM_DMR_FRAME_LEN) && !has_cach) || (p[4] != (uint8_t)ts_of_counter(le32(p)))) {
 		*res = SPLIT_RESULT_INVALID;
 		return 0;
+	}
+	if (has_cach) {
+		// The CACH sent just before the slot: its TC must name the slot (0 TS1)
+		uint8_t tact, at, tc, lcss;
+		uint32_t payload;
+		const uint8_t *q = p + 6 + MMDVM_DMR_FRAME_LEN;
+
+		host_cach = ((uint32_t)q[0] << 16) | ((uint32_t)q[1] << 8) | q[2];
+		dmrCachDeinterleave(host_cach, &tact, &payload);
+		(void)dmrCachTactDecode(tact, &at, &tc, &lcss);
+		if (!(caps() & SPLIT_CAP_SCHED_CACH)) {
+			*res = SPLIT_RESULT_STATE;	// the chip makes its own CACH
+			return 0;
+		}
+		if (tc != (uint8_t)(p[4] - 1u)) {
+			*res = SPLIT_RESULT_INVALID;
+			return 0;
+		}
 	}
 	if ((sp.role != SPLIT_ROLE_TX) || (sp.stream != SPLIT_STREAM_SCHED) || !sp.al_base ||
 	    !slot_clock(&c, &t, &ts) || (ts == 0)) {
@@ -1366,12 +1448,16 @@ static uint8_t tx_sched(const uint8_t *p, uint8_t len, uint8_t *data, uint8_t *r
 		if (e->used && !same) {
 			outcome = SPLIT_SCHED_FULL;
 			sp.sch_refused++;
-		} else if (r == NET_SKIP) {
+		} else if ((r == NET_SKIP) && !has_cach) {
 			e->used = false;	// an idle (or a repeated terminator) for that slot: the stream rules fill it
 			outcome = same ? SPLIT_SCHED_REPLACED : SPLIT_SCHED_QUEUED;
 		} else {
+			// A burst, or an idle that carries the slot's CACH: the slot is the host's
 			e->used = true;
 			e->counter = g;
+			e->burst = r != NET_SKIP;
+			e->cach_valid = has_cach;
+			e->cach = host_cach;
 			e->b = b;
 			e->lc_valid = lc != NULL;
 			if (lc != NULL) {

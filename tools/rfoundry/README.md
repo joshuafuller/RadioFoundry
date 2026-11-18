@@ -39,21 +39,33 @@ rfoundry flash build/dm1801pro/rfoundry_dm1801pro.bin --board dm1801pro --port /
 ```
 
 `rfoundry flash` does, in order: load the image and check it against its manifest (SHA-256, the radio model, the
-ranges); ask a running RadioFoundry radio for its codec over USB; decide the codec mode; tell you to put the radio in its
-bootloader (DM-1701: off, hold PTT and SK1, on) and wait for it; print the plan; erase and write; wait for the radio to
-restart and check what it reports.
+ranges); ask a running RadioFoundry radio for its codec over USB; decide the codec mode; print the plan; on a board with
+`[flash.original_version]`, read the version the radio's original firmware reports while it runs (`origversion.py`,
+nothing on the radio changes; `--no-version-read` skips it); tell you to put the radio in its bootloader (DM-1701: off,
+hold PTT and SK1, on) and wait for it; erase and write; wait for the radio to restart, check what it reports, and store
+the hardware option the version settled over the debug link (HWOPT) unless the radio already holds one
+([web-flasher.md](../../docs/dev/web-flasher.md#the-original-firmware-version)).
 
 ### The codec
 
 | Mode | Erases and writes | When |
 |---|---|---|
-| keep | the firmware's sectors only (DM-1701: within 3-9; MD-380: within 3-7); the codec sectors (DM-1701: 10, 11; MD-380: 8, 10, 11) are never touched | the radio runs RadioFoundry and reports a matching codec (`rfoundry probe`, or the start of `flash`); or `--codec keep` |
+| keep | the firmware's sectors only (DM-1701: within 3-9; MD-380: within 3-10); the codec sectors (DM-1701: 10, 11; MD-380: 11) are never touched | the radio runs RadioFoundry and reports a matching codec (`rfoundry probe`, or the start of `flash`); or `--codec keep` |
 | merge | the firmware's sectors and the codec sectors, with the codec from the copy saved from the radio or from `--stock` | keeping isn't known to be safe and rfoundry has a saved copy or `--stock FILE`; or `--codec merge` |
 
 A radio on a RadioFoundry build from before the codec moved reports `dm1701-v0206-csv` (the new layout's profile is
 `dm1701-v0206-csv-s11`). Its codec code sits in sectors the update overwrites, so rfoundry writes the codec: from a
 copy saved earlier, else from `--stock`. Stock firmware never holds the codec where RadioFoundry keeps it, so `--stock-installed`
 does not make keep safe.
+
+A radio whose codec is where an earlier release kept it (MD-380 `md380-d2032-s11`, MD-9600 `md9600-s11`) has it partly
+in flash this release's firmware uses, so the install moves it, on both routes. Before anything is written rfoundry
+reads the codec back over the debug link (every time, even with a copy saved before), checks it and saves it as
+`codecs/<board>-<codec id>-<chip UID>.bin` in its settings folder, one file per radio; the codec is then merged in where
+it goes now. Where the radio can't be read, only a copy saved from the same radio is used, else `--stock`. With
+neither, or with `--codec keep`, the install is refused and nothing is written. An install that stops halfway is
+finished by running it again (through the bootloader route if the radio now starts in its bootloader); rfoundry says
+which copy or file finishes it ([codec-placement.md](../../docs/spec/codec-placement.md), "Moving to a new layout").
 
 If rfoundry keeps a codec that turns out not to be there, nothing breaks: the firmware checks the codec before it
 uses it, so the radio runs FM only and shows "No codec: voice off". Flash again with `--stock`.
@@ -94,6 +106,10 @@ codec's hashes, saved in its config directory. That copy is written instead of a
 radio's codec can't be kept or checked: the radio doesn't answer over the debug link, is back on stock firmware, or
 reports no codec. `--codec keep` still wins. The copy also finishes an update that stopped halfway, when the radio can
 no longer start RadioFoundry.
+
+That read takes a few minutes, in a `--dry-run` too: rfoundry tries each layout the codec can have in the radio and stops at
+the first that matches. It says so first, then adds a dot for each segment read. There is no percentage, because how many
+layouts it needs isn't known in advance.
 
 ### The DM-1801 Pro
 

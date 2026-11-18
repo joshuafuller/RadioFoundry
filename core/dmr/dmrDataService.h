@@ -21,6 +21,7 @@
 
 #define DMR_DATA_INBOX_SIZE			4
 #define DMR_DATA_SMS_PREAMBLES		2		// preamble CSBKs before an SMS, gives receivers time to sync
+#define DMR_DATA_TX_PREAMBLES		16		// as many before a text or IP packet where it fits (docs/spec/dmr-data.md 12.6)
 #define DMR_DATA_TEXT_MAX			(sizeof(((dmrDataTMS_t *)0)->text) - 1)
 
 typedef struct
@@ -43,7 +44,8 @@ typedef struct
 #define DMR_IPC_PORT				0x80000000u	// rule: a UDP port (source or destination), else a radio ID
 #define DMR_IPC_TRIES_DEFAULT		4			// the first transmission and 3 retries (N_RtryLmt 8 at most)
 #define DMR_IPC_TRIES_MAX			8
-#define DMR_IPC_RESPONSE_MS			1500		// T_RspnsWait: our transmission over to the response
+#define DMR_IPC_RESPONSE_MS			3000		// T_RspnsWait: our transmission over to the response (through a hotspot
+													// the answer comes from the network: dmr-data.md 12.4)
 
 // What the service needs to know about the channel, from its host at every tick
 typedef struct
@@ -123,6 +125,15 @@ typedef struct
 	void (*notify)(const dmrDataEvent_t *event, void *ctx);
 	// Every packet received (to us or not), for the IP gateway when it is ported (may be NULL)
 	void (*packet)(const dmrDataPacket_t *packet, void *ctx);
+	// An NMEA sentence heard on UDP DMR_UDP_PORT_NMEA, whoever it is addressed to (outside passthrough, not our own,
+	// DAID 0 or 2): a position report. The one hook called for packets not to us (may be NULL)
+	void (*position)(uint32_t src, const uint8_t *nmea, int length, uint32_t nowMs, void *ctx);
+	// Our position for LRRP (docs/spec/position.md): false for none, and NULL for none ever. Only asked when the
+	// settings say hasGps
+	bool (*ownPosition)(lrrpPosition_t *position, uint32_t nowMs, void *ctx);
+	// The modem can't send rate 3/4 blocks a receiver decodes (hal_dmr_modem_t.tx_rate34_bad): confirmed IP packets
+	// go at rate 1/2
+	bool noRate34;
 	void *ctx;
 } dmrDataEnv_t;
 
@@ -196,7 +207,10 @@ typedef struct
 	uint32_t ipCnfTimeouts;					// no response within DMR_IPC_RESPONSE_MS
 	uint32_t ipCnfFailed;					// confirmed packets given up after the tries (or refused)
 	uint32_t ipCnfTooLong;					// wanted confirmed but too long for it: sent unconfirmed
-	// Confirmed data to us (CONFIG_DMR_CONFIRMED)
+	uint32_t ipCnfOther;					// responses to us that didn't answer our confirmed packet
+	uint32_t ipCnfOtherLast;				// ... the last: response octet 7:0, its SAP 11:8, ours 15:12, our N(S)
+											// 18:16, its source ours 19, our state 21:20 (3 waiting), confirmed 22
+	// Confirmed data to us
 	uint32_t rxSacksSent;					// selective ACKs asking for bad or lost blocks
 	uint32_t rxNacksSent;					// NACKs (every block good, the CRC-32 not)
 	uint32_t rxConfirmedDuplicates;			// a packet again with the N(S) we last ACKed: ACKed, not passed on
@@ -224,6 +238,9 @@ void dmrDataServicePostEvent(uint8_t kind, uint32_t id);
 void dmrDataServiceSetTxSpacing(uint16_t guardMs, bool chain);
 uint16_t dmrDataServiceTxGuardMs(void);
 bool dmrDataServiceTxChain(void);
+// The block rate of confirmed IP packets (DMR_TYPE_RATE_3_4 by default, DMR_TYPE_RATE_1_2 or DMR_TYPE_RATE_1); not stored
+void dmrDataServiceSetIpConfirmedRate(uint8_t dataType);
+uint8_t dmrDataServiceIpConfirmedRate(void);
 // Every 10-25 ms with the time and the channel
 void dmrDataServiceTick(uint32_t nowMs, const dmrDataChannel_t *channel);
 // A data / control burst heard on our slot (dmr_call_set_data_rx)
@@ -278,13 +295,23 @@ typedef struct
 int dmrDataServiceSendIPChain(bool group, uint32_t dst, uint32_t srcIp, uint32_t dstIp, uint8_t ttl,
 							const dmrDataChainPacket_t *packets, int count);
 bool dmrDataServiceIpBusy(void);
+// The IPv4 destination of the IP packet whose transmission is starting, when it carries one in a full header (off-net:
+// not one addressed by DMR ID); 0 otherwise. A trunked system asks its IP gateway for it (dmr-trunking.md 7.7)
+uint32_t dmrDataServiceTxIpDst(void);
 // The last one's outcome: DMR_REQ_OK (on air; confirmed: acknowledged) or DMR_REQ_FAILED
 uint8_t dmrDataServiceIpResult(void);
+// How many IP packets have failed (on air or unacknowledged), whoever sent them: a change says an item of one's own failed
+uint32_t dmrDataServiceIpFailures(void);
 // Whether an IP packet to dst between these ports goes confirmed under the settings
 bool dmrDataServiceIpWantConfirmed(const dmrDataSettings_t *s, bool group, uint32_t dst, uint8_t protocol, uint16_t srcPort,
 									uint16_t dstPort);
 bool dmrDataServiceCallAlert(uint32_t dst);
 bool dmrDataServiceRadioCheck(uint32_t dst);
+// The answer to the call alert or radio check being sent to dst, learned another way (a trunked system answers a radio
+// check as a status poll): finishes it as if the answer was heard (ok) or never came. Before dmrDataServiceTxDone
+void dmrDataServiceSignalResult(uint32_t dst, bool ok);
+// A text received another way (a trunked system's short data) into the inbox, as a received message
+void dmrDataServiceInboxAdd(uint32_t src, uint32_t dst, bool group, const char *text);
 // format: dmr_sms_format_t (ETSI_IP, ETSI or TMS; DEFAULT: the setting)
 bool dmrDataServiceSendSMSFormat(bool group, uint32_t dst, const char *text, bool ackRequested, uint8_t format);
 // The emergency alarm (CONFIG_DMR_EMERGENCY): the CSBK to dst (group or individual) with the feature set ID fid,
@@ -312,8 +339,8 @@ dmrArsState_t dmrDataServiceArsState(void);
 int dmrDataServiceLrrpTriggerCount(void);
 // When the service next needs a position, in ms (0: now or any time, UINT32_MAX: never): GPS power management
 uint32_t dmrDataServiceLocationNeededInMs(void);
-// The platform's position for LRRP (weak: none). Only asked when the settings say hasGps
-bool dmrDataServiceGetPosition(lrrpPosition_t *position);
+// The position LRRP would answer with now (dmrDataEnv_t.ownPosition; false: "no fix")
+bool dmrDataServiceOwnPosition(lrrpPosition_t *position);
 
 // The inbox: the last DMR_DATA_INBOX_SIZE messages, newest first; a new message replaces the oldest
 int dmrDataServiceMessageCount(void);

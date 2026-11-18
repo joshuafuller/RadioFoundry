@@ -140,7 +140,7 @@ Power-on, in order: 0x00=8000, 0x00=0000, 0x37=9D1F, 0x13=03DF, 0x12=03DB, 0x11=
 DM-32UV (006F, 106B, 2067, 3062 ... F09F); then 0x21=06D8, 0x24=8C7E.
 
 Analog FM mode: 0x47=6042, 0x7E=302E, 0x2B=C000 (and 0x32=0244 on the way back to receive). DMR mode: 0x47=0140,
-0x48=B2F5, 0x7E=B03F, 0x2B=0700, 0x28=0A40. Tone signalling: 0x70=00E0, 0x72=3065, 0x58=00C1, 0x5A=85CF, 0x5B=AB45,
+0x48=B2F5, 0x7E=B03F, 0x2B=0700, 0x28=0A40. Tone signaling: 0x70=00E0, 0x72=3065, 0x58=00C1, 0x5A=85CF, 0x5B=AB45,
 0x5C=5665.
 
 On this radio the analog word 0x47=6042 leaves the FD6818's audio output off. RadioFoundry writes 0x47=0140 in FM as well,
@@ -213,7 +213,7 @@ TX path select: PTA31 + PTB7. RX path select: PTA28 + PTB8. Each is a complement
 (5.2): above 200 MHz the PTB pin high and the PTA pin low, below the reverse; both low = off. So PTA high = VHF side,
 PTB high = UHF side. RadioFoundry receives on both bands (a VHF weather
 station, UHF DMR) and transmits on UHF with this (measured). Separate TX and RX band outputs, unlike the DM-32UV's PA selects
-and LNA supplies. PA drive is DAC channel B (12 bit, the calibration byte times 16), ramped in 40 steps.
+and LNA supplies. PA drive is DAC channel B (12 bit, the calibration byte times 16), ramped in 40 steps on the shared smoothstep APC curve.
 
 **VHF transmit.** What differs for a TX frequency at or below 200 MHz:
 
@@ -243,23 +243,31 @@ paths also the modem's FM_PTT and LAYER2_TXRX_CTRL 0. The FD6818 keeps its state
 The modem is the HR_C7000's, so the slot engine, the interrupt glue and the PCM audio are the DM-32UV's, shared
 (`platform/hrc7000/dmr_glue.c`, `audio_pcm.c`). The board supplies three hooks (`radio_dm1801pro.c`):
 
-- **Per-burst RF switch** (the RF TX interrupt): RX path off, FD6818 0x52 = 028F and 0x30 = C1FE straight from RX,
-  register 0x50 = 3B18, TX path on; after the burst (the engine's first slot tick 20 ms or more after the RF TX
-  interrupt) the drive goes to 0, the TX path goes off, 0x30 = BFF1 straight from TX, and the RX path comes back on.
+- **Per-burst RF switch** (on the shared per-burst RF task, [modem-hrc7000.md](modem-hrc7000.md) 3.1a; untested
+  on the radio since the move: the lead and drive points below were measured with the switch in the RF TX interrupt
+  and the drive from the glue's PA one-shot). 0.6 ms before the lead point: RX path off, FD6818 0x52 = 028F and 0x30 = C1FE straight from RX,
+  register 0x50 = 3B18, TX path on; with the burst's last symbol the drive goes to 0, the TX path goes off, 0x30 = BFF1 straight from TX, and the RX path comes back on.
   The FD6818 never passes through idle (0x30 = 0000, 0200) per burst: through idle the receiver came back about 400 Hz
   off for the first inbound burst after each of ours, which lost most of a call in SFR mode (section 10). 0x37 and
   0x43 keep their values from the RX / TX sequences and the DMR mode set. Against the radio's own handlers (5.4) this
   skips idle and the frequency, 0x47, 0x32 and 0x3F writes (0x3F stays 0 from the DMR mode set), has none of the
-  waits, steps the drive instead of ramping it, and ends the burst on a slot tick instead of the RF RX interrupt.
+  waits and steps the drive instead of ramping it.
   The switch to TX takes 0.46-0.48 ms and back to RX 0.17-0.21 ms with interrupts off (1 us bus, 5.1; with the earlier
   5 us bus about 1.07 and 0.40 ms). The DMR mode set ends with 0x3F = 0000, the radio's DMR receive value.
-- **RF TX interrupt 0.6 ms ahead** (`hrc7000_t.rf_tx_lead` = 6, RF_CONTROL b13:8), not the DM-32UV's 3.1 ms. The
+- **RF switch 0.6 ms ahead of the lead point**: the RF TX interrupt comes 1.1 ms ahead (`hrc7000_t.rf_tx_lead` =
+  11, RF_CONTROL b13:8) and the task waits 0.5 ms, so its wake (up to 0.42 ms) doesn't make the switch late. The
+  drive is keyed 1.0 ms before the first symbol (the key-up rule's PA point, [pa-keyup.md](pa-keyup.md), no boost)
+  and dropped with the last. The output follows the drive about 0.65 ms later at every drive from 300 to the low
+  level's, on both bands, so a boost gains nothing here. On the SDR bench, low level and below: keyed 0.5 ms before,
+  the -3 dB point came 0.15 ms after the first symbol and the first symbol 5-18 dB low; 0.8 ms before, 0.15 ms before
+  it and within 1 dB; 1.0 ms and 1.2 ms before, 0.3 ms before it. The mid and high levels key the same on both bands (-3 dB point 0.25-0.33 ms before, overshoot under 0.5 dB). The sweep below moved the interrupt with
+  the switch in it. The
   inbound burst's payload ends about 2.5 ms before ours starts (the guard times of both slots), so with 3.1 ms the
   switch cut off the end of the inbound burst before each of ours (unverified). In SFR mode a header clipped that way failed its
   RS check, and the radio then lost the whole first voice superframe after it, with the reception itself clean (bit
   errors 0, PHASE_OUT centered): 5 of 5 calls with the last header flagged lost superframe 1, 7 of 7 with it clean
-  kept it (BENCH 2026-10-19, interrupt trace of PR 38). The PA timer runs from the burst, not from this interrupt, so
-  the drive keeps its place against the burst (next item).
+  kept it (BENCH 2026-10-19, interrupt trace of PR 38). The drive then came from the glue's PA one-shot, which ran
+  from the burst, not from this interrupt.
   2.0 ms fixed the headers but still cost inbound voice bits: in a 72-frame SFR repeat the third frame of each
   inbound pair, the one that ends just before our burst, carried most of the errors. A sweep of the lead (BENCH
   2026-10-20, 2-8 calls per value, AMBE bits corrected in 72 inbound frames):
@@ -514,6 +522,18 @@ The power level is one value for the three arrays: 0 = low (0x40 / 0xD0), 1 = mi
 (0x4A / 0xDA, also used for 3). The radio's menu shows the setting as High / Low / Middle and stores 2 / 0 / 1, and the
 drive bytes rise with the level in every segment. RadioFoundry's L / M / H use the same arrays and the same lookup.
 
+RadioFoundry has five power levels: 2, 3 and 4 are L, M and H. Levels 0 and 1 are 37 % and 65 % of the low array's
+drive: drafts, to be set with a wattmeter ([power-calibration.md](../testing/power-calibration.md)). On the SDR bench
+at 445 MHz (DMR bursts, relative to L, drive 1616):
+
+| Drive | 300 | 450 | 600 | 750 | 900 | 1050 | 1200 | 1400 |
+|---|---|---|---|---|---|---|---|---|
+| dB | -22.6 | -13.9 | -10.3 | -7.7 | -6.2 | -4.7 | -3.7 | -1.7 |
+
+At 146 MHz the curve is flatter and not monotonic below drive 450.
+
+M and H gave 3.1 and 3.7 dB over L at 445 MHz, and 3.8 and 5.5 dB over L at 146 MHz.
+
 **L / M / H on air.** At the test frequency (between the 452.5 and 470 MHz points) the radio examined gets a middle drive 1.40
 times the low drive and a high drive 1.46 times the middle, in DAC counts. The bench run used RadioFoundry's older lookup,
 within 9 counts of the radio's own; the lookup is now the radio's. The drive steps are about even, so the 0.4 dB
@@ -723,7 +743,7 @@ receiving and orange flashing while scanning.
 |---|---|
 | SoC, interrupt, timer, GPIO, SSI, UART, ADC, data flash | `platform/hrc7000` |
 | Modem (FM and DMR) | `drivers/modem/hrc7000`; `platform/hrc7000` for the DMR glue and PCM audio |
-| RF chip | `drivers/rf/fd6818`, variant `fd6818_variant_dm1801pro` |
+| RF chip | `drivers/rf/fd6818`, variant `fd6818_variant_b` |
 | Display | `drivers/display/st7567` |
 | Keys | `drivers/input/keymatrix` |
 | Calibration | `drivers/cal/baofeng` |
@@ -741,7 +761,7 @@ there:
 - the display (upright, readable), every key, the data flash (Puya, JEDEC 852018) and the factory calibration
 - the speaker path (amplifier and source pins), the debug link on the programming cable
 - FM receive audio on a weather station, the squelch and the monitor key
-- the squelch closes without a signal (`fd6818_noise`), CTCSS / DCS muting, and receiver battery save (`rx_sleep`: FD6818 idle and the RX path off)
+- the squelch closes without a signal (`fd6818_noise`), CTCSS / DCS muting, and receiver battery save (`rx_sleep`: FD6818 idle and the RX path off; on DMR channels too, `rx_sleep_dmr`)
 - beeps through the prompt FIFO, clean and without pops
 - the accelerometer answers and reads 1 g lying flat
 
@@ -753,6 +773,11 @@ beep) pass. The bandwidth test passes too: the CTCSS 100.0 tone deviates 298 Hz 
 25 kHz (0x3028), a ratio of 2.00 (2026-10-16).
 The MMDVM hotspot on the programming cable works both ways on air (2026-10-16: the four `test_hotspot_on_air` cases).
 The reference trim passes `test_ref_trim.py` (2026-10-30, 5.2).
+
+P25, P25 trunking and NXDN (`CONFIG_P25`, `CONFIG_P25_TRUNK`, `CONFIG_NXDN`, default on) run on the HR_C7000's air
+interface provider and receive tap (`board.air`, `board.baseband`; [modem-hrc7000.md](modem-hrc7000.md) 10), the same
+glue as the DM-32UV's, with one key-up for the whole transmission. Built, not yet run on this radio: the fits say
+untested.
 Not checked on the radio yet: the air band and the broadcast tuner ([airband-and-broadcast.md](airband-and-broadcast.md)). Not in: USB (the radio has none).
 
 Further measurements and notes:
@@ -833,3 +858,7 @@ run, also right after a fresh start. The DM-32UV on the same test: 25 received, 
 terminators). Our bursts: RF on to off 32-33 ms, the RF switch 2.06 ms with interrupts off, the PA keyed 2.1-3.2 ms
 after RF on. Fixed by switching the FD6818 straight between RX and TX per burst (5.6): 28 heard, 24 sent up (section
 10).
+
+## Receive past the rated bands
+
+16-65, 174-400 and 470-740 MHz: the FD6818 band table. Receive only, FM, off by default ([radio-features.md](radio-features.md) 6.2). Not measured on the radio.

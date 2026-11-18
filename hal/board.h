@@ -21,8 +21,12 @@
 #include "hal_cps.h"
 #include "hal_netif.h"
 #include "hal_bcast.h"
+#include "hal_gps.h"
 #include "hal_afsk.h"
+#include "hal_air.h"
+#include "hal_baseband.h"
 #include "hal_rx2.h"
+#include "hal_hwopt.h"
 
 typedef struct {
 	uint32_t lo_hz;
@@ -50,13 +54,29 @@ enum {
 	CAP_BEEP_NOT_ON_AIR = 1u << 8,
 };
 
+// One band's power level names, where a board's levels give different powers per band (board_t.power_bands)
+typedef struct {
+	uint32_t lo_hz, hi_hz;		// the transmit frequencies it covers
+	const char *const *names;	// power_count labels, lowest first
+} board_power_band_t;
+
 typedef struct {
 	const char *name;
 	uint32_t caps;
 	const band_t *bands;
 	uint8_t band_count;
+	// Optional: the last rx_ext_count entries of bands are a receive-only range past the radio's rated bands, in force
+	// only while *rx_ext_on (Settings > Advanced, off by default; docs/spec/radio-features.md). Read the table through
+	// board_band_count(), and never set tx on these entries
+	uint8_t rx_ext_count;
+	bool *rx_ext_on;
 	uint8_t power_count;
 	const char *const *power_names;	// short labels for the status line, power_count entries
+	// Optional: the labels per band, where a level's power differs between bands (a top level of 45 W on one band and
+	// 50 W on the other). Each band has power_count levels, so a stored level is the same step on every band. A
+	// frequency in no entry gets power_names. Read through board_power_name()
+	const board_power_band_t *power_bands;
+	uint8_t power_band_count;
 	uint8_t power_default;
 	const hal_display_t *display;
 	const hal_input_t *input;
@@ -69,6 +89,16 @@ typedef struct {
 	const uint8_t *side_keys;
 	const char *const *side_key_names;
 	uint8_t side_key_count;
+	// Keys the menus need that are also programmable on Home (arrows printed P1, P2): their press and long press do
+	// the user's function on Home and stay the key map's elsewhere. Roles after the side keys (side_key_count + i),
+	// up to KEYASSIGN_HOME_KEYS, and side + home keys up to KEYASSIGN_ROLES. home_key_names as printed on the radio
+	const uint8_t *home_keys;
+	const char *const *home_key_names;
+	uint8_t home_key_count;
+	// Optional: what the screen hints call the keys that send QUICK and CONTEXT on a radio without * and # keys
+	// ("P1", "P2"; docs/spec/ui.md 1); NULL: "*" and "#"
+	const char *quick_label;
+	const char *context_label;
 	const hal_radio_t *radio;
 	const hal_power_t *power;
 	const hal_flash_t *flash;
@@ -80,6 +110,9 @@ typedef struct {
 	bool (*diag_line)(uint8_t i, char *buf, uint8_t len);
 	// Optional: zero the counters behind diag_line (the debug link's RESET_COUNTERS)
 	void (*diag_reset)(void);
+	// Optional: line i of the board's own debug link view keys as "key=value" (the debug link's `board` section adds
+	// the "board." prefix; the keys are listed in the radio's hardware spec); false past the last line
+	bool (*view_line)(uint8_t i, char *buf, uint8_t len);
 	// Optional: chip identity, raw memory reads, reboot modes (hal_system.h)
 	const hal_system_t *system;
 	// Battery warnings (the radio core's battery monitor): below battery_low_mv the radio warns, below
@@ -97,13 +130,13 @@ typedef struct {
 	// Optional: APRS AFSK through the FM transmitter, and received audio for the demodulator (hal_afsk.h); NULL when
 	// not built or the radio can't
 	const hal_afsk_t *afsk;
-	// Optional, with CAP_GPS: whether the GPS module is there, for radios sold with and without one on the same board
-	// (a G model beside the plain one): true once the module has been heard. NULL = CAP_GPS alone says
-	bool (*gps_present)(void);
-	// Optional, with CAP_GPS: Settings > Location > GPS. Power the module and its receive path on or off now. Called
-	// with the stored value at start-up and on each change; the module is still probed at start-up whatever the
-	// setting says, so board_has_gps() is known. NULL = the module is always on
-	void (*gps_enable)(bool on);
+	// Optional: the air interface of the board's modem chip, for digital modes the core frames itself (hal_air.h);
+	// NULL when not built or the chip has no such mode
+	const hal_air_t *air;
+	// Optional: sample taps on the discriminator and the modulator (hal_baseband.h); NULL when the board has none
+	const hal_baseband_t *baseband;
+	// Optional, with CAP_GPS: the GPS receiver (hal_gps.h); NULL when not built
+	const hal_gps_t *gps;
 	// Optional: a second receiver, so dual watch hears both channels at once (hal_rx2.h); NULL on one-receiver radios
 	const hal_rx2_t *rx2;
 	// Optional: bench access to the radio's RF chip registers (the debug link's CHIP_REG, docs/spec/debuglink.md
@@ -111,9 +144,38 @@ typedef struct {
 	// Writes val when write, then sets *val to the register as read back (a write-only register: the value written).
 	// False for a chip, page or register it doesn't offer. NULL: none
 	bool (*chip_reg)(uint8_t chip, uint8_t page, uint8_t reg, uint32_t *val, bool write);
+
+	// Optional: hardware options a person states because software can't read them (hal_hwopt.h): Settings >
+	// Advanced > Hardware and the debug link's HWOPT. NULL / 0 = none. Only in a build whose board.mk says
+	// BOARD_HWOPTS := y (RFOUNDRY_HWOPTS, hal_hwopt.h)
+#if RFOUNDRY_HWOPTS
+	const hal_hwopt_t *hwopts;
+	uint8_t hwopt_count;
+#endif
 } board_t;
 
 extern const board_t board;
+
+// The entries of board.bands in force now: the receive-only extension counts only while it is on
+static inline uint8_t board_band_count(void)
+{
+#if defined(CONFIG_RX_EXT) && !CONFIG_RX_EXT
+	return board.band_count;	// a build without the switch: the table as it is, no test on every band lookup
+#endif
+	return (board.rx_ext_count != 0u && !*board.rx_ext_on) ? (uint8_t)(board.band_count - board.rx_ext_count)
+							       : board.band_count;
+}
+
+static inline void board_rx_ext_set(bool on)
+{
+#if defined(CONFIG_RX_EXT) && !CONFIG_RX_EXT
+	(void)on;
+	return;
+#endif
+	if (board.rx_ext_count != 0u) {
+		*board.rx_ext_on = on;
+	}
+}
 
 // The radio runs from a battery (every handheld). False for a mobile on a fixed supply (CAP_NO_BATTERY)
 static inline bool board_has_battery(void)
@@ -124,9 +186,53 @@ static inline bool board_has_battery(void)
 // hz is in one of the radio's bands (board.bands), and one that may transmit when need_tx
 static inline bool board_in_band(uint32_t hz, bool need_tx)
 {
-	for (uint8_t i = 0; i < board.band_count; i++) {
+	for (uint8_t i = 0; i < board_band_count(); i++) {
 		const band_t *b = &board.bands[i];
 		if (hz >= b->lo_hz && hz <= b->hi_hz && (b->tx || !need_tx)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+// The board's hardware options: how many (0 on a board without, a constant 0 in a build without: the code that walks
+// them folds away), and option i < board_hwopt_count()
+static inline uint8_t board_hwopt_count(void)
+{
+#if RFOUNDRY_HWOPTS
+	return board.hwopts != NULL ? board.hwopt_count : 0u;
+#else
+	return 0u;
+#endif
+}
+
+static inline const hal_hwopt_t *board_hwopt(uint8_t i)
+{
+#if RFOUNDRY_HWOPTS
+	return &board.hwopts[i];
+#else
+	(void)i;
+	return NULL;
+#endif
+}
+
+// The first hardware option a person still has to act on (HWOPT_ST_ASK or HWOPT_ST_RESTART, hal_hwopt.h), or NULL
+static inline const hal_hwopt_t *board_hwopt_pending(void)
+{
+	for (uint8_t i = 0; i < board_hwopt_count(); i++) {
+		uint8_t st = hwopt_state(board_hwopt(i));
+		if (st == HWOPT_ST_ASK || st == HWOPT_ST_RESTART) {
+			return board_hwopt(i);
+		}
+	}
+	return NULL;
+}
+
+// Some band may transmit: false on a radio whose transmitter isn't written yet
+static inline bool board_can_tx(void)
+{
+	for (uint8_t i = 0; i < board_band_count(); i++) {
+		if (board.bands[i].tx) {
 			return true;
 		}
 	}
@@ -136,7 +242,7 @@ static inline bool board_in_band(uint32_t hz, bool need_tx)
 // The transmit band hz is in (an index into board.bands), or -1
 static inline int board_tx_band(uint32_t hz)
 {
-	for (uint8_t i = 0; i < board.band_count; i++) {
+	for (uint8_t i = 0; i < board_band_count(); i++) {
 		const band_t *b = &board.bands[i];
 		if (b->tx && hz >= b->lo_hz && hz <= b->hi_hz) {
 			return i;
@@ -147,6 +253,21 @@ static inline int board_tx_band(uint32_t hz)
 
 // A repeater offset carries to a new RX frequency only within one transmit band: RX before and after and the TX it
 // gives all in it (a UHF offset means nothing on VHF, even where TX would land in a band)
+// A power level's label at a transmit frequency (power_bands, else power_names); "?" for no such level
+static inline const char *board_power_name(uint8_t level, uint32_t tx_hz)
+{
+	if (level >= board.power_count) {
+		return "?";
+	}
+	for (uint8_t i = 0; i < board.power_band_count; i++) {
+		const board_power_band_t *b = &board.power_bands[i];
+		if (tx_hz >= b->lo_hz && tx_hz <= b->hi_hz) {
+			return b->names[level];
+		}
+	}
+	return board.power_names != NULL ? board.power_names[level] : "?";
+}
+
 static inline bool board_offset_carries(uint32_t old_rx, uint32_t new_rx, uint32_t new_tx)
 {
 	int band = board_tx_band(new_rx);
@@ -166,15 +287,41 @@ static inline board_volts_t board_volts(void)
 // Settings > Location > GPS took effect (a board without the hook has nothing to switch)
 static inline void board_gps_enable(bool on)
 {
-	if (board.gps_enable != NULL) {
-		board.gps_enable(on);
+	if (board.gps != NULL && board.gps->enable != NULL) {
+		board.gps->enable(on);
 	}
 }
 
-// The radio has a GPS receiver now: CAP_GPS and, where the board detects the module at run time, its answer
+// The radio has a GPS receiver now: CAP_GPS with the driver built and, where the board detects the module at run time,
+// its answer
 static inline bool board_has_gps(void)
 {
-	return (board.caps & CAP_GPS) != 0 && (board.gps_present == NULL || board.gps_present());
+	return (board.caps & CAP_GPS) != 0 && board.gps != NULL &&
+	       (board.gps->present == NULL || board.gps->present());
+}
+
+// The GPS module is powered and listened to now (a board that doesn't say: whenever it has one)
+static inline bool board_gps_running(void)
+{
+	if (!board_has_gps()) {
+		return false;
+	}
+	return board.gps->running == NULL || board.gps->running();
+}
+
+// The GPS receive counters (zero when the board doesn't count) and the rate listened at (0: unknown or given up)
+static inline void board_gps_counts(uint32_t *good, uint32_t *bad, uint32_t *bytes, uint32_t *baud)
+{
+	*good = *bad = *bytes = *baud = 0;
+	if (board.gps == NULL) {
+		return;
+	}
+	if (board.gps->counts != NULL) {
+		board.gps->counts(good, bad, bytes);
+	}
+	if (board.gps->baud != NULL) {
+		*baud = board.gps->baud();
+	}
 }
 
 // Clocks, pins, anything that must happen before the RTOS starts. Called from the platform's main()
