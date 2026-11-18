@@ -30,7 +30,8 @@ class FlashImageTests(unittest.TestCase):
             + [f"-I{ROOT / d}" for d in ("boards/vhost", "platform/host", "core", "hal",
                                          "boards/md380", "platform/stm32f4")]
             + [str(ROOT / p) for p in ("boards/md380/emu/flashimg_check.c", "boards/vhost/flash_vhost.c",
-                                        "core/codeplug/codeplug.c", "core/settings/settings.c",
+                                        "core/codeplug/codeplug.c", "core/codeplug/codeplug_kv.c",
+                                        "core/codeplug/codeplug_tag.c", "core/settings/settings.c",
                                         "core/storage/storage.c", "boards/md380/calibration_md380.c")]
             + ["-o", str(cls.checker)], check=True,
         )

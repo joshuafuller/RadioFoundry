@@ -657,8 +657,13 @@ def main(argv=None, control=None):
                 print(f"[{clock.host_elapsed():6.1f} s] key {a.key} up at radio {now:.3f} s; {shot['scans_low']} key "
                       f"scan steps saw it")
 
+        want_dmr = bool(modem and (a.dmr_send or a.air_in))
+
+        def dmr_finished():
+            return not want_dmr or (dmr is not None and "done" in dmr)
+
         def finished():
-            return ((not a.get_version or version) and shot["phase"] == "done" and (not dmr or "done" in dmr)
+            return ((not a.get_version or version) and shot["phase"] == "done" and dmr_finished()
                     and not any(t.is_alive() for _, t, _ in probes))
 
         stops = kicks = watches = 0
@@ -670,7 +675,7 @@ def main(argv=None, control=None):
                 break
             if want_panel:
                 screen_step()
-            if (a.get_version or want_panel or dmr) and finished():
+            if (a.get_version or want_panel or want_dmr) and finished():
                 break
             if log and stops % 1000 == 0 and os.path.exists(log) and os.path.getsize(log) > a.log_max_mb << 20:
                 print(f"stop: the -d log passed {a.log_max_mb} MB")
@@ -827,7 +832,7 @@ def main(argv=None, control=None):
                         ask_version()
                     else:
                         threading.Thread(target=ask_version, daemon=True).start()
-                if modem and (a.dmr_send or a.air_in) and dmr is None:
+                if want_dmr and dmr is None:
                     from hrc7000_modem import send_driver
                     dmr = {}
                     threading.Thread(target=send_driver, daemon=True, args=(
@@ -861,8 +866,6 @@ def main(argv=None, control=None):
             if soc:
                 inject(g)
             resume(g)
-            if version and not want_panel:
-                break
         el = clock.host_elapsed()
         print(f"clock: {clock.now:.3f} s of radio time in {el:.2f} s of host time (scale {clock.now / el:.3f}; the CPU "
               f"ran {clock.ran:.2f} s of it, asked scale {a.scale}); {stops} stops ({stops / el:.0f} a second), "
@@ -927,7 +930,8 @@ def main(argv=None, control=None):
                         print(f"dmr-send {k}: {dmr[k]}")
                 if a.dmr_send and not modem.sent:
                     print("FAIL: --dmr-send: the modem sent no burst")
-        screen_ok = not (a.dmr_send and modem and not modem.sent)
+        dmr_ok = dmr_finished() and not (dmr and "error" in dmr) and not (a.dmr_send and modem and not modem.sent)
+        screen_ok = True
         if want_panel:
             for label, t, res in probes:
                 t.join(5.0)
@@ -962,7 +966,7 @@ def main(argv=None, control=None):
                 ok = want in re.sub(r"[^a-z0-9]", "", str(version.get("board", "")).lower())
         else:
             ok = True
-        return 0 if ok and screen_ok else 1
+        return 0 if ok and screen_ok and dmr_ok else 1
     finally:
         if control:
             control.done()

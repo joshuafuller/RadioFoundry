@@ -281,7 +281,8 @@ class FlashTest(unittest.TestCase):
 class QemuBootTest(unittest.TestCase):
     def test_firmware_call_alert_comes_out_as_an_air_record(self):
         out = subprocess.run([sys.executable, os.path.join(HERE, "hrc7000_emu.py"), "--board", BOARD, "--boot",
-                              "--flash", "dmr-pair", "--modem", "--dmr-send", "call_alert:3100002", "--timeout", "90"],
+                              "--get-version", "--flash", "dmr-pair", "--modem", "--dmr-send", "call_alert:3100002",
+                              "--timeout", "90"],
                              capture_output=True, text=True, timeout=150).stdout
         self.assertIn("kind=3 (csbk) cc=1", out, out[-3000:])
         self.assertIn("dst 3100002 src 3100001 crc good", out)

@@ -17,6 +17,8 @@ SOURCES = (
     "boards/vhost/storage_vhost.c",
     "boards/vhost/flash_vhost.c",
     "core/codeplug/codeplug.c",
+    "core/codeplug/codeplug_kv.c",
+    "core/codeplug/codeplug_tag.c",
     "core/settings/settings.c",
     "core/storage/storage.c",
 )
