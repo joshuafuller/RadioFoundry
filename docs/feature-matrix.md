@@ -58,7 +58,7 @@ is `tools/bringup.py list --radio <id>`.
 | `dmr_data_privacy` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded |
 | `dmr_talker_alias` | not recorded | pass (seed) | not recorded | not recorded | not recorded | not recorded | pass, needs re-run | pass, needs re-run | not recorded |
 | `dmr_gps` | not recorded | pass (seed) | not recorded | not recorded | not recorded | not recorded | pass, needs re-run | off | not recorded |
-| `dmr_emergency` | not recorded | pass (seed) | not recorded | not recorded | not recorded | not recorded | pass, needs re-run | pass, needs re-run | not recorded |
+| `dmr_emergency` | not recorded | pass (seed) | not recorded | not recorded | not recorded | not recorded | pass | pass | not recorded |
 | `dmr_roaming` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | pass, needs re-run | pass, needs re-run | not recorded |
 | `dmr_trunk` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded |
 | `dmr_trunk_tx` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded |
@@ -92,28 +92,28 @@ is `tools/bringup.py list --radio <id>`.
 | `dmr_lrrp` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | pass, needs re-run | off | not recorded |
 | `dmr_udp_compress` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | pass, needs re-run | partial, needs re-run | not recorded |
 | `dmr_confirmed` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | pass | partial | not recorded |
-| `sfr` | not recorded | pass (seed) | pass (seed) | not recorded | ✕ | not recorded | ✕ | partial, needs re-run | not recorded |
+| `sfr` | not recorded | pass (seed) | pass (seed) | not recorded | ✕ | not recorded | ✕ | partial | not recorded |
 | `sfr_dualpath_rx` | not recorded | not recorded | not recorded | not recorded | ✕ | not recorded | not recorded | not recorded | not recorded |
 | `sfr_cwid` | not recorded | not recorded | not recorded | not recorded | ✕ | not recorded | pass, needs re-run | pass, needs re-run | not recorded |
 | `aprs` | pass (seed) | not recorded | not recorded | not recorded | not recorded | not recorded | pass, needs re-run | partial, needs re-run | not recorded |
 | `aprs_afsk` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | partial, needs re-run | not recorded |
 | `aprs_dmr` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | partial, needs re-run | not recorded |
-| `aprs_rx` | pass (seed) | not recorded | not recorded | not written | not written | not recorded | pass, needs re-run | partial, needs re-run | not recorded |
+| `aprs_rx` | pass (seed) | not recorded | not recorded | not written | not written | not recorded | pass | partial | not recorded |
 | `aprs_igate` | not recorded | off | not recorded | not written | not written | off | pass, needs re-run | partial, needs re-run | not recorded |
 | `gps_sky` | not recorded | not recorded | ✕ | not recorded | not recorded | not recorded | not recorded | ✕ | ✕ |
 | `usb` | ✕ | pass (seed) | ✕ | ✕ | not recorded | not recorded | not recorded | ✕ | ✕ |
 | `hostlink` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded |
 | `hotspot` | pass (seed) | pass (seed) | pass (seed) | pass (seed) | not recorded | not recorded | pass, needs re-run | off | not recorded |
 | `split_duplex` | pass (seed) | pass (seed) | pass (seed) | not written | not written | not recorded | partial, needs re-run | not written | not recorded |
-| `debuglink` | pass (seed) | pass (seed) | pass (seed) | pass (seed) | pass (seed) | not recorded | pass, needs re-run | partial, needs re-run | pass, needs re-run |
-| `task_stacks` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | pass, needs re-run | pass, needs re-run | pass, needs re-run |
+| `debuglink` | pass (seed) | pass (seed) | pass (seed) | pass (seed) | pass (seed) | not recorded | pass | partial | pass |
+| `task_stacks` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | pass | pass | pass |
 | `cps_openfw` | not recorded | pass (seed) | not recorded | pass (seed) | pass (seed) | not recorded | pass, needs re-run | pass, needs re-run | not recorded |
 | `cps_fast` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded |
 | `stub_entry` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded |
-| `crash_log` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | pass, needs re-run | pass, needs re-run | not recorded |
+| `crash_log` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | pass | pass | not recorded |
 | `crash_screen` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | ✕ | not recorded |
 | `crash_report` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | ✕ | not recorded |
-| `watchdog` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | pass, needs re-run | pass, needs re-run | not recorded |
+| `watchdog` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | pass | pass | not recorded |
 | `support_info` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded |
 | `fault_trace` | not recorded | ✕ | not recorded | not recorded | ✕ | ✕ | ✕ | not recorded | not recorded |
 | `usb_network` | ✕ | pass (seed) | ✕ | ✕ | not recorded | not recorded | pass, needs re-run | ✕ | ✕ |
@@ -134,13 +134,13 @@ is `tools/bringup.py list --radio <id>`.
 | `mdns` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | pass, needs re-run | off | not recorded |
 | `tftp` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | pass, needs re-run | off | not recorded |
 | `tftp_iddb` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | off | not recorded |
-| `dmr_iddb` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | pass, needs re-run | ✕ | not recorded |
+| `dmr_iddb` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | pass | ✕ | not recorded |
 | `iddb_compact` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | pass, needs re-run | pass, needs re-run | not recorded |
 | `snmp` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | pass, needs re-run | off | not recorded |
 | `net_ppp` | not recorded | off | pass (seed) | pass (seed) | off | off | off | off | not recorded |
 | `ui_navigation` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | pass, needs re-run | pass, needs re-run | not recorded |
 | `key_lock` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | pass, needs re-run | ✕ | not recorded |
-| `channel_knob` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | pass, needs re-run | pass, needs re-run | not recorded |
+| `channel_knob` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | pass | pass | not recorded |
 | `ui_settings` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | partial, needs re-run | ✕ | not recorded |
 | `diag` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | pass, needs re-run | ✕ | not recorded |
 | `backlight_test` | off | off | off | off | off | off | off | ✕ | off |

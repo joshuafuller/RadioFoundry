@@ -20,17 +20,16 @@
 #define PIN_SK1                  0x29u
 #define PIN_SK2                  0x25u
 
-// The tone path as stock drives it (hardware-dm36.md 9.1, from the stock image): 0x2F high while a tone plays and low
-// when FM receive audio opens, the other way round from the shared default, so low gives the speaker the FD6818's audio
-// (the switch's nets are not traced). 0x2E by the mode only, FM low and DMR high. In FM the FD6818's AF output is muted
-// before a tone and stays muted until the squelch opens; without the mute a key beep played loud static (2026-11-16)
+// On the DM-36, PTB15 is high during a tone and low for direct FM receive (hardware-dm36.md 9.1).
+// PTB14 follows the mode: low for FM, high for DMR. A key beep played loud static on the handset speaker
+// unless the FD6818 output was muted before the tone and kept muted until the squelch opened.
 #undef SPK_SOURCE_FD6818
 #define SPK_SOURCE_FD6818        0
 #define BOARD_PATH_PIN_BY_MODE   1
 #define BOARD_FM_AF_GATED        1
 
 // DMR key-up: the PA comes up from its own drive without a boost, as stock writes one drive (hardware-dm36.md 8.3).
-// UHF measured on the SDR (2026-11-16, lowest level): 0.4 dB overshoot, up 0.86 ms before the first symbol, where the
+// At the lowest UHF power setting the SDR measured 0.4 dB overshoot, up 0.86 ms before the first symbol, where the
 // shared boost gave 7.9 dB. VHF not measured yet
 #define BOARD_KEYUP_VHF          1, 900
 #define BOARD_KEYUP_UHF          1, 900
@@ -44,7 +43,7 @@
 #define BAT_RAW_PER_10V          1030u
 
 // The volume/power knob on ADC0 (hardware-dm36.md 9.5): its raw reading at 0, 1/8, ... 8/8 of the travel, from a
-// two-slope (audio) taper fitted by least squares to 18 even sweeps on the owner's radio (2026-11-16): the knee at
+// two-slope (audio) taper fitted by least squares to 18 even sweeps of the DM-36 potentiometer: the knee at
 // 51.8 % of travel and raw 118, the top 676. The top point is a little under it so the end always reads 100 %
 #define KNOB_CURVE { 0, 29, 57, 86, 114, 243, 387, 532, 672 }
 

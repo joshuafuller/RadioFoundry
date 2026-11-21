@@ -136,6 +136,9 @@ static bool afsk_tx;		// APRS tones play through the prompt FIFO into the modula
 #define BOARD_FM_AF_GATED	0
 #endif
 
+// A PCM callback may write the FM output only after RF setup has finished.
+static volatile bool fm_af_ready;
+
 // The speaker amplifier is on while any user wants it
 #define AMP_RADIO	0x01u	// receive audio
 #define AMP_PCM		0x02u	// speaker PCM
@@ -395,8 +398,14 @@ static void init(void)
 	hrc_pin_out(PIN_FD_CS, true);
 	hrc_pin_out(PIN_FD_CLK, false);
 	rfbus_3w_attach(&fd_bus, &fd_bus_pins);
+	if (BOARD_FM_AF_GATED) {
+		fm_af_ready = false;
+	}
 	rf_detect();
 	mode = RADIO_MODE_FM;
+	if (BOARD_FM_AF_GATED) {
+		fm_af_ready = true;
+	}
 
 	hrc_dmr_board_init(&modem, &dmr_board);
 	hrc_audio_pcm_attach(&modem, dm32_speaker_pcm);
@@ -430,6 +439,9 @@ static void set_mode(radio_mode_t m)
 	if (m == mode) {
 		return;
 	}
+	if (BOARD_FM_AF_GATED) {
+		fm_af_ready = false;	// the mode table owns 0x47 even if a beep ends during the switch
+	}
 	if (m == RADIO_MODE_DMR && CONFIG_DMR) {
 		fd6818_set_mode(&fd, FD6818_MODE_DMR);	// the FM channel's receive tone off (0x51 would key it on the 4FSK)
 		css_words(false);
@@ -444,6 +456,9 @@ static void set_mode(radio_mode_t m)
 		fd6818_set_mode(&fd, FD6818_MODE_FM);
 		hrc7000_fm_idle(&modem);
 		mode = RADIO_MODE_FM;
+		if (BOARD_FM_AF_GATED) {
+			fm_af_ready = true;
+		}
 	}
 #ifdef BOARD_VOLUME_HEADER
 	vol_apply();		// the mode tables wrote 0x48 back to 0xBBBF
@@ -753,7 +768,7 @@ static void speaker_source(void)
 		.fm = mode == RADIO_MODE_FM, .transmitting = transmitting, .pcm = pcm_on, .rx_audio = rx_audio,
 		.aprs_listen = aprs_listen,
 	}, BOARD_PATH_PIN_BY_MODE, BOARD_FM_AF_GATED);
-	bool gate = BOARD_FM_AF_GATED && mode == RADIO_MODE_FM && !transmitting && fd.bus != NULL;
+	bool gate = BOARD_FM_AF_GATED && fm_af_ready && !transmitting && fd.bus != NULL;
 	if (gate && !r.af_on) {
 		fd6818_af_mute(&fd, true);
 	}

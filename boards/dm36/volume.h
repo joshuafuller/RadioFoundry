@@ -4,7 +4,7 @@
 #define BOARD_VOLUME_H
 #include "radio/radio.h"	// RADIO_VOLUME_MAX
 
-// PTB15 routes the RF chip to either the speaker or the APRS decoder.
+// The speaker uses fine gain at DAC 1 for quiet low steps. APRS keeps the DAC curve its decoder was tuned on.
 static uint16_t board_volume_fm(unsigned step, bool aprs)
 {
 	unsigned s = step > RADIO_VOLUME_MAX ? RADIO_VOLUME_MAX : step;
